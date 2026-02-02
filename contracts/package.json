@@ -1,0 +1,24 @@
+{
+  "name": "besu-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for Besu network",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/besu/1-deploy-all.js --network besu",
+    "deploy:avalanche": "hardhat run scripts/avalanche/deploy-avalanche.js --network fuji",
+    "create-users": "hardhat run scripts/besu/2-create-users.js --network besu",
+    "setup-users": "hardhat run scripts/besu/3-setup-users.js --network besu",
+    "verify": "hardhat run scripts/besu/4-verify-all.js --network besu"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "ethers": "^6.4.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^17.2.3"
+  }
+}

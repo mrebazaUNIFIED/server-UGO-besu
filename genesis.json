@@ -1,0 +1,24 @@
+{
+  "config" : {
+    "chainId" : 12345,
+    "berlinBlock" : 0,
+    "qbft" : {
+      "blockperiodseconds" : 5,
+      "epochlength" : 30000,
+      "requesttimeoutseconds" : 10
+    }
+  },
+  "nonce" : "0x0",
+  "timestamp" : "0x58ee40ba",
+  "gasLimit" : "0x1c9c380",
+  "difficulty" : "0x1",
+  "mixHash" : "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
+  "coinbase" : "0x0000000000000000000000000000000000000000",
+  "alloc" : {
+    "fe3b557e8fb62b89f4916b721be55ceb828dbd73" : {
+      "comment" : "FCI Deployer Account (Funder)",
+      "balance" : "0x200000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "extraData" : "0xf87aa00000000000000000000000000000000000000000000000000000000000000000f854946189e82021668b868cfc4ffc21e7669b3156add9949f214c60aaeed8c0b47965b1b359181fd37886f4949a34dc6594e283278427a4f1a94fc7336dc3ec71947f47738f4edf27690bbc6d3d945efe1e7aba1e86c080c0"
+}

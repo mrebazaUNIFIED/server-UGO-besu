@@ -1,0 +1,73 @@
+besu-network-project/
+├── README.md                  # Documentación: Instrucciones de setup, roles, comandos
+├── docker-compose.yml         # Para deploy local/PoC (arranca todos nodos)
+├── genesis.json               # Archivo genesis compartido (QBFT, chain ID 12345, permissioning inicial)
+├── contracts/                 # Contratos Solidity
+│   ├── src/                   # Código fuente
+│   │   ├── LoanNFT.sol        # ERC-721 para préstamos (FCI)
+│   │   └── USFCI.sol          # ERC-20 para stablecoin (Sunwest)
+│   ├── migrations/            # Scripts de deploy (usando Truffle/Hardhat)
+│   ├── test/                  # Tests unitarios (e.g., Chai/Mocha)
+│   └── package.json           # Dependencias (hardhat, openzeppelin-contracts)
+├── configs/                   # Configuraciones por nodo/org
+│   ├── fci/                   # Para FCI
+│   │   ├── bootnode.toml      # Config Bootnode
+│   │   ├── validator1.toml    # Config Validador 1
+│   │   ├── validator2.toml    # Config Validador 2
+│   │   ├── rpc1.toml          # Config RPC 1
+│   │   ├── rpc2.toml          # Config RPC 2
+│   │   └── tessera/           # Claves y configs Tessera para privacidad
+│   └── sunwest/               # Para Sunwest
+│       ├── validator1.toml
+│       ├── validator2.toml
+│       ├── rpc.toml
+│       └── tessera/
+├── scripts/                   # Scripts Bash/Python para automatización
+│   ├── start-network.sh       # Inicia toda la red
+│   ├── deploy-contracts.sh    # Deploya contratos via Web3.js
+│   ├── generate-keys.sh       # Genera enodes/claves
+│   └── monitor.sh             # Setup Prometheus
+├── firefly/                   # Para bridge a Avalanche (post-PoC)
+│   └── config.yaml            # Config FireFly stack
+└── .env                       # Variables sensibles (e.g., wallets, puertos)
+
+
+======================================
+Genesis Regenerado Exitosamente
+======================================\033[0m
+
+Cuentas Pre-Fondeadas Disponibles:
+
+1. FCI Deployer:
+   Address:     0xfe3b557e8fb62b89f4916b721be55ceb828dbd73
+   Private Key: 8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63
+
+2. FCI Secondary:
+   Address:     0x627306090abaB3A6e1400e9345bC60c78a8BEf57
+   Private Key: c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3
+
+3. Sunwest Deployer:
+   Address:     0xf17f52151EbEF6C7334FAD080c5704D77216b732
+   Private Key: ae6ae8e5ccbfb04590405997ee2d52d2b330726137b875053c36d94e974d162f
+
+4. Sunwest Secondary:
+   Address:     0xC5fdf4076b8F3A5357c5E395ab970B5B54098Fef
+   Private Key: 0dbbe8e4ae425a6d2687f1a7e3ba17bc98c673636790f1b8ad91193c05875ef1
+
+Agregar a tu archivo .env:
+
+# FCI Deployer Account
+FCI_DEPLOYER_ADDRESS=0xfe3b557e8fb62b89f4916b721be55ceb828dbd73
+FCI_DEPLOYER_PRIVATE_KEY=8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63
+
+# Sunwest Deployer Account
+SUNWEST_DEPLOYER_ADDRESS=0xf17f52151EbEF6C7334FAD080c5704D77216b732
+SUNWEST_DEPLOYER_PRIVATE_KEY=ae6ae8e5ccbfb04590405997ee2d52d2b330726137b875053c36d94e974d162f
+
+Próximos pasos:
+  1. Actualizar .env con las claves de arriba
+  2. Iniciar la red: ./scripts/start-network.sh
+  3. Verificar balances: ./scripts/create-accounts.sh
+  4. Deploy contratos: cd contracts && npm run deploy
+
+Backup anterior guardado en: backup-20251230-152910/

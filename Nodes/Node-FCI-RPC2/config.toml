@@ -1,0 +1,60 @@
+# Configuración para Nodo RPC 2 de FCI
+# Rol: API secundaria/backup para aplicaciones FCI (no valida bloques)
+
+data-path="data"
+genesis-file="../../genesis.json"
+profile="ENTERPRISE"
+
+# Configuración P2P
+p2p-enabled=true
+p2p-host="0.0.0.0"
+p2p-port=30307
+max-peers=25
+
+# Bootnodes
+bootnodes=["enode://fe3c096785d74b04bab1c19efb26f2cf5ff246d2a2ea0fe0e1ea178bb951e4477bb6dfc8e6a298f9a09c0aaf3f9a3c8db95ab6ade3e75b546afdb1949e003acd@127.0.0.1:30303"]
+
+# Discovery
+discovery-enabled=true
+
+# RPC HTTP (secundario/backup)
+rpc-http-enabled=true
+rpc-http-host="0.0.0.0"
+rpc-http-port=8057
+rpc-http-api=["ETH","NET","WEB3","TXPOOL","TRACE"]
+rpc-http-cors-origins=["*"]
+rpc-http-max-active-connections=80
+
+# RPC WebSocket
+rpc-ws-enabled=true
+rpc-ws-host="0.0.0.0"
+rpc-ws-port=8058
+rpc-ws-api=["ETH","NET","WEB3"]
+rpc-ws-max-active-connections=80
+
+# Logging
+logging="INFO"
+
+# Host allowlist
+host-allowlist=["*"]
+
+# Métricas
+metrics-enabled=true
+metrics-host="0.0.0.0"
+metrics-port=9549
+
+# NO minería (no es validador)
+miner-enabled=false
+
+# Sync mode
+sync-mode="FULL"
+
+# Network ID
+network-id=12345
+
+
+# Gas price
+min-gas-price=0
+
+# API adicionales
+revert-reason-enabled=true

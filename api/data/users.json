@@ -1,0 +1,46 @@
+{
+  "a1b2c3d4-e5f6-4789-1011-121314151617": {
+    "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
+    "name": "Sunwest",
+    "organization": "Sunwest",
+    "role": "admin",
+    "address": "0x26A160F53602D738a9D067502ff42F7887fc024C",
+    "privateKey": "0x7ee01cac35623b7127ffb1f7f3ae010dd68100ed7531b6508949dd13107dbfd7",
+    "mnemonic": "fruit bind trust plastic night solid recycle better polar divert faculty bench",
+    "initialBalance": 0,
+    "createdAt": "2026-02-02T09:18:59.038Z"
+  },
+  "b2c3d4e5-f6a7-4890-1213-141516171819": {
+    "userId": "b2c3d4e5-f6a7-4890-1213-141516171819",
+    "name": "Mike",
+    "organization": "FCI",
+    "role": "operator",
+    "address": "0xf495C09b102cFD57e2d8EdC55edd1839324D95e8",
+    "privateKey": "0xc22beeb8b6e99cb97be70bc4da708d0e58c602993c6f19667eee5d9f09a1ed35",
+    "mnemonic": "hurt travel bind problem blossom crazy idle peasant love giraffe junk piece",
+    "initialBalance": 0,
+    "createdAt": "2026-02-02T09:19:19.184Z"
+  },
+  "c3d4e5f6-a7b8-4901-2345-678910111213": {
+    "userId": "c3d4e5f6-a7b8-4901-2345-678910111213",
+    "name": "FCI Corporate",
+    "organization": "FCI",
+    "role": "operator",
+    "address": "0x9c4eE91EEf23d47c4e24bcBF5496165caEe83A06",
+    "privateKey": "0x8ba44360f950ac359595cd0cd98dcf05aaca556cc13793623a0f604b23c16f8b",
+    "mnemonic": "romance rude onion valid theory pledge easily antique hold taxi love clay",
+    "initialBalance": 0,
+    "createdAt": "2026-02-02T09:19:42.220Z"
+  },
+  "98aa2ab88b0e45359129779256d54107": {
+    "userId": "98aa2ab88b0e45359129779256d54107",
+    "name": "Tim",
+    "organization": "FCI",
+    "role": "operator",
+    "address": "0x0e0002d33f10cf5BbdEB83b282aEf0747b7FFe63",
+    "privateKey": "0x57e29d0fd4ebf87a63122527a0fec21f9418d0a49d37f940b05d4fe6d2b86bc1",
+    "mnemonic": "garden rice update pyramid trash village found nothing march usage isolate card",
+    "initialBalance": 0,
+    "createdAt": "2026-02-02T09:20:05.046Z"
+  }
+}

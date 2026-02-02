@@ -1,0 +1,49 @@
+# Configuración para Bootnode de FCI
+# Rol: Descubrimiento de red (no valida bloques, no expone RPC)
+
+# Ruta de datos
+data-path="data"
+
+# Archivo genesis
+genesis-file="../../genesis.json"
+
+# Perfil empresarial (optimizado para redes privadas)
+profile="ENTERPRISE"
+
+# Configuración P2P
+p2p-enabled=true
+p2p-host="0.0.0.0"
+p2p-port=30303
+
+# Límite de peers (conexiones)
+max-peers=25
+
+# Discovery (permite que otros nodos encuentren este bootnode)
+discovery-enabled=true
+
+# Logging
+logging="INFO"
+
+# Host API (no exponer públicamente en producción)
+host-allowlist=["localhost","127.0.0.1"]
+
+# Métricas para monitoreo
+metrics-enabled=true
+metrics-host="0.0.0.0"
+metrics-port=9545
+
+# RPC deshabilitado (bootnode no necesita API)
+rpc-http-enabled=false
+rpc-ws-enabled=false
+
+# Minería deshabilitada (no es validador)
+miner-enabled=false
+
+# Sync mode
+sync-mode="FULL"
+
+# Network ID (debe coincidir con chainId en genesis)
+network-id=12345
+
+# Gas price mínimo
+min-gas-price=0

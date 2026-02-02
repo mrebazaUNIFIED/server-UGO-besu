@@ -1,0 +1,5 @@
+api/node_modules/
+contracts/node_modules/
+besu.pids/
+.env 
+env

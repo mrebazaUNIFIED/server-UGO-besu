@@ -1,0 +1,16 @@
+[nodes-allowlist]
+# Solo estos nodos pueden conectarse
+nodes=[
+  "enode://abc123...@127.0.0.1:30303",  # Bootnode
+  "enode://def456...@127.0.0.1:30304",  # Val1
+  "enode://ghi789...@127.0.0.1:30305",  # Val2
+  # ... todos los demás
+]
+
+[accounts-allowlist]
+# Solo estas cuentas pueden hacer transacciones
+accounts=[
+  "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73",  # FCI Val1
+  "0x627306090abaB3A6e1400e9345bC60c78a8BEf57",  # FCI Val2
+  # ... las demás cuentas
+]
