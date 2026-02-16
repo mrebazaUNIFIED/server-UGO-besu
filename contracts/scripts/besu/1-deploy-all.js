@@ -22,8 +22,8 @@ async function main() {
   console.log("Relayer Address:", relayerAddress);
   console.log();
 
-  // 1. Deploy UserRegistry
-  console.log("📝 Deploying UserRegistry...");
+  // ✅ OPCIÓN 1: Mantener UserRegistry pero no usarlo en MarketplaceBridge
+  console.log("📝 Deploying UserRegistry (optional)...");
   const UserRegistry = await hre.ethers.getContractFactory("UserRegistry");
   const userRegistry = await UserRegistry.deploy(deployer.address);
   await userRegistry.waitForDeployment();
@@ -38,8 +38,8 @@ async function main() {
   const usfciAddress = await usfci.getAddress();
   console.log("✅ USFCI:", usfciAddress);
 
-  // 3. Deploy LoanRegistry (✅ con fix BUG #2)
-  console.log("\n📝 Deploying LoanRegistry (with BUG #2 fix)...");
+  // 3. Deploy LoanRegistry
+  console.log("\n📝 Deploying LoanRegistry...");
   const LoanRegistry = await hre.ethers.getContractFactory("LoanRegistry");
   const loanRegistry = await LoanRegistry.deploy(
     deployer.address,
@@ -49,17 +49,16 @@ async function main() {
   const loanRegistryAddress = await loanRegistry.getAddress();
   console.log("✅ LoanRegistry:", loanRegistryAddress);
 
-  // 4. Deploy MarketplaceBridge (✅ con fix BUG #4)
-  console.log("\n📝 Deploying MarketplaceBridge (with BUG #4 fix)...");
+  // ⭐⭐ MODIFICADO: Deploy MarketplaceBridge SIMPLIFICADO
+  console.log("\n📝 Deploying MarketplaceBridge (SIMPLIFIED VERSION)...");
   const MarketplaceBridge = await hre.ethers.getContractFactory("MarketplaceBridge");
   const marketplaceBridge = await MarketplaceBridge.deploy(
-    deployer.address,
-    loanRegistryAddress,
-    userRegistryAddress
+    deployer.address,           // initialOwner
+    loanRegistryAddress         // ⭐ Solo loanRegistry, NO userRegistry
   );
   await marketplaceBridge.waitForDeployment();
   const marketplaceBridgeAddress = await marketplaceBridge.getAddress();
-  console.log("✅ MarketplaceBridge:", marketplaceBridgeAddress);
+  console.log("✅ MarketplaceBridge (Simplified):", marketplaceBridgeAddress);
 
   // 5. Deploy ShareLoans
   console.log("\n📝 Deploying ShareLoans...");
@@ -95,6 +94,20 @@ async function main() {
   await initTx.wait();
   console.log("✅ USFCI Ledger initialized");
 
+  // ✅ OPCIÓN: Registrar usuario automáticamente para testing
+  console.log("\n👤 Registering test user (optional)...");
+  try {
+    const testUserTx = await userRegistry.registerUser(
+      "test-lender-001",
+      "Test Lender",
+      "test@example.com"
+    );
+    await testUserTx.wait();
+    console.log("✅ Test user registered");
+  } catch (error) {
+    console.log("⚠️ Could not register test user:", error.message);
+  }
+
   // Verify integration
   console.log("\n🔗 Verifying integration...");
   const registryAddress = await loanRegistry.userRegistry();
@@ -106,7 +119,6 @@ async function main() {
   console.log("MarketplaceBridge -> Relayer:", configuredRelayer);
 
   const integrationOK =
-    registryAddress === userRegistryAddress &&
     bridgeAddress === marketplaceBridgeAddress &&
     configuredRelayer === relayerAddress;
 
@@ -143,9 +155,9 @@ async function main() {
   setEnvVar("BESU_USER_REGISTRY_ADDRESS", userRegistryAddress);
   setEnvVar("BESU_USFCI_ADDRESS", usfciAddress);
   setEnvVar("BESU_LOAN_REGISTRY_ADDRESS", loanRegistryAddress);
-  setEnvVar("BESU_MARKETPLACE_BRIDGE_ADDRESS", marketplaceBridgeAddress);
   setEnvVar("BESU_SHARE_LOANS_ADDRESS", shareLoansAddress);
   setEnvVar("BESU_PORTFOLIO_ADDRESS", portfolioAddress);
+  setEnvVar("BESU_MARKETPLACE_BRIDGE_ADDRESS", marketplaceBridgeAddress);
   setEnvVar("BESU_RELAYER_ADDRESS", relayerAddress);
 
   fs.writeFileSync(envPath, envContent.trim() + "\n");
@@ -161,11 +173,7 @@ async function main() {
   console.log("  Portfolio:          ", portfolioAddress);
   console.log("  Relayer:            ", relayerAddress);
 
-  console.log("\n✅ System fully configured and ready!");
-  console.log("🚀 Next steps:");
-  console.log("  1. Deploy Avalanche contracts (if not done)");
-  console.log("  2. Start relayer service");
-  console.log("  3. Run end-to-end tests");
+
 }
 
 main().catch((error) => {

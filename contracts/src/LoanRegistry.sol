@@ -9,7 +9,7 @@ contract LoanRegistry is Ownable {
     address public marketplaceBridge;
 
     struct Loan {
-        string ID; // ← MANTENEMOS COMO STRING
+        string ID; 
         string LoanUid;
         string Account;
         string LenderUid;

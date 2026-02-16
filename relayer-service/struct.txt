@@ -1,0 +1,35 @@
+relayer-service/
+├── package.json
+├── .env
+├── .env.example
+├── ecosystem.config.js          # PM2 config
+├── src/
+│   ├── index.js                 # Entry point
+│   ├── config/
+│   │   ├── chains.js            # Besu y Avalanche config
+│   │   └── contracts.js         # ABIs y addresses
+│   ├── services/
+│   │   ├── BesuService.js       # Cliente Besu
+│   │   ├── AvalancheService.js  # Cliente Avalanche
+│   │   └── StateManager.js      # Estado en memoria
+│   ├── listeners/
+│   │   ├── BesuListener.js      # Escucha eventos Besu
+│   │   └── AvalancheListener.js # Escucha eventos Avalanche
+│   ├── handlers/
+│   │   ├── LoanApprovedHandler.js
+│   │   ├── LoanSoldHandler.js
+│   │   ├── PaymentReceivedHandler.js
+│   │   └── BaseHandler.js
+│   ├── utils/
+│   │   ├── logger.js            # Winston logger
+│   │   ├── retry.js             # Retry con exponential backoff
+│   │   ├── queue.js             # Queue en memoria
+│   │   └── validator.js         # Validaciones
+│   └── api/
+│       └── server.js            # Express API (health, status)
+└── abis/
+    ├── MarketplaceBridge.json
+    ├── LoanRegistry.json
+    ├── LoanNFT.json
+    ├── LoanMarketplace.json
+    └── PaymentDistributor.json

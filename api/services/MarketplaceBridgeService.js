@@ -4,52 +4,43 @@ const BaseContractService = require('./BaseContractService');
 class MarketplaceBridgeService extends BaseContractService {
   constructor() {
     super('MarketplaceBridge', 'MarketplaceBridge');
-    this.loanRegistryService = null; // Se inicializará después
+    this.loanRegistryService = null;
+
+    // ⭐ NUEVO: Cargar private key del .env
+    this.privateKey = process.env.PRIVATE_KEY;
+    if (!this.privateKey) {
+      console.warn('⚠️ WARNING: PRIVATE_KEY not found in .env - write operations will fail');
+    }
   }
 
-  /**
-   * ✅ Inicializar referencia al LoanRegistryService
-   * Esto es necesario para generar loanIds
-   */
+
   setLoanRegistryService(loanRegistryService) {
     this.loanRegistryService = loanRegistryService;
   }
 
-  /**
-   * ✅ Normalizar valor USD - SIEMPRE asume 2 decimales
-   */
+  // ═══════════════════════════════════════════════════════════════
+  // Helpers de conversión USD/Cents/Percent
+  // ═══════════════════════════════════════════════════════════════
   normalizeUSD(value) {
     if (!value && value !== 0) return 0;
-
     let strValue = String(value).trim();
-
     if (!strValue.includes('.')) {
       strValue = strValue + '.00';
     }
-
     return parseFloat(strValue);
   }
 
-  /**
-   * ✅ Convertir USD normalizado a centavos
-   */
   usdToCents(usd) {
     const normalized = this.normalizeUSD(usd);
     return Math.round(normalized * 100);
   }
 
-  /**
-   * ✅ Convertir centavos a USD con 2 decimales
-   */
   centsToUSD(cents) {
     if (!cents && cents !== 0) return "0.00";
     const dollars = Number(cents) / 100;
     return dollars.toFixed(2);
   }
 
-  /**
-   * ✅ Convertir porcentaje a basis points
-   */
   percentToBps(percent) {
     if (percent == null || percent === '') return 0;
     const num = Number(percent);
@@ -57,61 +48,95 @@ class MarketplaceBridgeService extends BaseContractService {
     return Math.round(num * 100);
   }
 
-  /**
-   * ✅ Generar loanId (requiere LoanRegistryService inicializado)
-   */
-  _generateLoanId(lenderUid, loanUid) {
-    if (!this.loanRegistryService) {
-      throw new Error('LoanRegistryService not initialized. Call setLoanRegistryService() first.');
-    }
-    return this.loanRegistryService.generateLoanId(lenderUid, loanUid);
+  bpsToPercent(bps) {
+    if (bps == null) return "0.00";
+    const percent = Number(bps) / 100;
+    return percent.toFixed(2);
   }
 
-  /**
-   * ✅ Verificar que loan existe (requiere LoanRegistryService inicializado)
-   */
-  async _verifyLoanExists(loanId) {
+  // ═══════════════════════════════════════════════════════════════
+  // Helpers para obtener loan real desde blockchain
+  // ═══════════════════════════════════════════════════════════════
+  async _getLoanFromBlockchain(lenderUid, loanUid) {
     if (!this.loanRegistryService) {
-      throw new Error('LoanRegistryService not initialized. Call setLoanRegistryService() first.');
+      throw new Error('LoanRegistryService not initialized');
     }
-    return await this.loanRegistryService.loanExists(loanId);
+
+    try {
+      return await this.loanRegistryService.readLoanByUids(lenderUid, loanUid);
+    } catch (error) {
+      const allLoans = await this.loanRegistryService.queryAllLoansComplete();
+      const matchingLoan = allLoans.find(loan =>
+        loan.LenderUid === lenderUid && loan.LoanUid === loanUid
+      );
+
+      if (!matchingLoan) {
+        throw new Error(`Loan not found for LenderUid: ${lenderUid}, LoanUid: ${loanUid}`);
+      }
+
+      return matchingLoan;
+    }
   }
 
-  // ===== FUNCIONES PRINCIPALES =====
+  async _getLoanIdFromBlockchain(lenderUid, loanUid) {
+    const loan = await this._getLoanFromBlockchain(lenderUid, loanUid);
+    return loan.ID;
+  }
 
+  async _verifyLoanExists(lenderUid, loanUid) {
+    try {
+      const loan = await this._getLoanFromBlockchain(lenderUid, loanUid);
+      return !!loan;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ⭐ ACTUALIZADO: approveLoanForSale (sin modifiedInterestRate)
+  // ═══════════════════════════════════════════════════════════════
   /**
-   * ✅ Aprobar un loan para tokenización/venta
-   * IMPORTANTE: Ahora usa lenderUid y loanUid en lugar de loanId
+   * Aprobar loan para venta/tokenización
+   * 
+   * CAMBIOS:
+   * - Ya NO recibe modifiedInterestRate (removido de ApprovalData)
+   * - Usa private key del .env en lugar de recibirla como parámetro
+   * - El evento solo emite: loanId, lenderAddress, askingPrice, timestamp
    */
-  async approveLoanForSale(privateKey, lenderUid, loanUid, askingPriceUSD, modifiedInterestRate) {
+  async approveLoanForSale(lenderUid, loanUid, askingPriceUSD) {
     if (!lenderUid || !loanUid) {
       throw new Error('LenderUid and LoanUid are required');
     }
 
-    // Generar loanId
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-
-    // Verificar que el loan existe
-    const loanExists = await this._verifyLoanExists(loanId);
-    if (!loanExists) {
-      throw new Error(`Loan does not exist for LenderUid: ${lenderUid}, LoanUid: ${loanUid}`);
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
     }
 
-    const contract = this.getContract(privateKey);
+    // Obtener loan y verificar estado
+    const loan = await this._getLoanFromBlockchain(lenderUid, loanUid);
 
-    // Convertir USD a centavos
+    if (loan.isTokenized) {
+      throw new Error('Loan is already tokenized');
+    }
+
+    if (loan.isLocked) {
+      throw new Error('Loan is already locked');
+    }
+
+    const loanId = loan.ID;
+    const contract = this.getContract(this.privateKey);
     const priceInCents = this.usdToCents(askingPriceUSD);
 
+    // ⭐ NUEVA FIRMA: Solo loanId y askingPrice
     const tx = await contract.approveLoanForSale(
       loanId,
-      BigInt(priceInCents),
-      this.percentToBps(modifiedInterestRate)
+      BigInt(priceInCents)
+      // ❌ modifiedInterestRate REMOVIDO
     );
 
     const receipt = await tx.wait();
 
-    // Extraer eventos
-    let approvalTxId = null;
+    // Extraer datos del evento
     const logs = receipt.logs.map(log => {
       try {
         return contract.interface.parseLog(log);
@@ -121,8 +146,17 @@ class MarketplaceBridgeService extends BaseContractService {
     }).filter(log => log !== null);
 
     const approvedEvent = logs.find(log => log.name === 'LoanApprovedForSale');
+
+    // ⭐ EVENTO ACTUALIZADO: Ya no tiene modifiedInterestRate
+    let eventData = {};
     if (approvedEvent) {
-      approvalTxId = approvedEvent.args.txId || approvedEvent.args[2];
+      eventData = {
+        loanId: approvedEvent.args[0],
+        lenderAddress: approvedEvent.args[1],
+        askingPrice: approvedEvent.args[2].toString(),
+        timestamp: approvedEvent.args[3].toString()
+        // ❌ modifiedInterestRate ya no existe en el evento
+      };
     }
 
     return {
@@ -131,23 +165,27 @@ class MarketplaceBridgeService extends BaseContractService {
       lenderUid: lenderUid,
       loanUid: loanUid,
       askingPriceUSD: this.centsToUSD(priceInCents),
-      askingPriceCents: priceInCents,
-      modifiedInterestRate: modifiedInterestRate,
-      approvalTxId: approvalTxId,
+      askingPriceCents: priceInCents.toString(),
+      // ℹ️ modifiedInterestRate ahora se obtiene del LoanRegistry.NoteRate
+      noteRate: loan.NoteRate, // Este es el que se usa ahora
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString()
+      gasUsed: receipt.gasUsed.toString(),
+      eventData: eventData
     };
   }
 
-  /**
-   * ✅ Registrar hash de transacción de aprobación
-   */
-  async registerApprovalTxHash(privateKey, lenderUid, loanUid, txHash) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  // ═══════════════════════════════════════════════════════════════
+  // ⭐ ACTUALIZADO: registerApprovalTxHash (sin privateKey param)
+  // ═══════════════════════════════════════════════════════════════
+  async registerApprovalTxHash(lenderUid, loanUid, txHash) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
 
-    // Formato correcto del txHash
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
+
     const txHashBytes32 = txHash.startsWith('0x') ? txHash : `0x${txHash}`;
 
     const tx = await contract.registerApprovalTxHash(loanId, txHashBytes32);
@@ -165,13 +203,11 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  /**
-   * ✅ Obtener loanId por hash de transacción
-   */
+  // ═══════════════════════════════════════════════════════════════
+  // READ-ONLY: No requieren cambios
+  // ═══════════════════════════════════════════════════════════════
   async getLoanIdByTxHash(txHash) {
     const contract = this.getContractReadOnly();
-
-    // Asegurarse formato correcto
     const txHashBytes32 = txHash.startsWith('0x') ? txHash : '0x' + txHash;
 
     const loanId = await contract.getLoanIdByTxHash(txHashBytes32);
@@ -183,23 +219,20 @@ class MarketplaceBridgeService extends BaseContractService {
     return loanId;
   }
 
-  /**
-   * ✅ Obtener datos de aprobación por hash de transacción
-   */
   async getApprovalDataByTxHash(txHash) {
     const contract = this.getContractReadOnly();
     const txHashBytes32 = txHash.startsWith('0x') ? txHash : '0x' + txHash;
 
     const [approval, loanId] = await contract.getApprovalDataByTxHash(txHashBytes32);
 
-    // Obtener loanUid y lenderUid del loan
     let lenderUid = '';
     let loanUid = '';
     try {
-      const loanRegistryService = require('./LoanRegistryService');
-      const loan = await loanRegistryService.readLoan(loanId);
-      lenderUid = loan.LenderUid;
-      loanUid = loan.LoanUid;
+      if (this.loanRegistryService) {
+        const loan = await this.loanRegistryService.readLoan(loanId);
+        lenderUid = loan.LenderUid;
+        loanUid = loan.LoanUid;
+      }
     } catch (error) {
       console.warn('Could not get loan details:', error.message);
     }
@@ -210,7 +243,7 @@ class MarketplaceBridgeService extends BaseContractService {
       loanUid: loanUid,
       isApproved: approval.isApproved,
       askingPrice: this.centsToUSD(approval.askingPrice),
-      modifiedInterestRate: this.bpsToPercent(approval.modifiedInterestRate),
+      // ❌ modifiedInterestRate ya no existe en ApprovalData
       lenderAddress: approval.lenderAddress,
       approvalTimestamp: new Date(Number(approval.approvalTimestamp) * 1000),
       isMinted: approval.isMinted,
@@ -219,22 +252,24 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  /**
-   * ✅ Cancelar listado de venta
-   */
-  async cancelSaleListing(privateKey, lenderUid, loanUid) {
+  // ═══════════════════════════════════════════════════════════════
+  // ⭐ ACTUALIZADO: cancelSaleListing (sin privateKey param)
+  // ═══════════════════════════════════════════════════════════════
+  async cancelSaleListing(lenderUid, loanUid) {
     if (!lenderUid || !loanUid) {
       throw new Error('LenderUid and LoanUid are required');
     }
 
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
 
     const tx = await contract.cancelSaleListing(loanId);
     const receipt = await tx.wait();
 
-    // Extraer eventos
-    let cancellationTxId = null;
     const logs = receipt.logs.map(log => {
       try {
         return contract.interface.parseLog(log);
@@ -244,44 +279,47 @@ class MarketplaceBridgeService extends BaseContractService {
     }).filter(log => log !== null);
 
     const cancelledEvent = logs.find(log => log.name === 'LoanApprovalCancelled');
-    if (cancelledEvent) {
-      cancellationTxId = cancelledEvent.args.txId || cancelledEvent.args[2];
-    }
 
     return {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
       loanUid: loanUid,
-      cancellationTxId: cancellationTxId,
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
   }
 
-  /**
-   * ✅ Obtener datos de aprobación de un loan
-   */
   async getApprovalData(lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
     const contract = this.getContractReadOnly();
 
     const approval = await contract.getApprovalData(loanId);
 
-    // Buscar el hash de la transacción del evento
     let approvalTxHash = null;
-    let approvalTxId = null;
+
     try {
-      const filter = contract.filters.LoanApprovedForSale(loanId);
-      const events = await contract.queryFilter(filter);
-      if (events.length > 0) {
-        const latestEvent = events[events.length - 1];
-        approvalTxHash = latestEvent.transactionHash;
-        approvalTxId = latestEvent.args.txId || latestEvent.args[2];
+      const registeredTxHash = await contract.getApprovalTxHash(loanId);
+
+      // Verificar que no sea el hash vacío (0x0000...)
+      if (registeredTxHash !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        approvalTxHash = registeredTxHash;
+        console.log(`✅ TxHash obtained from contract mapping: ${approvalTxHash}`);
+      } else {
+        console.log(`⚠️ TxHash not registered for loanId ${loanId}`);
+        console.log(`💡 Call registerApprovalTxHash() to store the txHash`);
+
+        // ⭐ FALLBACK: Buscar en eventos solo si el mapping está vacío
+        approvalTxHash = await this._findTxHashInEvents(contract, loanId);
       }
     } catch (error) {
-      console.error('Error fetching approval event:', error);
+      // Si el contrato no tiene getApprovalTxHash(), usar fallback
+      console.warn(`⚠️ getApprovalTxHash() not available: ${error.message}`);
+      console.log(`💡 Upgrade your contract to include getApprovalTxHash() function`);
+
+      // FALLBACK: Buscar en eventos
+      approvalTxHash = await this._findTxHashInEvents(contract, loanId);
     }
 
     return {
@@ -290,68 +328,95 @@ class MarketplaceBridgeService extends BaseContractService {
       loanUid: loanUid,
       isApproved: approval.isApproved,
       askingPrice: this.centsToUSD(approval.askingPrice),
-      modifiedInterestRate: this.bpsToPercent(approval.modifiedInterestRate),
       lenderAddress: approval.lenderAddress,
       approvalTimestamp: new Date(Number(approval.approvalTimestamp) * 1000),
       isMinted: approval.isMinted,
       isCancelled: approval.isCancelled,
-      approvalTxHash: approvalTxHash,
-      approvalTxId: approvalTxId
+      approvalTxHash: approvalTxHash
     };
   }
 
   /**
-   * ✅ Verificar si un loan puede ser minteado
+   * ⭐ HELPER: Buscar txHash en eventos (fallback cuando el mapping no está disponible)
    */
+  async _findTxHashInEvents(contract, loanId) {
+    try {
+      const currentBlock = await contract.provider.getBlockNumber();
+
+      // Buscar primero en últimos 10k bloques (más rápido)
+      let fromBlock = Math.max(0, currentBlock - 10000);
+
+      console.log(`🔍 Searching approval events for loanId: ${loanId}`);
+      console.log(`📊 Block range: ${fromBlock} to ${currentBlock}`);
+
+      const filter = contract.filters.LoanApprovedForSale(loanId);
+      let events = await contract.queryFilter(filter, fromBlock, currentBlock);
+
+      // Si no encontró nada, ampliar a 50k bloques
+      if (events.length === 0 && currentBlock > 10000) {
+        console.log(`⚠️ Not found in last 10k blocks, expanding to 50k...`);
+        fromBlock = Math.max(0, currentBlock - 50000);
+        events = await contract.queryFilter(filter, fromBlock, currentBlock);
+      }
+
+      // Si aún no encontró nada, buscar desde genesis (puede ser lento)
+      if (events.length === 0 && currentBlock > 50000) {
+        console.log(`⚠️ Not found in last 50k blocks, searching from genesis...`);
+        try {
+          events = await contract.queryFilter(filter, 0, currentBlock);
+        } catch (genesisError) {
+          console.error(`❌ Genesis search failed: ${genesisError.message}`);
+        }
+      }
+
+      if (events.length > 0) {
+        const latestEvent = events[events.length - 1];
+        const txHash = latestEvent.transactionHash;
+        console.log(`✅ Found txHash in events: ${txHash}`);
+        return txHash;
+      } else {
+        console.warn(`❌ No approval events found for loanId ${loanId}`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ Error searching events: ${error.message}`);
+      return null;
+    }
+  }
+
+
   async canBeMinted(lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
     const contract = this.getContractReadOnly();
     return await contract.canBeMinted(loanId);
   }
 
-  /**
-   * ✅ Verificar si un loan está aprobado para venta
-   */
   async isLoanApprovedForSale(lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
     const contract = this.getContractReadOnly();
     return await contract.isLoanApprovedForSale(loanId);
   }
 
-  /**
-   * ✅ Obtener token ID de Avalanche
-   */
   async getAvalancheTokenId(lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
     const contract = this.getContractReadOnly();
     const tokenId = await contract.getAvalancheTokenId(loanId);
     return tokenId.toString();
   }
 
-  /**
-   * ✅ Establecer token ID de Avalanche (solo relayer)
-   */
-  async setAvalancheTokenId(privateKey, lenderUid, loanUid, tokenId) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  // ═══════════════════════════════════════════════════════════════
+  // ⭐ ACTUALIZADO: Resto de funciones sin privateKey param
+  // ═══════════════════════════════════════════════════════════════
+  async setAvalancheTokenId(lenderUid, loanUid, tokenId) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
 
     const tx = await contract.setAvalancheTokenId(loanId, tokenId);
     const receipt = await tx.wait();
-
-    // Extraer eventos
-    let tokenSetTxId = null;
-    const logs = receipt.logs.map(log => {
-      try {
-        return contract.interface.parseLog(log);
-      } catch (e) {
-        return null;
-      }
-    }).filter(log => log !== null);
-
-    const tokenSetEvent = logs.find(log => log.name === 'AvalancheTokenIdSet');
-    if (tokenSetEvent) {
-      tokenSetTxId = tokenSetEvent.args.txId || tokenSetEvent.args[2];
-    }
 
     return {
       success: true,
@@ -359,21 +424,20 @@ class MarketplaceBridgeService extends BaseContractService {
       lenderUid: lenderUid,
       loanUid: loanUid,
       tokenId: tokenId.toString(),
-      tokenSetTxId: tokenSetTxId,
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
   }
 
-  /**
-   * ✅ Registrar transferencia de propiedad
-   */
-  async recordOwnershipTransfer(privateKey, lenderUid, loanUid, newOwnerAddress, salePriceUSD) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  async recordOwnershipTransfer(lenderUid, loanUid, newOwnerAddress, salePriceUSD) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
 
-    // Convertir USD a centavos
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
+
     const priceInCents = this.usdToCents(salePriceUSD);
 
     const tx = await contract.recordOwnershipTransfer(
@@ -383,21 +447,6 @@ class MarketplaceBridgeService extends BaseContractService {
     );
     const receipt = await tx.wait();
 
-    // Extraer eventos
-    let transferTxId = null;
-    const logs = receipt.logs.map(log => {
-      try {
-        return contract.interface.parseLog(log);
-      } catch (e) {
-        return null;
-      }
-    }).filter(log => log !== null);
-
-    const transferEvent = logs.find(log => log.name === 'OwnershipTransferred');
-    if (transferEvent) {
-      transferTxId = transferEvent.args.txId || transferEvent.args[3];
-    }
-
     return {
       success: true,
       loanId: loanId,
@@ -406,40 +455,24 @@ class MarketplaceBridgeService extends BaseContractService {
       newOwnerAddress: newOwnerAddress,
       salePriceUSD: this.centsToUSD(priceInCents),
       salePriceCents: priceInCents.toString(),
-      transferTxId: transferTxId,
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
   }
 
-  /**
-   * ✅ Registrar pago
-   */
-  async recordPayment(privateKey, lenderUid, loanUid, amountUSD) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  async recordPayment(lenderUid, loanUid, amountUSD) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
 
-    // Convertir USD a centavos
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
+
     const amountInCents = this.usdToCents(amountUSD);
 
     const tx = await contract.recordPayment(loanId, BigInt(amountInCents));
     const receipt = await tx.wait();
-
-    // Extraer eventos
-    let paymentTxId = null;
-    const logs = receipt.logs.map(log => {
-      try {
-        return contract.interface.parseLog(log);
-      } catch (e) {
-        return null;
-      }
-    }).filter(log => log !== null);
-
-    const paymentEvent = logs.find(log => log.name === 'PaymentRecorded');
-    if (paymentEvent) {
-      paymentTxId = paymentEvent.args.txId || paymentEvent.args[2];
-    }
 
     return {
       success: true,
@@ -448,64 +481,146 @@ class MarketplaceBridgeService extends BaseContractService {
       loanUid: loanUid,
       amountUSD: this.centsToUSD(amountInCents),
       amountCents: amountInCents.toString(),
-      paymentTxId: paymentTxId,
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
   }
 
-  /**
-   * ✅ Marcar loan como pagado (solo relayer)
-   */
-  async markLoanAsPaidOff(privateKey, lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  async markLoanAsPaidOff(lenderUid, loanUid) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
 
     const tx = await contract.markLoanAsPaidOff(loanId);
     const receipt = await tx.wait();
-
-    // Extraer eventos
-    let paidOffTxId = null;
-    const logs = receipt.logs.map(log => {
-      try {
-        return contract.interface.parseLog(log);
-      } catch (e) {
-        return null;
-      }
-    }).filter(log => log !== null);
-
-    const paidOffEvent = logs.find(log => log.name === 'LoanPaidOff');
-    if (paidOffEvent) {
-      paidOffTxId = paidOffEvent.args.txId || paidOffEvent.args[1];
-    }
 
     return {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
       loanUid: loanUid,
-      paidOffTxId: paidOffTxId,
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
   }
 
-  // ===== FUNCIONES AUXILIARES =====
+  // ═══════════════════════════════════════════════════════════════
+  // BURN FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════
+  async requestBurnAndCancel(lenderUid, loanUid) {
+    if (!lenderUid || !loanUid) {
+      throw new Error('LenderUid and LoanUid are required');
+    }
 
-  /**
-   * ✅ Convertir basis points a porcentaje
-   */
-  bpsToPercent(bps) {
-    if (bps == null) return "0.00";
-    const percent = Number(bps) / 100;
-    return percent.toFixed(2);
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
+
+    const approval = await contract.getApprovalData(loanId);
+
+    if (!approval.isApproved) {
+      throw new Error('Loan not approved for sale');
+    }
+
+    if (!approval.isMinted) {
+      throw new Error('NFT not minted yet. Use cancelSaleListing instead.');
+    }
+
+    if (approval.isCancelled) {
+      throw new Error('Approval already cancelled');
+    }
+
+    const tx = await contract.requestBurnAndCancel(loanId);
+    const receipt = await tx.wait();
+
+    return {
+      success: true,
+      loanId: loanId,
+      lenderUid: lenderUid,
+      loanUid: loanUid,
+      txHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      message: 'Burn request submitted. Relayer will process the NFT burn on Avalanche.'
+    };
   }
 
-  /**
-   * ✅ Obtener préstamos aprobados por un lender
-   */
+  async confirmBurnAndCancel(lenderUid, loanUid) {
+    if (!lenderUid || !loanUid) {
+      throw new Error('LenderUid and LoanUid are required');
+    }
+
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
+
+    const tx = await contract.confirmBurnAndCancel(loanId);
+    const receipt = await tx.wait();
+
+    return {
+      success: true,
+      loanId: loanId,
+      lenderUid: lenderUid,
+      loanUid: loanUid,
+      txHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      message: 'NFT burn confirmed and loan unlocked successfully.'
+    };
+  }
+
+  async canCancel(lenderUid, loanUid) {
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContractReadOnly();
+
+    try {
+      const result = await contract.canCancel(loanId);
+      return {
+        canCancelNow: result[0],
+        needsBurn: result[1]
+      };
+    } catch (error) {
+      console.error('Error in canCancel:', error);
+
+      try {
+        const approval = await this.getApprovalData(lenderUid, loanUid);
+
+        if (!approval.isApproved || approval.isCancelled) {
+          return { canCancelNow: false, needsBurn: false };
+        }
+
+        return {
+          canCancelNow: true,
+          needsBurn: approval.isMinted
+        };
+      } catch (innerError) {
+        throw error;
+      }
+    }
+  }
+
+  async getTokenIdForLoan(lenderUid, loanUid) {
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContractReadOnly();
+
+    const tokenId = await contract.getAvalancheTokenId(loanId);
+    return tokenId.toString();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // AUXILIARY FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════
   async getApprovedLoansByLender(lenderAddress) {
     const contract = this.getContractReadOnly();
 
@@ -513,25 +628,29 @@ class MarketplaceBridgeService extends BaseContractService {
       const result = await contract.getApprovedLoansByLender(lenderAddress);
       return result;
     } catch (error) {
-      // Si la función no existe en el contrato, buscar manualmente
       console.warn('getApprovedLoansByLender not available:', error.message);
 
-      // Implementación alternativa: obtener todos los loans y filtrar
-      const loanRegistryService = require('./LoanRegistryService');
-      const allLoans = await loanRegistryService.queryAllLoansComplete();
+      if (!this.loanRegistryService) {
+        throw new Error('LoanRegistryService not initialized');
+      }
 
+      const allLoans = await this.loanRegistryService.queryAllLoansComplete();
       const approvedLoans = [];
+
       for (const loan of allLoans) {
-        const approval = await this.getApprovalData(loan.LenderUid, loan.LoanUid);
-        if (approval.isApproved && !approval.isCancelled) {
-          approvedLoans.push({
-            loanId: loan.ID,
-            lenderUid: loan.LenderUid,
-            loanUid: loan.LoanUid,
-            askingPrice: approval.askingPrice,
-            modifiedInterestRate: approval.modifiedInterestRate,
-            isMinted: approval.isMinted
-          });
+        try {
+          const approval = await this.getApprovalData(loan.LenderUid, loan.LoanUid);
+          if (approval.isApproved && !approval.isCancelled) {
+            approvedLoans.push({
+              loanId: loan.ID,
+              lenderUid: loan.LenderUid,
+              loanUid: loan.LoanUid,
+              askingPrice: approval.askingPrice,
+              isMinted: approval.isMinted
+            });
+          }
+        } catch (err) {
+          // Ignorar loans sin aprobación
         }
       }
 
@@ -539,9 +658,6 @@ class MarketplaceBridgeService extends BaseContractService {
     }
   }
 
-  /**
-   * ✅ Obtener préstamos tokenizados
-   */
   async getTokenizedLoans() {
     const contract = this.getContractReadOnly();
 
@@ -549,25 +665,30 @@ class MarketplaceBridgeService extends BaseContractService {
       const result = await contract.getTokenizedLoans();
       return result;
     } catch (error) {
-      // Si la función no existe en el contrato, buscar manualmente
       console.warn('getTokenizedLoans not available:', error.message);
 
-      // Implementación alternativa
-      const loanRegistryService = require('./LoanRegistryService');
-      const allLoans = await loanRegistryService.queryAllLoansComplete();
+      if (!this.loanRegistryService) {
+        throw new Error('LoanRegistryService not initialized');
+      }
 
+      const allLoans = await this.loanRegistryService.queryAllLoansComplete();
       const tokenizedLoans = [];
+
       for (const loan of allLoans) {
-        const tokenId = await this.getAvalancheTokenId(loan.LenderUid, loan.LoanUid);
-        if (tokenId !== '0') {
-          tokenizedLoans.push({
-            loanId: loan.ID,
-            lenderUid: loan.LenderUid,
-            loanUid: loan.LoanUid,
-            tokenId: tokenId,
-            currentBalance: loan.CurrentBalance,
-            status: loan.Status
-          });
+        try {
+          const tokenId = await this.getAvalancheTokenId(loan.LenderUid, loan.LoanUid);
+          if (tokenId !== '0') {
+            tokenizedLoans.push({
+              loanId: loan.ID,
+              lenderUid: loan.LenderUid,
+              loanUid: loan.LoanUid,
+              tokenId: tokenId,
+              currentBalance: loan.CurrentBalance,
+              status: loan.Status
+            });
+          }
+        } catch (err) {
+          // Ignorar loans sin token
         }
       }
 
@@ -575,11 +696,8 @@ class MarketplaceBridgeService extends BaseContractService {
     }
   }
 
-  /**
-   * ✅ Verificar si un lender puede aprobar un préstamo
-   */
   async canLenderApproveLoan(lenderUid, loanUid, lenderAddress) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
     const contract = this.getContractReadOnly();
 
     try {
@@ -589,52 +707,46 @@ class MarketplaceBridgeService extends BaseContractService {
         reason: result[1]
       };
     } catch (error) {
-      // Si la función no existe, hacer verificaciones manuales
       console.warn('canLenderApproveLoan not available:', error.message);
 
-      const loanRegistryService = require('./LoanRegistryService');
+      try {
+        const loan = await this._getLoanFromBlockchain(lenderUid, loanUid);
 
-      // Verificar existencia
-      if (!await this._verifyLoanExists(loanId)) {
-        return { canApprove: false, reason: 'Loan does not exist' };
+        if (loan.isLocked) {
+          return { canApprove: false, reason: 'Loan already tokenized' };
+        }
+
+        const approval = await this.getApprovalData(lenderUid, loanUid);
+        if (approval.isApproved) {
+          return { canApprove: false, reason: 'Already approved' };
+        }
+
+        if (approval.isCancelled) {
+          return { canApprove: false, reason: 'Was cancelled' };
+        }
+
+        if (loan.CurrentBalance === '0.00' || loan.CurrentBalance === 0) {
+          return { canApprove: false, reason: 'Loan balance must be > 0' };
+        }
+
+        if (loan.Status === 'Paid Off') {
+          return { canApprove: false, reason: 'Cannot sell paid off loan' };
+        }
+
+        return { canApprove: true, reason: '' };
+      } catch (innerError) {
+        return { canApprove: false, reason: 'Loan not found or error' };
       }
-
-      // Verificar si ya está bloqueado
-      const isLocked = await loanRegistryService.isLoanLocked(loanId);
-      if (isLocked) {
-        return { canApprove: false, reason: 'Loan already tokenized' };
-      }
-
-      // Verificar aprobación existente
-      const approval = await this.getApprovalData(lenderUid, loanUid);
-      if (approval.isApproved) {
-        return { canApprove: false, reason: 'Already approved' };
-      }
-
-      if (approval.isCancelled) {
-        return { canApprove: false, reason: 'Was cancelled' };
-      }
-
-      // Verificar balance y estado
-      const loan = await loanRegistryService.readLoan(loanId);
-      if (loan.CurrentBalance === '0.00') {
-        return { canApprove: false, reason: 'Loan balance must be > 0' };
-      }
-
-      if (loan.Status === 'Paid Off') {
-        return { canApprove: false, reason: 'Cannot sell paid off loan' };
-      }
-
-      return { canApprove: true, reason: '' };
     }
   }
 
-  /**
-   * ✅ Función de emergencia para desbloquear (solo owner)
-   */
-  async emergencyUnlock(privateKey, lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  async emergencyUnlock(lenderUid, loanUid) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
 
     const tx = await contract.emergencyUnlock(loanId);
     const receipt = await tx.wait();
@@ -649,12 +761,13 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  /**
-   * ✅ Forzar desbloqueo para préstamos pagados (solo relayer)
-   */
-  async forceUnlockPaidOffLoan(privateKey, lenderUid, loanUid) {
-    const loanId = this._generateLoanId(lenderUid, loanUid);
-    const contract = this.getContract(privateKey);
+  async forceUnlockPaidOffLoan(lenderUid, loanUid) {
+    if (!this.privateKey) {
+      throw new Error('PRIVATE_KEY not configured in .env');
+    }
+
+    const loanId = await this._getLoanIdFromBlockchain(lenderUid, loanUid);
+    const contract = this.getContract(this.privateKey);
 
     const tx = await contract.forceUnlockPaidOffLoan(loanId);
     const receipt = await tx.wait();
@@ -669,14 +782,10 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  /**
-   * ✅ Obtener dirección del relayer
-   */
   async getRelayerAddress() {
     const contract = this.getContractReadOnly();
     return await contract.relayerAddress();
   }
 }
-
 
 module.exports = new MarketplaceBridgeService();

@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "flowbite-react/plugin/tailwindcss";
+@source "../.flowbite-react/class-list.json";
+
+
+:root {
+  --gris: #D3D3D3;
+  --negro: #161A1D;
+  --rojo: #ba181b;
+  --gris-oscuro: #B1A7A6;
+  --rojo-oscuro: #A4161A;
+  --gris-claro: #F5F3F4;
+  --negro-light: #0B090A;
+  --rojizo: #660708;
+  --rojo-claro: #E5383B;
+}
+
+@keyframes fillLogo {
+  0% {
+    clip-path: polygon(0 100%, 0 100%, 0 100%, 0 100%);
+  }
+  100% {
+    clip-path: polygon(50% 100%, 100% 50%, 50% 0%, 0% 50%);
+  }
+}
+
+.logo-fill {
+  animation: fillLogo 2s ease-in-out infinite alternate;
+}
+
+
+button {
+  cursor: pointer;
+}

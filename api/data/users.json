@@ -4,43 +4,43 @@
     "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "address": "0x26A160F53602D738a9D067502ff42F7887fc024C",
-    "privateKey": "0x7ee01cac35623b7127ffb1f7f3ae010dd68100ed7531b6508949dd13107dbfd7",
-    "mnemonic": "fruit bind trust plastic night solid recycle better polar divert faculty bench",
+    "address": "0x2EbcB9D63c93A522eA501615626862b3640Cc874",
+    "privateKey": "0x0dc8699e9829dd6b8c098bc5a7361b487f99cc12b0c662a6af3891364d8b4ae7",
+    "mnemonic": "dress chest short abstract health click rely scene legend foil horror travel",
     "initialBalance": 0,
-    "createdAt": "2026-02-02T09:18:59.038Z"
+    "createdAt": "2026-02-03T19:11:05.352Z"
   },
   "b2c3d4e5-f6a7-4890-1213-141516171819": {
     "userId": "b2c3d4e5-f6a7-4890-1213-141516171819",
     "name": "Mike",
     "organization": "FCI",
     "role": "operator",
-    "address": "0xf495C09b102cFD57e2d8EdC55edd1839324D95e8",
-    "privateKey": "0xc22beeb8b6e99cb97be70bc4da708d0e58c602993c6f19667eee5d9f09a1ed35",
-    "mnemonic": "hurt travel bind problem blossom crazy idle peasant love giraffe junk piece",
+    "address": "0xDB66E93F3Ea75c09F499061CD02e62b233Af3ffC",
+    "privateKey": "0xe6ebf4e5e9ed3c440101fdc0fbcd4fe7b81345c9a4b056ae3fa24f0a26709d81",
+    "mnemonic": "east quit family atom stomach season legal kiwi hair marriage cool jealous",
     "initialBalance": 0,
-    "createdAt": "2026-02-02T09:19:19.184Z"
+    "createdAt": "2026-02-03T19:11:25.521Z"
   },
-  "c3d4e5f6-a7b8-4901-2345-678910111213": {
-    "userId": "c3d4e5f6-a7b8-4901-2345-678910111213",
+  "581c7abb8fbd4cc1ac69b9e7d81c95ed": {
+    "userId": "581c7abb8fbd4cc1ac69b9e7d81c95ed",
     "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "address": "0x9c4eE91EEf23d47c4e24bcBF5496165caEe83A06",
-    "privateKey": "0x8ba44360f950ac359595cd0cd98dcf05aaca556cc13793623a0f604b23c16f8b",
-    "mnemonic": "romance rude onion valid theory pledge easily antique hold taxi love clay",
+    "address": "0x90863206d7AD6F87e2927C69b57eAC712C9BAFDC",
+    "privateKey": "0x503a4eb3b8fe35c11fb30646f4b7616642a0492618b94035256a02531c370139",
+    "mnemonic": "solution soldier when side series erosion ability pair upset cliff rice neither",
     "initialBalance": 0,
-    "createdAt": "2026-02-02T09:19:42.220Z"
+    "createdAt": "2026-02-03T19:11:45.186Z"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
     "name": "Tim",
     "organization": "FCI",
     "role": "operator",
-    "address": "0x0e0002d33f10cf5BbdEB83b282aEf0747b7FFe63",
-    "privateKey": "0x57e29d0fd4ebf87a63122527a0fec21f9418d0a49d37f940b05d4fe6d2b86bc1",
-    "mnemonic": "garden rice update pyramid trash village found nothing march usage isolate card",
+    "address": "0xa3a80D372949dfE34F44d77e89719a6743B9F677",
+    "privateKey": "0xfec177d930388098e044bbe2d93477578589be25804ecf59f5f4c9a91b401438",
+    "mnemonic": "galaxy tuna donkey expect tackle hammer behave basic obvious public south submit",
     "initialBalance": 0,
-    "createdAt": "2026-02-02T09:20:05.046Z"
+    "createdAt": "2026-02-03T19:12:05.330Z"
   }
 }

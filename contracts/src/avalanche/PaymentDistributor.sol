@@ -8,17 +8,16 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract PaymentDistributor is Ownable, ReentrancyGuard {
     IERC721 public loanNFT;
-    IERC20 public paymentToken; // USDC
+    IERC20 public paymentToken; 
 
-    address public bridgeReceiver; // Solo BridgeReceiver puede registrar pagos
+    address public bridgeReceiver; 
 
-    // ✅ Límite para batch claims (previene DoS)
     uint256 public constant MAX_BATCH_CLAIM = 50;
 
     struct Payment {
         uint256 amount;
         uint256 timestamp;
-        address recipient; // Quien ERA el owner cuando se registró el pago
+        address recipient; 
         bool claimed;
     }
 

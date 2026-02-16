@@ -53,4 +53,18 @@ router.post('/force-unlock-paid-off', marketplaceController.forceUnlockPaidOffLo
 // Obtener dirección del relayer
 router.get('/relayer-address', marketplaceController.getRelayerAddress);
 
+
+// Verificar si puede cancelar y si necesita burn
+router.get('/can-cancel/:lenderUid/:loanUid', marketplaceController.canCancel);
+
+// Solicitar burn y cancelación (para NFTs minteados)
+router.post('/request-burn-cancel', marketplaceController.requestBurnAndCancel);
+
+// Relayer: Confirmar burn y completar cancelación
+router.post('/confirm-burn-cancel', marketplaceController.confirmBurnAndCancel);
+
+// Obtener token ID de Avalanche
+router.get('/token-id/:lenderUid/:loanUid', marketplaceController.getTokenId);
+
+
 module.exports = router;

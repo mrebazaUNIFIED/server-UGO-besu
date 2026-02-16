@@ -1,0 +1,16 @@
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+	<defs>
+		<image  width="400" height="400" id="img1" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQAQMAAAC6caSPAAAAAXNSR0IB2cksfwAAAANQTFRF////p8QbyAAAAAF0Uk5TAEDm2GYAAABWSURBVHic7csxDQAADAOg1b/paejbwE+uFkVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVRFEVZLw+8qgGRRYcqLwAAAABJRU5ErkJggg=="/>
+	</defs>
+	<style>
+		tspan { white-space:pre } 
+		.s0 { fill: #bf0303 } 
+		.t1 { font-size: 54px;fill: #f2f9fd;font-weight: 700;font-family: "DejaVuSans-Bold", "DejaVu Sans" } 
+	</style>
+	<use id="Background" href="#img1" x="0" y="0"/>
+	<path id="Forma 1" fill-rule="evenodd" class="s0" d="m200 335c-82.4 0-149-60.35-149-135 0-74.66 66.6-135 149-135 82.4 0 149 60.34 149 135 0 74.65-66.6 135-149 135z"/>
+	<text id="USFCI" style="transform: matrix(1,0,0,1,-2,179)" >
+		<tspan x="112.3" y="41" class="t1">U</tspan><tspan  y="41" class="t1">S</tspan><tspan  y="41" class="t1">F</tspan><tspan  y="41" class="t1">C</tspan><tspan  y="41" class="t1">I
+</tspan>
+	</text>
+</svg>

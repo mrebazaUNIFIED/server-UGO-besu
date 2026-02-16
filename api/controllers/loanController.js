@@ -1,5 +1,85 @@
 const loanService = require('../services/LoanRegistryService');
 
+/**
+ * Obtiene y valida la private key desde las variables de entorno
+ * @returns {string} Private key configurada en .env (limpia y validada)
+ * @throws {Error} Si no está configurada o es inválida la private key
+ */
+function normalizeLoanKeys(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+
+  const map = {
+    lenderuid: "LenderUid",
+    loanuid: "LoanUid",
+    originalbalance: "OriginalBalance",
+    currentbalance: "CurrentBalance",
+    status: "Status",
+    noterate: "NoteRate",
+    soldrate: "SoldRate",
+    calcinterestrate: "CalcInterestRate",
+    coborrower: "CoBorrower",
+    activedefaultinterestrate: "ActiveDefaultInterestRate",
+    deferredunpaidint: "DeferredUnpaidInt",
+    deferredlatecharges: "DeferredLateCharges",
+    deferredunpaidcharges: "DeferredUnpaidCharges",
+    lenderownerpct: "LenderOwnerPct",
+    lendername: "LenderName",
+    city: "City",
+    state: "State",
+    propertyzip: "PropertyZip",
+    account: "Account",
+    maximumdraw: "MaximumDraw",
+    closedate: "CloseDate",
+    drawstatus: "DrawStatus",
+    lenderfunddate: "LenderFundDate",
+    isforeclosure: "IsForeclosure"
+  };
+
+  const normalized = {};
+
+  for (const key of Object.keys(obj)) {
+    const canonical = map[key.toLowerCase()] || key;
+    normalized[canonical] = obj[key];
+  }
+
+  return normalized;
+}
+
+function getPrivateKey() {
+  let privateKey = process.env.PRIVATE_KEY;
+  
+  // Verificar que existe
+  if (!privateKey) {
+    throw new Error('PRIVATE_KEY not configured in environment variables');
+  }
+
+  // Limpiar espacios en blanco y saltos de línea
+  privateKey = privateKey.trim();
+
+  // Validar que no esté vacío después de limpiar
+  if (privateKey.length === 0) {
+    throw new Error('PRIVATE_KEY is empty after trimming whitespace');
+  }
+
+  // Asegurar que tenga el prefijo 0x
+  if (!privateKey.startsWith('0x')) {
+    privateKey = '0x' + privateKey;
+  }
+
+  // Validar longitud (64 caracteres hex + 0x = 66 total)
+  if (privateKey.length !== 66) {
+    throw new Error(`PRIVATE_KEY has invalid length: ${privateKey.length} (expected 66 characters with 0x prefix)`);
+  }
+
+  // Validar que sea hexadecimal válido
+  const hexPattern = /^0x[0-9a-fA-F]{64}$/;
+  if (!hexPattern.test(privateKey)) {
+    throw new Error('PRIVATE_KEY is not a valid hexadecimal string');
+  }
+
+  return privateKey;
+}
+
 class LoanController {
 
   /**
@@ -13,12 +93,20 @@ class LoanController {
    */
   async createLoan(req, res, next) {
     try {
-      const { privateKey, loanData } = req.body;
+      // ✅ Obtener private key desde .env
+      const privateKey = getPrivateKey();
+      const rawLoanData = req.body?.loanData ?? req.body;
+      const loanData = normalizeLoanKeys(rawLoanData);
 
-      if (!privateKey) {
-        return res.status(400).json({ error: 'Private key required' });
-      }
 
+      console.log("========== POST /loans =========="); //
+      console.log("Content-Type:", req.headers["content-type"]); //
+      console.log("================================="); //
+
+      const isMissing = (v) => v === undefined || v === null || v === ""; //
+
+      console.log("LenderUid:", loanData.LenderUid); //
+      console.log("LoanUid:", loanData.LoanUid); //
       if (!loanData || !loanData.LenderUid || !loanData.LoanUid) {
         return res.status(400).json({
           error: 'Invalid loan data. Required: LenderUid and LoanUid'
@@ -38,7 +126,7 @@ class LoanController {
           'LenderUid', 'LoanUid', 'OriginalBalance', 'CurrentBalance', 'Status'
         ];
 
-        const missingFields = requiredFields.filter(field => !loanData[field]);
+        const missingFields = requiredFields.filter((field) => isMissing(loanData[field])); //
 
         if (missingFields.length > 0) {
           return res.status(400).json({
@@ -132,6 +220,11 @@ class LoanController {
     } catch (error) {
       console.error('Error in createLoan:', error);
 
+      if (error.message.includes('PRIVATE_KEY')) {
+        return res.status(500).json({ 
+          error: 'Server configuration error: ' + error.message
+        });
+      }
       if (error.message.includes('required')) {
         return res.status(400).json({ error: error.message });
       }
@@ -157,11 +250,10 @@ class LoanController {
   async updateLoanPartial(req, res, next) {
     try {
       const { loanId } = req.params;
-      const { privateKey, fields } = req.body;
+      const { fields } = req.body;
 
-      if (!privateKey) {
-        return res.status(400).json({ error: 'Private key required' });
-      }
+      // ✅ Obtener private key desde .env
+      const privateKey = getPrivateKey();
 
       if (!fields || Object.keys(fields).length === 0) {
         return res.status(400).json({ error: 'No fields to update provided' });
@@ -180,6 +272,11 @@ class LoanController {
     } catch (error) {
       console.error('Error in updateLoanPartial:', error);
 
+      if (error.message.includes('PRIVATE_KEY')) {
+        return res.status(500).json({ 
+          error: 'Server configuration error: ' + error.message
+        });
+      }
       if (error.message.includes('does not exist')) {
         return res.status(404).json({ error: 'Loan not found' });
       }
@@ -199,11 +296,10 @@ class LoanController {
   async updateLockedLoan(req, res, next) {
     try {
       const { loanId } = req.params;
-      const { privateKey, newBalance, newStatus, newPaidToDate } = req.body;
+      const { newBalance, newStatus, newPaidToDate } = req.body;
 
-      if (!privateKey) {
-        return res.status(400).json({ error: 'Private key required' });
-      }
+      // ✅ Obtener private key desde .env
+      const privateKey = getPrivateKey();
 
       if (newBalance === undefined && !newStatus && !newPaidToDate) {
         return res.status(400).json({
@@ -229,6 +325,11 @@ class LoanController {
     } catch (error) {
       console.error('Error in updateLockedLoan:', error);
 
+      if (error.message.includes('PRIVATE_KEY')) {
+        return res.status(500).json({ 
+          error: 'Server configuration error: ' + error.message
+        });
+      }
       if (error.message.includes('does not exist')) {
         return res.status(404).json({ error: 'Loan not found' });
       }
@@ -435,11 +536,9 @@ class LoanController {
   async deleteLoan(req, res, next) {
     try {
       const { loanId } = req.params;
-      const { privateKey } = req.body;
 
-      if (!privateKey) {
-        return res.status(400).json({ error: 'Private key required' });
-      }
+      // ✅ Obtener private key desde .env
+      const privateKey = getPrivateKey();
 
       // Verificar que el loan existe
       const exists = await loanService.loanExists(loanId);
@@ -475,6 +574,11 @@ class LoanController {
     } catch (error) {
       console.error('Error in deleteLoan:', error);
 
+      if (error.message.includes('PRIVATE_KEY')) {
+        return res.status(500).json({ 
+          error: 'Server configuration error: ' + error.message
+        });
+      }
       if (error.message.includes('Cannot delete locked loan')) {
         return res.status(400).json({
           error: 'Cannot delete locked loan. Unlock it first.'

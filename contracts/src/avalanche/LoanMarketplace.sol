@@ -9,12 +9,12 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 interface ILoanNFT {
     struct LoanMetadata {
         string loanId;
+        uint256 originalBalance;
         uint256 currentBalance;
-        uint256 monthlyPayment;
-        uint256 interestRate;
+        uint256 noteRate;
+        uint256 lenderOwnerPct;
         string status;
         string location;
-        uint256 askingPrice;
         uint256 mintedAt;
         uint256 lastUpdated;
     }
@@ -109,7 +109,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
 
     // ===== HELPER PRIVADO: Validar status del loan =====
     /**
-     * @dev ✅ FIX BUG #3: Validación centralizada de estados inválidos
+     * @dev Validación centralizada de estados inválidos
      */
     function _isValidForSale(
         ILoanNFT.LoanMetadata memory meta
@@ -133,7 +133,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
         require(loanNFT.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!listings[tokenId].isActive, "Already listed");
 
-        // ✅ FIX BUG #3: VALIDAR METADATA antes de listar
+        // Validar metadata antes de listar
         ILoanNFT.LoanMetadata memory meta = loanNFT.getLoanMetadata(tokenId);
         require(
             _isValidForSale(meta),
@@ -197,7 +197,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
         address currentOwner = loanNFT.ownerOf(tokenId);
         require(currentOwner == listing.seller, "Seller no longer owns NFT");
 
-        // ✅ FIX BUG #3: Validar metadata actualizada ANTES de vender
+        // Validar metadata actualizada ANTES de vender
         ILoanNFT.LoanMetadata memory meta = loanNFT.getLoanMetadata(tokenId);
         require(
             _isValidForSale(meta),
@@ -268,7 +268,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev ✅ FIX (BUG #4): Validar si un loan puede ser listado (helper para frontend)
+     * @dev Validar si un loan puede ser listado (helper para frontend)
      */
     function canBeListed(uint256 tokenId) external view returns (bool) {
         try loanNFT.getLoanMetadata(tokenId) returns (
@@ -281,7 +281,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev ✅ NUEVO: Obtener razón específica por la que un loan no puede venderse
+     * @dev Obtener razón específica por la que un loan no puede venderse
      */
     function getInvalidReason(
         uint256 tokenId
@@ -331,7 +331,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
 
     // ===== EMERGENCIA =====
     /**
-     * @dev ✅ FIX: Owner puede forzar cancelación si detecta estado inválido
+     * @dev Owner puede forzar cancelación si detecta estado inválido
      */
     function emergencyCancelListing(uint256 tokenId) external onlyOwner {
         require(listings[tokenId].isActive, "Not listed");
@@ -343,7 +343,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev ✅ NUEVO: Cancelar múltiples listings de golpe (batch emergency)
+     * @dev Cancelar múltiples listings de golpe (batch emergency)
      */
     function emergencyCancelMultiple(
         uint256[] calldata tokenIds

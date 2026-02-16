@@ -3,27 +3,21 @@ const loanService = require('../services/LoanRegistryService');
 
 class MarketplaceController {
 
-  /**
-   * ✅ Inicializar la dependencia del LoanRegistryService
-   */
   constructor() {
-    // Inicializar la dependencia
     marketplaceBridgeService.setLoanRegistryService(loanService);
   }
 
   /**
    * POST /api/marketplace/approve
-   * Aprobar un loan para tokenización
-   * IMPORTANTE: Ahora recibe lenderUid y loanUid en lugar de loanId
+   * ⭐ ACTUALIZADO: Sin privateKey en body, sin modifiedInterestRate
+   * 
+   * Body: { lenderUid, loanUid, askingPrice }
    */
   async approveLoanForSale(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid, askingPrice, modifiedInterestRate } = req.body;
+      const { lenderUid, loanUid, askingPrice } = req.body;
 
-      if (!privateKey) {
-        return res.status(400).json({ error: 'Private key required' });
-      }
-
+      // Validaciones
       if (!lenderUid || !loanUid) {
         return res.status(400).json({ error: 'LenderUid and LoanUid are required' });
       }
@@ -32,64 +26,91 @@ class MarketplaceController {
         return res.status(400).json({ error: 'Valid asking price required' });
       }
 
-      if (modifiedInterestRate === undefined) {
-        return res.status(400).json({ error: 'Modified interest rate required' });
-      }
-
       // Verificar que el loan existe
-      const loanId = loanService.generateLoanId(lenderUid, loanUid);
-      const exists = await loanService.loanExists(loanId);
+      const exists = await marketplaceBridgeService._verifyLoanExists(lenderUid, loanUid);
       if (!exists) {
-        return res.status(404).json({ 
-          error: `Loan not found for LenderUid: ${lenderUid}, LoanUid: ${loanUid}` 
+        return res.status(404).json({
+          error: `Loan not found for LenderUid: ${lenderUid}, LoanUid: ${loanUid}`
         });
       }
 
-      // Verificar si ya está tokenizado
-      const isTokenized = await loanService.isLoanTokenized(loanId);
-      if (isTokenized) {
-        return res.status(400).json({ 
+      // Verificar estado del loan
+      const loan = await marketplaceBridgeService._getLoanFromBlockchain(lenderUid, loanUid);
+
+      if (loan.isTokenized) {
+        return res.status(400).json({
           error: 'Loan is already tokenized',
-          tokenId: await loanService.getAvalancheTokenId(loanId)
+          tokenId: loan.AvalancheTokenId || 'Unknown'
         });
       }
 
-      const result = await marketplaceBridgeService.approveLoanForSale(
-        privateKey,
+      // ⭐ PASO 1: Aprobar para venta
+      console.log(`📝 Approving loan for sale: ${loanUid}`);
+      const approvalResult = await marketplaceBridgeService.approveLoanForSale(
         lenderUid,
         loanUid,
-        askingPrice,
-        modifiedInterestRate
+        askingPrice
       );
+      console.log(`✅ Loan approved. TxHash: ${approvalResult.txHash}`);
+
+      // ⭐ PASO 2: Registrar automáticamente el txHash
+      let registrationResult = null;
+      try {
+        console.log(`📝 Registering txHash in contract: ${approvalResult.txHash}`);
+
+        registrationResult = await marketplaceBridgeService.registerApprovalTxHash(
+          lenderUid,
+          loanUid,
+          approvalResult.txHash
+        );
+
+        console.log(`✅ TxHash registered successfully in block ${registrationResult.blockNumber}`);
+      } catch (regError) {
+        console.error(`⚠️ Failed to register txHash automatically: ${regError.message}`);
+        // No fallar la operación completa, solo loguear el warning
+        console.error(`⚠️ User should call /register-txhash manually with txHash: ${approvalResult.txHash}`);
+      }
 
       res.status(200).json({
         success: true,
         message: 'Loan approved for tokenization. The relayer will process it shortly.',
-        loanId: result.loanId,
+        loanId: approvalResult.loanId,
         lenderUid: lenderUid,
         loanUid: loanUid,
-        data: result
+        noteRate: approvalResult.noteRate,
+        approvalTxHash: approvalResult.txHash, // ⭐ Incluir el txHash en la respuesta
+        data: {
+          approval: approvalResult,
+          txHashRegistration: registrationResult ? {
+            registered: true,
+            registrationTxHash: registrationResult.txHash,
+            blockNumber: registrationResult.blockNumber
+          } : {
+            registered: false,
+            warning: 'TxHash was not registered automatically. Please call /register-txhash manually.',
+            pendingTxHash: approvalResult.txHash
+          }
+        }
       });
 
     } catch (error) {
       console.error('Error in approveLoanForSale:', error);
-      
+
+      if (error.message.includes('PRIVATE_KEY not configured')) {
+        return res.status(500).json({
+          error: 'Server configuration error: Private key not set'
+        });
+      }
       if (error.message.includes('Already approved')) {
         return res.status(400).json({ error: 'Loan is already approved for sale' });
       }
       if (error.message.includes('Not the loan lender')) {
-        return res.status(403).json({ 
-          error: 'Only the loan lender can approve it for sale. Verify your LenderUid matches the lender address.' 
+        return res.status(403).json({
+          error: 'Only the loan lender can approve it for sale'
         });
       }
-      if (error.message.includes('Cannot tokenize paid off loan')) {
-        return res.status(400).json({ error: 'Cannot tokenize a paid off loan' });
-      }
-      if (error.message.includes('Loan balance must be > 0')) {
-        return res.status(400).json({ error: 'Loan balance must be greater than 0' });
-      }
-      if (error.message.includes('User not active')) {
-        return res.status(403).json({ error: 'User account is not active' });
+      if (error.message.includes('Loan is already locked')) {
+        return res.status(400).json({ error: 'Loan is already being processed' });
       }
       next(error);
     }
@@ -97,23 +118,17 @@ class MarketplaceController {
 
   /**
    * POST /api/marketplace/cancel
-   * Cancelar aprobación de venta
-   * IMPORTANTE: Ahora recibe lenderUid y loanUid
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async cancelSaleListing(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid } = req.body;
-
-      if (!privateKey) {
-        return res.status(400).json({ error: 'Private key required' });
-      }
+      const { lenderUid, loanUid } = req.body;
 
       if (!lenderUid || !loanUid) {
         return res.status(400).json({ error: 'LenderUid and LoanUid are required' });
       }
 
       const result = await marketplaceBridgeService.cancelSaleListing(
-        privateKey,
         lenderUid,
         loanUid
       );
@@ -129,15 +144,17 @@ class MarketplaceController {
 
     } catch (error) {
       console.error('Error in cancelSaleListing:', error);
-      
+
+      if (error.message.includes('PRIVATE_KEY not configured')) {
+        return res.status(500).json({
+          error: 'Server configuration error: Private key not set'
+        });
+      }
       if (error.message.includes('Not approved for sale')) {
         return res.status(400).json({ error: 'Loan is not approved for sale' });
       }
       if (error.message.includes('Already cancelled')) {
         return res.status(400).json({ error: 'Approval was already cancelled' });
-      }
-      if (error.message.includes('Not the loan lender')) {
-        return res.status(403).json({ error: 'Only the loan lender can cancel the listing' });
       }
       next(error);
     }
@@ -145,12 +162,12 @@ class MarketplaceController {
 
   /**
    * GET /api/marketplace/approval/:lenderUid/:loanUid
-   * Obtener datos de aprobación
+   * ⭐ ACTUALIZADO: Ya no retorna modifiedInterestRate
    */
   async getApprovalData(req, res, next) {
     try {
       const { lenderUid, loanUid } = req.params;
-      
+
       const approval = await marketplaceBridgeService.getApprovalData(lenderUid, loanUid);
 
       res.json({
@@ -163,48 +180,49 @@ class MarketplaceController {
 
     } catch (error) {
       console.error('Error in getApprovalData:', error);
+
+      if (error.message.includes('not found')) {
+        return res.status(404).json({
+          success: false,
+          error: 'Approval data not found'
+        });
+      }
       next(error);
     }
   }
 
   /**
    * GET /api/marketplace/status/:lenderUid/:loanUid
-   * Obtener estado completo de tokenización
    */
   async getTokenizationStatus(req, res, next) {
     try {
       const { lenderUid, loanUid } = req.params;
 
-      // Generar loanId
-      const loanId = loanService.generateLoanId(lenderUid, loanUid);
+      const loan = await marketplaceBridgeService._getLoanFromBlockchain(lenderUid, loanUid);
 
-      // Obtener loan de LoanRegistry
-      const loan = await loanService.readLoan(loanId);
-
-      // Obtener datos de aprobación
-      const approval = await marketplaceBridgeService.getApprovalData(lenderUid, loanUid);
-
-      // Obtener token ID si está tokenizado
-      let avalancheTokenId = '0';
-      if (loan.isTokenized) {
-        avalancheTokenId = await loanService.getAvalancheTokenId(loanId);
+      let approval = null;
+      try {
+        approval = await marketplaceBridgeService.getApprovalData(lenderUid, loanUid);
+      } catch (error) {
+        console.log('No approval data found for loan:', loan.ID);
       }
 
       const status = {
-        loanId: loanId,
+        loanId: loan.ID,
         lenderUid: lenderUid,
         loanUid: loanUid,
         isLocked: loan.isLocked || false,
         isTokenized: loan.isTokenized || false,
-        avalancheTokenId: avalancheTokenId,
-        canBeMinted: await marketplaceBridgeService.canBeMinted(lenderUid, loanUid),
-        isApprovedForSale: await marketplaceBridgeService.isLoanApprovedForSale(lenderUid, loanUid),
+        avalancheTokenId: loan.AvalancheTokenId || '0',
+        canBeMinted: approval ? (approval.isApproved && !approval.isMinted) : false,
+        isApprovedForSale: approval ? (approval.isApproved && !approval.isCancelled) : false,
         loanDetails: {
           currentBalance: loan.CurrentBalance,
           status: loan.Status,
-          noteRate: loan.NoteRate
+          noteRate: loan.NoteRate,
+          lenderAddress: loan.LenderAddress
         },
-        approval: approval.isApproved ? approval : null
+        approval: approval
       };
 
       res.json({
@@ -214,10 +232,11 @@ class MarketplaceController {
 
     } catch (error) {
       console.error('Error in getTokenizationStatus:', error);
-      
-      if (error.message.includes('does not exist')) {
-        return res.status(404).json({ 
-          error: `Loan not found for LenderUid: ${req.params.lenderUid}, LoanUid: ${req.params.loanUid}` 
+
+      if (error.message.includes('not found') || error.message.includes('does not exist')) {
+        return res.status(404).json({
+          success: false,
+          error: `Loan not found: ${error.message}`
         });
       }
       next(error);
@@ -226,7 +245,6 @@ class MarketplaceController {
 
   /**
    * GET /api/marketplace/approved/:lenderAddress
-   * Listar todos los loans aprobados de un lender
    */
   async getApprovedLoansByLender(req, res, next) {
     try {
@@ -249,7 +267,6 @@ class MarketplaceController {
 
   /**
    * GET /api/marketplace/tokenized
-   * Obtener todos los loans tokenizados
    */
   async getTokenizedLoans(req, res, next) {
     try {
@@ -269,21 +286,19 @@ class MarketplaceController {
 
   /**
    * POST /api/marketplace/set-token-id
-   * Relayer establece el tokenId de Avalanche después de mintear el NFT
-   * IMPORTANTE: Ahora recibe lenderUid y loanUid
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async setAvalancheTokenId(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid, tokenId } = req.body;
+      const { lenderUid, loanUid, tokenId } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid || !tokenId) {
-        return res.status(400).json({ 
-          error: 'Private key, lenderUid, loanUid and tokenId required' 
+      if (!lenderUid || !loanUid || !tokenId) {
+        return res.status(400).json({
+          error: 'lenderUid, loanUid and tokenId required'
         });
       }
 
       const result = await marketplaceBridgeService.setAvalancheTokenId(
-        privateKey,
         lenderUid,
         loanUid,
         tokenId
@@ -299,21 +314,12 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in setAvalancheTokenId:', error);
-      
+
       if (error.message.includes('Already minted')) {
         return res.status(400).json({ error: 'NFT already minted' });
       }
       if (error.message.includes('Loan not approved')) {
         return res.status(400).json({ error: 'Loan not approved or cancelled' });
-      }
-      if (error.message.includes('Approval was cancelled')) {
-        return res.status(400).json({ error: 'Approval was cancelled' });
-      }
-      if (error.message.includes('Loan is not locked')) {
-        return res.status(400).json({ error: 'Loan is not locked. Approve it for sale first.' });
-      }
-      if (error.message.includes('Only MarketplaceBridge')) {
-        return res.status(403).json({ error: 'Only the relayer can set token IDs' });
       }
       next(error);
     }
@@ -321,19 +327,17 @@ class MarketplaceController {
 
   /**
    * POST /api/marketplace/record-transfer
-   * Relayer registra transferencia de ownership (compra/venta)
-   * IMPORTANTE: Ahora recibe lenderUid y loanUid
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async recordOwnershipTransfer(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid, newOwnerAddress, salePrice } = req.body;
+      const { lenderUid, loanUid, newOwnerAddress, salePrice } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid || !newOwnerAddress || !salePrice) {
+      if (!lenderUid || !loanUid || !newOwnerAddress || !salePrice) {
         return res.status(400).json({ error: 'All fields required' });
       }
 
       const result = await marketplaceBridgeService.recordOwnershipTransfer(
-        privateKey,
         lenderUid,
         loanUid,
         newOwnerAddress,
@@ -350,12 +354,9 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in recordOwnershipTransfer:', error);
-      
+
       if (error.message.includes('NFT not minted yet')) {
         return res.status(400).json({ error: 'NFT not minted yet' });
-      }
-      if (error.message.includes('Only MarketplaceBridge')) {
-        return res.status(403).json({ error: 'Only the relayer can record transfers' });
       }
       next(error);
     }
@@ -363,19 +364,17 @@ class MarketplaceController {
 
   /**
    * POST /api/marketplace/record-payment
-   * Relayer registra pago del borrower
-   * IMPORTANTE: Ahora recibe lenderUid y loanUid
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async recordPayment(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid, amount } = req.body;
+      const { lenderUid, loanUid, amount } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid || !amount) {
+      if (!lenderUid || !loanUid || !amount) {
         return res.status(400).json({ error: 'All fields required' });
       }
 
       const result = await marketplaceBridgeService.recordPayment(
-        privateKey,
         lenderUid,
         loanUid,
         amount
@@ -391,28 +390,23 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in recordPayment:', error);
-      
-      if (error.message.includes('Only MarketplaceBridge')) {
-        return res.status(403).json({ error: 'Only the relayer can record payments' });
-      }
       next(error);
     }
   }
 
   /**
    * POST /api/marketplace/mark-paid-off
-   * Relayer marca loan como pagado
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async markLoanAsPaidOff(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid } = req.body;
+      const { lenderUid, loanUid } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid) {
+      if (!lenderUid || !loanUid) {
         return res.status(400).json({ error: 'All fields required' });
       }
 
       const result = await marketplaceBridgeService.markLoanAsPaidOff(
-        privateKey,
         lenderUid,
         loanUid
       );
@@ -427,15 +421,9 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in markLoanAsPaidOff:', error);
-      
+
       if (error.message.includes('Not minted')) {
         return res.status(400).json({ error: 'Loan not tokenized yet' });
-      }
-      if (error.message.includes('Loan not paid off')) {
-        return res.status(400).json({ error: 'Loan is not in Paid Off status' });
-      }
-      if (error.message.includes('Only MarketplaceBridge')) {
-        return res.status(403).json({ error: 'Only the relayer can mark loans as paid off' });
       }
       next(error);
     }
@@ -443,14 +431,13 @@ class MarketplaceController {
 
   /**
    * GET /api/marketplace/can-approve/:lenderUid/:loanUid/:lenderAddress
-   * Verificar si un lender puede aprobar un préstamo
    */
   async canLenderApproveLoan(req, res, next) {
     try {
       const { lenderUid, loanUid, lenderAddress } = req.params;
 
       if (!lenderAddress) {
-        return res.status(400).json({ error: 'lenderAddress query parameter is required' });
+        return res.status(400).json({ error: 'lenderAddress parameter is required' });
       }
 
       const result = await marketplaceBridgeService.canLenderApproveLoan(
@@ -466,8 +453,8 @@ class MarketplaceController {
         lenderAddress: lenderAddress,
         canApprove: result.canApprove,
         reason: result.reason,
-        recommendation: result.canApprove 
-          ? 'You can proceed with approval' 
+        recommendation: result.canApprove
+          ? 'You can proceed with approval'
           : `Cannot approve: ${result.reason}`
       });
 
@@ -479,18 +466,17 @@ class MarketplaceController {
 
   /**
    * POST /api/marketplace/register-txhash
-   * Registrar hash de transacción de aprobación
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async registerApprovalTxHash(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid, txHash } = req.body;
+      const { lenderUid, loanUid, txHash } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid || !txHash) {
+      if (!lenderUid || !loanUid || !txHash) {
         return res.status(400).json({ error: 'All fields required' });
       }
 
       const result = await marketplaceBridgeService.registerApprovalTxHash(
-        privateKey,
         lenderUid,
         loanUid,
         txHash
@@ -506,20 +492,12 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in registerApprovalTxHash:', error);
-      
-      if (error.message.includes('Loan not approved')) {
-        return res.status(400).json({ error: 'Loan not approved yet' });
-      }
-      if (error.message.includes('Only MarketplaceBridge')) {
-        return res.status(403).json({ error: 'Only the relayer can register transaction hashes' });
-      }
       next(error);
     }
   }
 
   /**
    * GET /api/marketplace/txhash/:txHash
-   * Obtener loanId por hash de transacción
    */
   async getLoanIdByTxHash(req, res, next) {
     try {
@@ -535,7 +513,7 @@ class MarketplaceController {
 
     } catch (error) {
       console.error('Error in getLoanIdByTxHash:', error);
-      
+
       if (error.message.includes('TxHash not found')) {
         return res.status(404).json({ error: 'Transaction hash not found in registry' });
       }
@@ -545,7 +523,6 @@ class MarketplaceController {
 
   /**
    * GET /api/marketplace/approval-by-txhash/:txHash
-   * Obtener datos de aprobación por hash de transacción
    */
   async getApprovalDataByTxHash(req, res, next) {
     try {
@@ -561,7 +538,7 @@ class MarketplaceController {
 
     } catch (error) {
       console.error('Error in getApprovalDataByTxHash:', error);
-      
+
       if (error.message.includes('TxHash not found')) {
         return res.status(404).json({ error: 'Transaction hash not found' });
       }
@@ -571,18 +548,17 @@ class MarketplaceController {
 
   /**
    * POST /api/marketplace/emergency-unlock
-   * Función de emergencia para desbloquear (solo owner)
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async emergencyUnlock(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid } = req.body;
+      const { lenderUid, loanUid } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid) {
+      if (!lenderUid || !loanUid) {
         return res.status(400).json({ error: 'All fields required' });
       }
 
       const result = await marketplaceBridgeService.emergencyUnlock(
-        privateKey,
         lenderUid,
         loanUid
       );
@@ -598,36 +574,23 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in emergencyUnlock:', error);
-      
-      if (error.message.includes('Not approved')) {
-        return res.status(400).json({ error: 'Loan not approved' });
-      }
-      if (error.message.includes('NFT already minted')) {
-        return res.status(400).json({ 
-          error: 'NFT already minted. Cannot emergency unlock.' 
-        });
-      }
-      if (error.message.includes('Only owner')) {
-        return res.status(403).json({ error: 'Only contract owner can perform emergency unlock' });
-      }
       next(error);
     }
   }
 
   /**
    * POST /api/marketplace/force-unlock-paid-off
-   * Forzar desbloqueo para préstamos pagados (solo relayer)
+   * ⭐ ACTUALIZADO: Sin privateKey en body
    */
   async forceUnlockPaidOffLoan(req, res, next) {
     try {
-      const { privateKey, lenderUid, loanUid } = req.body;
+      const { lenderUid, loanUid } = req.body;
 
-      if (!privateKey || !lenderUid || !loanUid) {
+      if (!lenderUid || !loanUid) {
         return res.status(400).json({ error: 'All fields required' });
       }
 
       const result = await marketplaceBridgeService.forceUnlockPaidOffLoan(
-        privateKey,
         lenderUid,
         loanUid
       );
@@ -642,20 +605,12 @@ class MarketplaceController {
       });
     } catch (error) {
       console.error('Error in forceUnlockPaidOffLoan:', error);
-      
-      if (error.message.includes('Loan not paid off')) {
-        return res.status(400).json({ error: 'Loan is not in Paid Off status' });
-      }
-      if (error.message.includes('Only MarketplaceBridge')) {
-        return res.status(403).json({ error: 'Only the relayer can force unlock paid off loans' });
-      }
       next(error);
     }
   }
 
   /**
    * GET /api/marketplace/relayer-address
-   * Obtener dirección del relayer configurada
    */
   async getRelayerAddress(req, res, next) {
     try {
@@ -668,6 +623,189 @@ class MarketplaceController {
 
     } catch (error) {
       console.error('Error in getRelayerAddress:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/marketplace/request-burn-cancel
+   * ⭐ ACTUALIZADO: Sin privateKey en body
+   */
+  async requestBurnAndCancel(req, res, next) {
+    try {
+      const { lenderUid, loanUid } = req.body;
+
+      if (!lenderUid || !loanUid) {
+        return res.status(400).json({ error: 'LenderUid and LoanUid are required' });
+      }
+
+      const canCancelStatus = await marketplaceBridgeService.canCancel(lenderUid, loanUid);
+
+      if (!canCancelStatus.canCancelNow) {
+        return res.status(400).json({
+          error: 'Cannot cancel this listing',
+          details: 'Loan may not be approved or is already cancelled'
+        });
+      }
+
+      if (!canCancelStatus.needsBurn) {
+        const result = await marketplaceBridgeService.cancelSaleListing(
+          lenderUid,
+          loanUid
+        );
+
+        return res.json({
+          success: true,
+          message: 'Sale listing cancelled successfully',
+          type: 'direct_cancel',
+          loanId: result.loanId,
+          lenderUid: lenderUid,
+          loanUid: loanUid,
+          data: result
+        });
+      }
+
+      const tokenId = await marketplaceBridgeService.getTokenIdForLoan(lenderUid, loanUid);
+
+      const result = await marketplaceBridgeService.requestBurnAndCancel(
+        lenderUid,
+        loanUid
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Burn request submitted successfully',
+        type: 'burn_required',
+        loanId: result.loanId,
+        lenderUid: lenderUid,
+        loanUid: loanUid,
+        avalancheTokenId: tokenId,
+        nextStep: 'Relayer must burn the NFT on Avalanche chain',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Error in requestBurnAndCancel:', error);
+
+      if (error.message.includes('NFT not minted yet')) {
+        return res.status(400).json({
+          error: 'NFT not minted yet, use cancelSaleListing instead'
+        });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/marketplace/confirm-burn-cancel
+   * ⭐ ACTUALIZADO: Sin privateKey en body
+   */
+  async confirmBurnAndCancel(req, res, next) {
+    try {
+      const { lenderUid, loanUid } = req.body;
+
+      if (!lenderUid || !loanUid) {
+        return res.status(400).json({ error: 'LenderUid and LoanUid are required' });
+      }
+
+      const result = await marketplaceBridgeService.confirmBurnAndCancel(
+        lenderUid,
+        loanUid
+      );
+
+      res.json({
+        success: true,
+        message: 'NFT burn confirmed and loan unlocked successfully',
+        loanId: result.loanId,
+        lenderUid: lenderUid,
+        loanUid: loanUid,
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Error in confirmBurnAndCancel:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/marketplace/can-cancel/:lenderUid/:loanUid
+   */
+  async canCancel(req, res, next) {
+    try {
+      const { lenderUid, loanUid } = req.params;
+
+      const canCancelStatus = await marketplaceBridgeService.canCancel(lenderUid, loanUid);
+
+      let tokenId = '0';
+      let approvalData = null;
+
+      try {
+        approvalData = await marketplaceBridgeService.getApprovalData(lenderUid, loanUid);
+        if (approvalData.isMinted) {
+          tokenId = await marketplaceBridgeService.getTokenIdForLoan(lenderUid, loanUid);
+        }
+      } catch (error) {
+        // No hay aprobación
+      }
+
+      const response = {
+        success: true,
+        lenderUid: lenderUid,
+        loanUid: loanUid,
+        canCancelNow: canCancelStatus.canCancelNow,
+        needsBurn: canCancelStatus.needsBurn,
+        recommendation: canCancelStatus.canCancelNow
+          ? (canCancelStatus.needsBurn
+            ? 'Use requestBurnAndCancel (NFT must be burned on Avalanche)'
+            : 'Use cancelSaleListing (direct cancellation)')
+          : 'Cannot cancel this listing',
+        currentStatus: {
+          isApproved: approvalData?.isApproved || false,
+          isMinted: approvalData?.isMinted || false,
+          isCancelled: approvalData?.isCancelled || false,
+          avalancheTokenId: tokenId !== '0' ? tokenId : null
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      console.error('Error in canCancel:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/marketplace/token-id/:lenderUid/:loanUid
+   */
+  async getTokenId(req, res, next) {
+    try {
+      const { lenderUid, loanUid } = req.params;
+
+      const tokenId = await marketplaceBridgeService.getTokenIdForLoan(lenderUid, loanUid);
+
+      let approval = null;
+      try {
+        approval = await marketplaceBridgeService.getApprovalData(lenderUid, loanUid);
+      } catch (error) {
+        // No hay aprobación
+      }
+
+      res.json({
+        success: true,
+        lenderUid: lenderUid,
+        loanUid: loanUid,
+        tokenId: tokenId,
+        isMinted: approval?.isMinted || false,
+        isActive: approval?.isApproved && !approval?.isCancelled || false,
+        message: tokenId !== '0'
+          ? `NFT is minted with token ID: ${tokenId}`
+          : 'NFT not minted yet'
+      });
+
+    } catch (error) {
+      console.error('Error in getTokenId:', error);
       next(error);
     }
   }

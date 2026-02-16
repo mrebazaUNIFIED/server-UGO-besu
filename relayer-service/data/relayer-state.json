@@ -1,0 +1,26 @@
+{
+  "syncState": {
+    "besu": {
+      "lastBlock": 751,
+      "lastSync": "2026-02-05T20:19:54.443Z"
+    },
+    "avalanche": {
+      "lastBlock": 0,
+      "lastSync": null
+    }
+  },
+  "loanMappings": [],
+  "nonces": {
+    "86ca146d2aacc77bc7a6cca5b6b430ef1cfe2446dc5c6db2dff8f64755e3143f": 1
+  },
+  "metrics": {
+    "eventsProcessed": 1,
+    "errors": 0,
+    "nftsMinted": 0,
+    "nftsBurned": 0,
+    "salesRecorded": 0,
+    "paymentsDistributed": 0,
+    "approvalsProcessed": 0
+  },
+  "timestamp": "2026-02-05T20:19:54.443Z"
+}

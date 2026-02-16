@@ -10,7 +10,7 @@ async function main() {
   const usersToCreate = [
     { userId: "a1b2c3d4-e5f6-4789-1011-121314151617", name: "Sunwest", organization: "Sunwest", role: "admin", initialBalance: 0 },
     { userId: "b2c3d4e5-f6a7-4890-1213-141516171819", name: "Mike", organization: "FCI", role: "operator", initialBalance: 0 },
-    { userId: "c3d4e5f6-a7b8-4901-2345-678910111213", name: "FCI Corporate", organization: "FCI", role: "operator", initialBalance: 0 },
+    { userId: "581c7abb8fbd4cc1ac69b9e7d81c95ed", name: "FCI Corporate", organization: "FCI", role: "operator", initialBalance: 0 },
     { userId: "98aa2ab88b0e45359129779256d54107", name: "Tim", organization: "FCI", role: "operator", initialBalance: 0 }
   ];
 

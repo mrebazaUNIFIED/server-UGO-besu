@@ -4,15 +4,16 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface ILoanNFT {
+    // ⭐ ACTUALIZADO: Nueva firma del mint
     function mint(
         string memory loanId,
         address lenderAddress,
+        uint256 originalBalance,
         uint256 currentBalance,
-        uint256 monthlyPayment,
-        uint256 interestRate,
+        uint256 noteRate,
+        uint256 lenderOwnerPct,
         string memory status,
-        string memory location,
-        uint256 askingPrice
+        string memory location
     ) external returns (uint256);
 
     function updateMetadata(
@@ -20,6 +21,10 @@ interface ILoanNFT {
         uint256 newBalance,
         string memory newStatus
     ) external;
+
+    // ⭐ NUEVO: Burn functions
+    function burn(uint256 tokenId) external;
+    function burnByLoanId(string memory loanId) external;
 
     function loanIdToTokenId(
         string memory loanId
@@ -39,7 +44,6 @@ contract BridgeReceiver is Ownable {
     uint256 public requiredSignatures;
     mapping(bytes32 => bool) public processedMessages;
 
-    // ✅ FIX: Tracking para validar que loans fueron aprobados en Besu
     mapping(string => bool) public approvedInBesu;
 
     event LoanMinted(
@@ -62,22 +66,26 @@ contract BridgeReceiver is Ownable {
         uint256 timestamp
     );
 
-    // ✅ NUEVO: Evento para que el relayer sincronice con Besu
     event TokenIdNeedsSyncToBesu(
         string indexed loanId,
         uint256 indexed tokenId,
         uint256 timestamp
     );
 
-    // ✅ NUEVO: Evento cuando loan se paga completamente
     event LoanPaidOff(
         string indexed loanId,
         uint256 indexed tokenId,
         uint256 timestamp
     );
 
-    // ✅ NUEVO: Evento cuando loan se desbloquea
     event LoanUnlocked(
+        string indexed loanId,
+        uint256 indexed tokenId,
+        uint256 timestamp
+    );
+
+    // ⭐ NUEVO: Evento de burn
+    event LoanNFTBurned(
         string indexed loanId,
         uint256 indexed tokenId,
         uint256 timestamp
@@ -119,33 +127,34 @@ contract BridgeReceiver is Ownable {
     // ===== PROCESAMIENTO DE MENSAJES =====
 
     /**
-     * @dev ✅ FIX: Ahora valida que el loan fue aprobado en Besu y emite evento para sincronización
+     * @notice ⭐ ACTUALIZADO: Nueva firma para el mint
+     * @dev Ya no recibe askingPrice (está en MarketplaceBridge, no en NFT)
      */
     function processLoanApproval(
         string memory loanId,
         address lenderAddress,
+        uint256 originalBalance,
         uint256 currentBalance,
-        uint256 monthlyPayment,
-        uint256 interestRate,
+        uint256 noteRate,
+        uint256 lenderOwnerPct,
         string memory status,
         string memory location,
-        uint256 askingPrice,
         uint256 timestamp,
         uint256 nonce,
         bytes[] memory signatures
     ) external returns (uint256) {
-        // Construir mensaje
+        // Construir mensaje hash con los nuevos parámetros
         bytes32 messageHash = keccak256(
             abi.encodePacked(
                 "MINT",
                 loanId,
                 lenderAddress,
+                originalBalance,
                 currentBalance,
-                monthlyPayment,
-                interestRate,
+                noteRate,
+                lenderOwnerPct,
                 status,
                 location,
-                askingPrice,
                 timestamp,
                 nonce
             )
@@ -160,7 +169,7 @@ contract BridgeReceiver is Ownable {
         require(!processedMessages[ethSignedHash], "Already processed");
         require(block.timestamp - timestamp < 600, "Message too old");
 
-        // ✅ FIX: Validar que el loan fue aprobado en Besu
+        // Validar que el loan fue aprobado en Besu
         require(
             approvedInBesu[loanId],
             "Loan not approved or was cancelled in Besu"
@@ -169,29 +178,27 @@ contract BridgeReceiver is Ownable {
         // Marcar como procesado
         processedMessages[ethSignedHash] = true;
 
-        // Mintear NFT
+        // ⭐ Mintear NFT con nueva firma
         uint256 tokenId = loanNFT.mint(
             loanId,
             lenderAddress,
+            originalBalance,
             currentBalance,
-            monthlyPayment,
-            interestRate,
+            noteRate,
+            lenderOwnerPct,
             status,
-            location,
-            askingPrice
+            location
         );
 
-        // ✅ FIX: Emitir evento para que el relayer sincronice con Besu
-        // El relayer escuchará este evento y llamará MarketplaceBridge.setAvalancheTokenId() en Besu
+        // Emitir evento para sincronización con Besu
         emit TokenIdNeedsSyncToBesu(loanId, tokenId, block.timestamp);
-
         emit LoanMinted(loanId, tokenId, lenderAddress, block.timestamp);
+
         return tokenId;
     }
 
     /**
-     * @dev ✅ NUEVO: El relayer llama esta función para marcar loans aprobados en Besu
-     * Esto previene que se minteen loans que fueron cancelados
+     * @notice Marcar loan como aprobado en Besu
      */
     function markLoanApprovedInBesu(
         string memory loanId,
@@ -218,7 +225,7 @@ contract BridgeReceiver is Ownable {
     }
 
     /**
-     * @dev ✅ NUEVO: El relayer llama esta función si un loan fue cancelado en Besu
+     * @notice Marcar loan como cancelado en Besu
      */
     function markLoanCancelledInBesu(
         string memory loanId,
@@ -239,7 +246,44 @@ contract BridgeReceiver is Ownable {
         require(block.timestamp - timestamp < 600, "Message too old");
 
         processedMessages[ethSignedHash] = true;
-        approvedInBesu[loanId] = false; // ✅ Marcar como NO aprobado
+        approvedInBesu[loanId] = false;
+
+        return true;
+    }
+
+    /**
+     * @notice ⭐ NUEVO: Procesar burn de NFT
+     */
+    function processBurnRequest(
+        string memory loanId,
+        uint256 timestamp,
+        uint256 nonce,
+        bytes[] memory signatures
+    ) external returns (bool) {
+        bytes32 messageHash = keccak256(
+            abi.encodePacked("BURN", loanId, timestamp, nonce)
+        );
+
+        bytes32 ethSignedHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
+        );
+
+        require(verifyMessage(ethSignedHash, signatures), "Invalid signatures");
+        require(!processedMessages[ethSignedHash], "Already processed");
+        require(block.timestamp - timestamp < 600, "Message too old");
+
+        processedMessages[ethSignedHash] = true;
+
+        uint256 tokenId = loanNFT.loanIdToTokenId(loanId);
+        require(tokenId != 0, "Loan not minted");
+
+        // Quemar el NFT
+        loanNFT.burnByLoanId(loanId);
+
+        // Marcar como no aprobado para prevenir re-mint inmediato
+        approvedInBesu[loanId] = false;
+
+        emit LoanNFTBurned(loanId, tokenId, block.timestamp);
 
         return true;
     }
@@ -312,10 +356,6 @@ contract BridgeReceiver is Ownable {
         return true;
     }
 
-    /**
-     * @dev ✅ NUEVO: Procesar cuando un loan se paga completamente
-     * BUG #3 fix
-     */
     function processLoanPaidOff(
         string memory loanId,
         uint256 timestamp,
@@ -339,7 +379,6 @@ contract BridgeReceiver is Ownable {
         uint256 tokenId = loanNFT.loanIdToTokenId(loanId);
         require(tokenId != 0, "Loan not tokenized");
 
-        // Actualizar metadata a "Paid Off" con balance 0
         loanNFT.updateMetadata(tokenId, 0, "Paid Off");
 
         emit LoanPaidOff(loanId, tokenId, block.timestamp);
@@ -369,17 +408,12 @@ contract BridgeReceiver is Ownable {
         uint256 tokenId = loanNFT.loanIdToTokenId(loanId);
         require(tokenId != 0, "Loan not tokenized");
 
-        // Actualizar metadata a "Unlocked" para invalidar el NFT
         loanNFT.updateMetadata(tokenId, 0, "Unlocked");
 
         emit LoanUnlocked(loanId, tokenId, block.timestamp);
         return true;
     }
 
-    /**
-     * @dev ✅ NUEVO: Procesar cuando un loan se desbloquea en emergencia
-     * BUG #4 fix - permite invalidar NFT si fue desbloqueado en Besu
-     */
     function processLoanUnlocked(
         string memory loanId,
         uint256 timestamp,
@@ -403,7 +437,6 @@ contract BridgeReceiver is Ownable {
         uint256 tokenId = loanNFT.loanIdToTokenId(loanId);
         require(tokenId != 0, "Loan not tokenized");
 
-        // Actualizar metadata a "Unlocked" para invalidar el NFT
         loanNFT.updateMetadata(tokenId, 0, "Unlocked");
 
         emit LoanUnlocked(loanId, tokenId, block.timestamp);
