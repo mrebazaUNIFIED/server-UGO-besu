@@ -21,7 +21,7 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
   const [copied, setCopied] = useState(false);
 
   const handleCopyTxHash = () => {
-    navigator.clipboard.writeText(data.data.txHash);
+    navigator.clipboard.writeText(data.data.approval.txHash);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -31,19 +31,28 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
     return `https://sepolia.etherscan.io/tx/${txHash}`;
   };
 
+  // Helper para formatear la dirección de la propiedad
+  const getPropertyAddress = () => {
+    const parts = [];
+    if (loan.City) parts.push(loan.City);
+    if (loan.State) parts.push(loan.State);
+    if (loan.PropertyZip) parts.push(loan.PropertyZip);
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  };
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog onClose={onClose} className="relative z-50">
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-black/70 transition-opacity data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+          className="fixed inset-0 bg-black/70 transition-opacity data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in"
         />
 
         <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
             <DialogPanel
               transition
-              className="relative transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-2xl data-closed:opacity-0 data-closed:translate-y-4 sm:data-closed:translate-y-0 sm:data-closed:scale-95"
+              className="relative transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all data-[closed]:opacity-0 data-[closed]:translate-y-4 data-[closed]:sm:translate-y-0 data-[closed]:sm:scale-95 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in sm:my-8 sm:w-full sm:max-w-2xl"
             >
               {/* Header con animación de éxito */}
               <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-5">
@@ -83,15 +92,28 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Loan ID:</span>
-                      <span className="font-medium">{data.data.loanId}</span>
+                      <span className="font-medium font-mono text-xs break-all">{data.loanId}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Borrower:</span>
-                      <span className="font-medium">{loan.BorrowerFullName}</span>
+                      <span className="text-gray-600">Account:</span>
+                      <span className="font-medium">{loan.Account || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Lender:</span>
+                      <span className="font-medium">{loan.LenderName || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Property:</span>
-                      <span className="font-medium">{loan.BorrowerPropertyAddress}</span>
+                      <span className="font-medium">{getPropertyAddress()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current Balance:</span>
+                      <span className="font-medium">
+                        ${parseFloat(loan.CurrentBalance || '0').toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -104,21 +126,24 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-gray-700">
                         <DollarSign className="w-4 h-4 text-green-600" />
-                        <span>Asking Price:</span>
+                        <span>Asking Price (USD):</span>
                       </div>
                       <span className="font-semibold text-green-700">
-                        {data.data.askingPrice} ETH
+                        ${parseFloat(data.data.approval.askingPriceUSD).toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
                       </span>
                     </div>
 
-                    {/* Interest Rate */}
+                    {/* Note Rate */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-gray-700">
                         <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span>Modified Interest Rate:</span>
+                        <span>Note Rate:</span>
                       </div>
                       <span className="font-semibold text-green-700">
-                        {data.data.modifiedInterestRate}%
+                        {(parseFloat(data.data.approval.noteRate) * 100).toFixed(2)}%
                       </span>
                     </div>
 
@@ -128,7 +153,7 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                         <Blocks className="w-4 h-4 text-green-600" />
                         <span>Block Number:</span>
                       </div>
-                      <span className="font-medium">{data.data.blockNumber}</span>
+                      <span className="font-medium">{data.data.approval.blockNumber}</span>
                     </div>
 
                     {/* Gas Used */}
@@ -137,7 +162,9 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                         <Hash className="w-4 h-4 text-green-600" />
                         <span>Gas Used:</span>
                       </div>
-                      <span className="font-medium">{data.data.gasUsed}</span>
+                      <span className="font-medium">
+                        {parseInt(data.data.approval.gasUsed).toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -147,7 +174,7 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                   <h3 className="font-semibold text-blue-900 mb-3">Transaction Hash</h3>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 bg-white px-3 py-2 rounded border border-blue-200 text-xs font-mono break-all">
-                      {data.data.txHash}
+                      {data.data.approval.txHash}
                     </code>
                     <button
                       onClick={handleCopyTxHash}
@@ -157,7 +184,7 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                       <Copy className="w-4 h-4" />
                     </button>
                     <a
-                      href={getExplorerUrl(data.data.txHash)}
+                      href={getExplorerUrl(data.data.approval.txHash)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex-shrink-0"
@@ -171,7 +198,9 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                   )}
                 </div>
 
-    
+                {/* Registration Info (si existe) */}
+                
+
                 {/* Close Button */}
                 <div className="flex justify-end pt-4">
                   <button

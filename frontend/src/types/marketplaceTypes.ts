@@ -103,22 +103,34 @@ export interface ApprovalResponse {
   loanId: string;
   lenderUid: string;
   loanUid: string;
-  askingPriceUSD: string;
-  askingPriceCents: string;
   noteRate: string;
+  approvalTxHash: string;
   data: {
-    loanId: string;
-    askingPriceUSD: string;
-    askingPriceCents: string;
-    noteRate: string;
-    txHash: string;
-    blockNumber: number;
-    gasUsed: string;
-    eventData?: {
-      loanId: bigint;
-      lenderAddress: string;
-      askingPrice: string;
-      timestamp: string;
+    approval: {
+      success: boolean;
+      loanId: string;
+      lenderUid: string;
+      loanUid: string;
+      askingPriceUSD: string;
+      askingPriceCents: string;
+      noteRate: string;
+      txHash: string;
+      blockNumber: number;
+      gasUsed: string;
+      eventData?: {
+        loanId: {
+          hash: string;
+          _isIndexed: boolean;
+        };
+        lenderAddress: string;
+        askingPrice: string;
+        timestamp: string;
+      };
+    };
+    txHashRegistration: {
+      registered: boolean;
+      registrationTxHash: string;
+      blockNumber: number;
     };
   };
 }
