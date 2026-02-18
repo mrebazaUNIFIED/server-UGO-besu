@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import PieChart from "../../chart/PieChart";
 import DoughnutNumber from "../../chart/DoughnutNumber";
 import { TableVault } from "./TableVault";
+import { PageMeta } from "../../ui/PageMeta";
 
 export interface LoanByState {
   stateUid: string;
@@ -103,6 +104,7 @@ export const Vaulting = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 overflow-y-auto">
+       <PageMeta title="Vault Dashboard" />
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-blue-600 mb-2">Vault</h1>
         <p className="text-gray-600">

@@ -223,7 +223,7 @@ export const TabDashboard: React.FC<ModalProps> = ({ loanUid, hash }) => {
           {/* HASH */}
           <div className="rounded-xl col-span-2 flex flex-row gap-2">
             <label>Hash: </label>
-            {LoanDetail?.hash && (
+            {LoanDetail?.borrowerFullName && (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <label id="transactionId">{LoanDetail.hash}</label>
                 <div

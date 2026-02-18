@@ -12,7 +12,6 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
 
     const certificateRef = useRef<HTMLDivElement>(null);
 
-
     const downloadPDF = async () => {
         const element = certificateRef.current;
         if (!element) return;
@@ -87,9 +86,7 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
     };
 
     return (
-        <div className="w-full h-full overflow-auto  p-4">
-
-
+        <div className="w-full h-full overflow-auto p-4">
             <div className="flex justify-end mb-3">
                 <button
                     onClick={downloadPDF}
@@ -100,7 +97,6 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
             </div>
 
             <div ref={certificateRef} className="relative max-w-4xl w-full mx-auto min-h-[1400px]">
-
                 <img
                     src={markCertificate}
                     alt="Certificate Background"
@@ -108,7 +104,6 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
                 />
 
                 <div className="relative p-8 md:p-12 lg:p-16 flex flex-col">
-
                     <div className="text-center mb-6">
                         <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-blue-900 mt-2">
                             Certificate of Authenticity
@@ -119,7 +114,7 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
                         </p>
 
                         <p className="text-sm text-gray-600 mt-1">
-                            Issued Date: {formatDate(loan.OriginationDate)}
+                            Issued Date: {formatDate(loan.BLOCKAUDITCreationAt)}
                         </p>
                     </div>
 
@@ -142,27 +137,25 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
                     </div>
 
                     <div className="space-y-2 mb-4 text-left">
-
                         <div className="p-2 flex items-center gap-1">
-                            <span className="text-xs font-bold text-gray-800">Borrower Name:</span>
-                            <span className="text-sm text-gray-900">{loan.BorrowerFullName}</span>
+                            <span className="text-xs font-bold text-gray-800">Account:</span>
+                            <span className="text-sm text-gray-900">{loan.Account || 'N/A'}</span>
                         </div>
 
                         <div className="grid grid-cols-1 gap-2">
-
                             <div className="p-2 flex items-center gap-1">
                                 <span className="text-xs font-bold text-gray-700">Loan Status:</span>
-                                <span className="text-sm text-gray-900">{loan.Status}</span>
+                                <span className="text-sm text-gray-900">{loan.Status || 'N/A'}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Original Loan Amount:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.OriginalLoanAmount)}</span>
+                                <span className="text-xs font-bold text-gray-700">Original Balance:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.OriginalBalance)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Unpaid Loan Amount:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.CurrentPrincipalBal)}</span>
+                                <span className="text-xs font-bold text-gray-700">Current Balance:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.CurrentBalance)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
@@ -171,7 +164,7 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Investor Rate:</span>
+                                <span className="text-xs font-bold text-gray-700">Sold Rate:</span>
                                 <span className="text-sm text-gray-900">{formatPercentage(loan.SoldRate)}</span>
                             </div>
 
@@ -181,28 +174,28 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Escrow Balance:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.EscrowBalance)}</span>
+                                <span className="text-xs font-bold text-gray-700">Reserve Balance Restricted:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.ReserveBalanceRestricted)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Restricted Suspense:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.RestrictedFunds)}</span>
+                                <span className="text-xs font-bold text-gray-700">Deferred Principal Balance:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredPrinBal)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Suspense Balance:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.SuspenseBalance)}</span>
+                                <span className="text-xs font-bold text-gray-700">Deferred Unpaid Interest:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredUnpaidInt)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Unpaid Late Charges:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.UnpaidLateFees)}</span>
+                                <span className="text-xs font-bold text-gray-700">Deferred Late Charges:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredLateCharges)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Unpaid Interest:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.UnpaidInterest)}</span>
+                                <span className="text-xs font-bold text-gray-700">Deferred Unpaid Charges:</span>
+                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredUnpaidCharges)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
@@ -216,20 +209,43 @@ export const LoanCertificate: React.FC<LoanCertificateProps> = ({ loan }) => {
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Deferred Principal Balance:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredPrincBalance)}</span>
+                                <span className="text-xs font-bold text-gray-700">Close Date:</span>
+                                <span className="text-sm text-gray-900">{formatDate(loan.CloseDate)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Deferred Unpaid Interest:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredUnpaidInt)}</span>
+                                <span className="text-xs font-bold text-gray-700">Maturity Date:</span>
+                                <span className="text-sm text-gray-900">{formatDate(loan.MaturityDate)}</span>
                             </div>
 
                             <div className="p-2 flex items-center gap-1">
-                                <span className="text-xs font-bold text-gray-700">Deferred Unpaid Late Charges:</span>
-                                <span className="text-sm text-gray-900">{formatCurrency(loan.DeferredLateFees)}</span>
+                                <span className="text-xs font-bold text-gray-700">Next Due Date:</span>
+                                <span className="text-sm text-gray-900">{formatDate(loan.NextDueDate)}</span>
                             </div>
 
+                            <div className="p-2 flex items-center gap-1">
+                                <span className="text-xs font-bold text-gray-700">Paid To Date:</span>
+                                <span className="text-sm text-gray-900">{formatDate(loan.PaidToDate)}</span>
+                            </div>
+
+                            <div className="p-2 flex items-center gap-1">
+                                <span className="text-xs font-bold text-gray-700">Property Location:</span>
+                                <span className="text-sm text-gray-900">
+                                    {loan.City && loan.State ? `${loan.City}, ${loan.State} ${loan.PropertyZip || ''}` : 'N/A'}
+                                </span>
+                            </div>
+
+                            <div className="p-2 flex items-center gap-1">
+                                <span className="text-xs font-bold text-gray-700">Lender:</span>
+                                <span className="text-sm text-gray-900">{loan.LenderName || 'N/A'}</span>
+                            </div>
+
+                            {loan.CoBorrower && (
+                                <div className="p-2 flex items-center gap-1">
+                                    <span className="text-xs font-bold text-gray-700">Co-Borrower:</span>
+                                    <span className="text-sm text-gray-900">{loan.CoBorrower}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

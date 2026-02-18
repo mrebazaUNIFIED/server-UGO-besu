@@ -5,6 +5,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import vaultLogo from '../assets/vault-logo.png';
 import { FaSearch } from "react-icons/fa";
+import { PageMeta } from '../components/ui/PageMeta';
 
 interface VaultUserInfo {
   uid: string;
@@ -122,7 +123,8 @@ export const VaultPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-
+               <PageMeta title="Vault Login" />
+      
       <div className="max-w-6xl w-full flex justify-start mb-10 gap-10">
         <button
           onClick={() => navigate('/explorer')}

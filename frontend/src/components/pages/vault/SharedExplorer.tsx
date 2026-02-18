@@ -20,6 +20,7 @@ import {
 import { useShareAssetByKey } from "../../../services/apiShared"
 import { useLoan } from '../../../services/apiVault';
 import explorerImage from "../../../assets/explorer.png";
+import { PageMeta } from '../../ui/PageMeta';
 
 export const SharedExplorer = () => {
   const [searchKey, setSearchKey] = useState("");
@@ -64,6 +65,7 @@ export const SharedExplorer = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+       <PageMeta title="Shared Explorer" />
       <div className="max-w-6xl w-full flex flex-col items-center px-6 py-10">
         <h1 className="text-3xl font-bold text-[#0280CC] mb-2 text-center">
           FCI Shared Loans

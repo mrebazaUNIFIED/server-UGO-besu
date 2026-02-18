@@ -2,6 +2,20 @@ const { ethers } = require('ethers');
 const { rpcLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
 const BaseContractService = require('./BaseContractService');
 
+// ===== TX STORE (memoria) =====
+const txStore = new Map();
+
+// TTL 1 hora
+const TX_TTL_MS = 60 * 60 * 1000;
+
+function cleanupTxStore() {
+  const now = Date.now();
+  for (const [hash, data] of txStore.entries()) {
+    const t = data?.updatedAt ?? data?.createdAt ?? now;
+    if (now - t > TX_TTL_MS) txStore.delete(hash);
+  }
+}
+
 class LoanRegistryService extends BaseContractService {
   constructor() {
     super('LoanRegistry', 'LoanRegistry');
@@ -118,24 +132,68 @@ class LoanRegistryService extends BaseContractService {
    * ✅ Normalizar loanId (asegurar formato correcto)
    */
   normalizeLoanId(loanId) {
-    if (!loanId) return '';
+      if (!loanId) return '';
 
-    // Convertir a string si no lo es
-    let idStr = loanId;
-    if (typeof idStr !== 'string') {
-      if (typeof idStr === 'object' || typeof idStr === 'bigint') {
-        idStr = idStr.toString();
-      } else {
-        idStr = String(idStr);
+      // Convertir a string si no lo es
+      let idStr = loanId;
+      if (typeof idStr !== 'string') {
+        if (typeof idStr === 'object' || typeof idStr === 'bigint') {
+          idStr = idStr.toString();
+        } else {
+          idStr = String(idStr);
+        }
+      }
+
+      // Si viene con "0x", removerlo (el contrato usa sin "0x")
+      if (idStr.startsWith('0x')) {
+        return idStr.substring(2);
+      }
+
+      return idStr;
+    }
+
+    getTxStatus(txHash) {
+    if (!txHash) return null;
+    cleanupTxStore();
+    return txStore.get(txHash.toLowerCase()) || null;
+  }
+
+  _setTx(txHash, patch) {
+    const key = (txHash || '').toLowerCase();
+    const prev = txStore.get(key) || {};
+    txStore.set(key, {
+      ...prev,
+      ...patch,
+      updatedAt: Date.now(),
+    });
+  }
+
+  _parseLoanEventsFromReceipt(contract, receipt) {
+    let loanId = null;
+    let txId = null;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = contract.interface.parseLog(log);
+
+        if (parsedLog.name === 'LoanCreated' || parsedLog.name === 'LoanUpdated') {
+          loanId = parsedLog.args.loanId;
+          txId = parsedLog.args.txId;
+
+          if (loanId && typeof loanId !== 'string') loanId = ethers.hexlify(loanId);
+          if (txId && typeof txId !== 'string') txId = ethers.hexlify(txId);
+          break;
+        }
+      } catch (_) {
+        continue;
       }
     }
 
-    // Si viene con "0x", removerlo (el contrato usa sin "0x")
-    if (idStr.startsWith('0x')) {
-      return idStr.substring(2);
-    }
-
-    return idStr;
+    return {
+      loanId: loanId ? this.normalizeLoanId(loanId) : null,
+      txId: txId ? this.bytes32ToHex(txId) : null,
+      blockNumber: receipt.blockNumber,
+    };
   }
 
   // ===== FUNCIONES PRINCIPALES =====
@@ -143,135 +201,144 @@ class LoanRegistryService extends BaseContractService {
   /**
    * ✅ Crear un loan - Nueva estructura con ID generado automáticamente
    */
-  async createLoan(privateKey, loanData) {
-    const contract = this.getContract(privateKey);
+  /**
+ * ✅ Crear/Upsert loan
+ * options.wait=true  => espera receipt (modo antiguo)
+ * options.wait=false => responde rápido y confirma en background
+ */
+async createLoan(privateKey, loanData, options = {}) {
+  const wait = options.wait === true;
+  const contract = this.getContract(privateKey);
 
-    // Verificar campos requeridos
-    if (!loanData.LenderUid || !loanData.LoanUid) {
-      throw new Error('LenderUid and LoanUid are required');
-    }
+  if (!loanData.LenderUid || !loanData.LoanUid) {
+    throw new Error('LenderUid and LoanUid are required');
+  }
 
-    const tx = await contract.createLoan(
-      // Ya NO pasamos ID, se genera automáticamente
-      loanData.LoanUid || '',                               // LoanUid
-      loanData.Account || '',                               // Account
-      loanData.LenderUid || '',                             // LenderUid
-      BigInt(this.usdToCents(loanData.OriginalBalance)),   // OriginalBalance
-      BigInt(this.usdToCents(loanData.CurrentBalance)),    // CurrentBalance
-      this.percentToBps(loanData.VendorFeePct),            // VendorFeePct
-      this.percentToBps(loanData.NoteRate),                // NoteRate
-      this.percentToBps(loanData.SoldRate),                // SoldRate
-      this.percentToBps(loanData.CalcInterestRate),        // CalcInterestRate
-      loanData.CoBorrower || '',                           // CoBorrower
-      this.percentToBps(loanData.ActiveDefaultInterestRate), // ActiveDefaultInterestRate
-      BigInt(this.usdToCents(loanData.ReserveBalanceRestricted)), // ReserveBalanceRestricted
-      this.percentToBps(loanData.DefaultInterestRate),     // DefaultInterestRate
-      BigInt(this.usdToCents(loanData.DeferredPrinBal)),   // DeferredPrinBal
-      BigInt(this.usdToCents(loanData.DeferredUnpaidInt)), // DeferredUnpaidInt
-      BigInt(this.usdToCents(loanData.DeferredLateCharges)), // DeferredLateCharges
-      BigInt(this.usdToCents(loanData.DeferredUnpaidCharges)), // DeferredUnpaidCharges
-      BigInt(this.usdToCents(loanData.MaximumDraw)),       // MaximumDraw
-      loanData.CloseDate || '',                            // CloseDate
-      loanData.DrawStatus || '',                           // DrawStatus
-      loanData.LenderFundDate || '',                       // LenderFundDate
-      this.percentToBps(loanData.LenderOwnerPct),          // LenderOwnerPct
-      loanData.LenderName || '',                           // LenderName
-      loanData.LenderAccount || '',                        // LenderAccount
-      loanData.IsForeclosure || false,                     // IsForeclosure
-      loanData.Status || '',                               // Status
-      loanData.PaidOffDate || '',                          // PaidOffDate
-      loanData.PaidToDate || '',                           // PaidToDate
-      loanData.MaturityDate || '',                         // MaturityDate
-      loanData.NextDueDate || '',                          // NextDueDate
-      loanData.City || '',                                 // City
-      loanData.State || '',                                // State
-      loanData.PropertyZip || ''                           // PropertyZip
+  // LoanId determinístico (mismo algoritmo que contrato)
+  const computedLoanId = await this.generateLoanId(loanData.LenderUid, loanData.LoanUid);
+
+  const tx = await contract.createLoan(
+      loanData.LoanUid || '',
+      loanData.Account || '',
+      loanData.LenderUid || '',
+      BigInt(this.usdToCents(loanData.OriginalBalance)),
+      BigInt(this.usdToCents(loanData.CurrentBalance)),
+      this.percentToBps(loanData.VendorFeePct),
+      this.percentToBps(loanData.NoteRate),
+      this.percentToBps(loanData.SoldRate),
+      this.percentToBps(loanData.CalcInterestRate),
+      loanData.CoBorrower || '',
+      this.percentToBps(loanData.ActiveDefaultInterestRate),
+      BigInt(this.usdToCents(loanData.ReserveBalanceRestricted)),
+      this.percentToBps(loanData.DefaultInterestRate),
+      BigInt(this.usdToCents(loanData.DeferredPrinBal)),
+      BigInt(this.usdToCents(loanData.DeferredUnpaidInt)),
+      BigInt(this.usdToCents(loanData.DeferredLateCharges)),
+      BigInt(this.usdToCents(loanData.DeferredUnpaidCharges)),
+      BigInt(this.usdToCents(loanData.MaximumDraw)),
+      loanData.CloseDate || '',
+      loanData.DrawStatus || '',
+      loanData.LenderFundDate || '',
+      this.percentToBps(loanData.LenderOwnerPct),
+      loanData.LenderName || '',
+      loanData.LenderAccount || '',
+      loanData.IsForeclosure || false,
+      loanData.Status || '',
+      loanData.PaidOffDate || '',
+      loanData.PaidToDate || '',
+      loanData.MaturityDate || '',
+      loanData.NextDueDate || '',
+      loanData.City || '',
+      loanData.State || '',
+      loanData.PropertyZip || ''
     );
 
-    const receipt = await tx.wait();
-
-    // Extraer loanId del evento - FORMA CORRECTA
-    let loanId = null;
-    let txId = null;
-
-    // Buscar eventos de forma más robusta
-    for (const log of receipt.logs) {
-      try {
-        const parsedLog = contract.interface.parseLog(log);
-
-        if (parsedLog.name === 'LoanCreated') {
-          // Los argumentos indexed vienen como bytes32
-          // Necesitamos convertirlos a string
-          loanId = parsedLog.args.loanId;
-          txId = parsedLog.args.txId;
-
-          // Convertir loanId a string si es bytes32
-          if (typeof loanId !== 'string') {
-            // Si es bytes32, convertirlo a string hexadecimal
-            loanId = ethers.hexlify(loanId);
-          }
-
-          // Convertir txId a string si es bytes32
-          if (txId && typeof txId !== 'string') {
-            txId = ethers.hexlify(txId);
-          }
-          break;
-        }
-
-        if (parsedLog.name === 'LoanUpdated') {
-          loanId = parsedLog.args.loanId;
-          txId = parsedLog.args.txId;
-
-          // Convertir loanId a string si es bytes32
-          if (typeof loanId !== 'string') {
-            loanId = ethers.hexlify(loanId);
-          }
-
-          // Convertir txId a string si es bytes32
-          if (txId && typeof txId !== 'string') {
-            txId = ethers.hexlify(txId);
-          }
-          break;
-        }
-      } catch (e) {
-        // Ignorar logs que no podemos parsear
-        continue;
-      }
-    }
-
-    // Si no encontramos loanId en los eventos, usar la función generateLoanId
-    if (!loanId) {
-      console.warn('No se encontró loanId en eventos, generando localmente...');
-      loanId = await this.generateLoanId(loanData.LenderUid, loanData.LoanUid);
-    }
-
-    return {
-      success: true,
-      loanId: this.normalizeLoanId(loanId), // ✅ Normalizamos el ID
+    // Guardar PENDING inmediatamente
+    this._setTx(tx.hash, {
+      status: 'PENDING',
+      createdAt: Date.now(),
+      operation: 'CREATE_OR_UPSERT',
+      loanId: this.normalizeLoanId(computedLoanId),
       lenderUid: loanData.LenderUid,
       loanUid: loanData.LoanUid,
-      txId: this.bytes32ToHex(txId),
-      txHash: receipt.hash,
-      blockNumber: receipt.blockNumber
+    });
+
+    // wait=true => devolver con receipt (modo antiguo)
+    if (wait) {
+      const receipt = await tx.wait();
+      const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+
+      this._setTx(tx.hash, {
+        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        txId: parsed.txId,
+        receipt: {
+          txHash: receipt.hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed?.toString?.(),
+        },
+        loanId: parsed.loanId ?? this.normalizeLoanId(computedLoanId),
+      });
+
+      return {
+        success: true,
+        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        loanId: parsed.loanId ?? this.normalizeLoanId(computedLoanId),
+        lenderUid: loanData.LenderUid,
+        loanUid: loanData.LoanUid,
+        txId: parsed.txId || '',
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber
+      };
+    }
+
+    // Background confirm (no bloquea el request)
+    tx.wait()
+      .then((receipt) => {
+        const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+
+        this._setTx(tx.hash, {
+          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+          txId: parsed.txId,
+          receipt: {
+            txHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString?.(),
+          },
+          loanId: parsed.loanId ?? this.normalizeLoanId(computedLoanId),
+        });
+      })
+      .catch((err) => {
+        this._setTx(tx.hash, {
+          status: 'FAILED',
+          error: err?.message || String(err),
+        });
+      });
+
+    // Respuesta rápida
+    return {
+      success: true,
+      status: 'PENDING',
+      loanId: this.normalizeLoanId(computedLoanId),
+      lenderUid: loanData.LenderUid,
+      loanUid: loanData.LoanUid,
+      txHash: tx.hash
     };
   }
+
 
   /**
    * ✅ Actualización parcial de loan
    */
-  async updateLoanPartial(privateKey, loanId, fieldsToUpdate) {
-    // Normalizar el loanId antes de usarlo
-    const normalizedLoanId = this.normalizeLoanId(loanId);
+  async updateLoanPartial(privateKey, loanId, fieldsToUpdate, options = {}) {
+  const wait = options.wait === true;
 
-    const exists = await this.loanExists(normalizedLoanId);
-    if (!exists) {
-      throw new Error('Loan does not exist');
-    }
+  const normalizedLoanId = this.normalizeLoanId(loanId);
+  const exists = await this.loanExists(normalizedLoanId);
+  if (!exists) throw new Error('Loan does not exist');
 
-    const contract = this.getContract(privateKey);
+  const contract = this.getContract(privateKey);
 
-    // Crear el struct de actualización con los nuevos campos
-    const updateFields = {
+  const updateFields = { /* <-- DEJA TU STRUCT EXACTAMENTE IGUAL (no lo cambio) */ 
       updateCurrentBalance: fieldsToUpdate.CurrentBalance !== undefined,
       CurrentBalance: fieldsToUpdate.CurrentBalance !== undefined
         ? BigInt(this.usdToCents(fieldsToUpdate.CurrentBalance))
@@ -336,36 +403,69 @@ class LoanRegistryService extends BaseContractService {
     };
 
     const tx = await contract.updateLoanPartial(normalizedLoanId, updateFields);
-    const receipt = await tx.wait();
 
-    // Extraer eventos
-    let txId = null;
-    let changeCount = 0;
+    // Guardar PENDING
+    this._setTx(tx.hash, {
+      status: 'PENDING',
+      createdAt: Date.now(),
+      operation: 'PARTIAL_UPDATE',
+      loanId: normalizedLoanId,
+    });
 
-    const logs = receipt.logs.map(log => {
-      try {
-        return contract.interface.parseLog(log);
-      } catch (e) {
-        return null;
-      }
-    }).filter(log => log !== null);
+    if (wait) {
+      const receipt = await tx.wait();
+      const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
 
-    const loanUpdatedEvent = logs.find(log => log.name === 'LoanUpdated');
-    if (loanUpdatedEvent) {
-      txId = loanUpdatedEvent.args.txId || loanUpdatedEvent.args[1];
-      changeCount = Number(loanUpdatedEvent.args.changeCount || loanUpdatedEvent.args[2]);
+      this._setTx(tx.hash, {
+        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        txId: parsed.txId,
+        receipt: {
+          txHash: receipt.hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed?.toString?.(),
+        },
+      });
+
+      return {
+        success: true,
+        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        loanId: normalizedLoanId,
+        txId: parsed.txId || '',
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed?.toString?.()
+      };
     }
+
+    // Background confirm
+    tx.wait()
+      .then((receipt) => {
+        const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+        this._setTx(tx.hash, {
+          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+          txId: parsed.txId,
+          receipt: {
+            txHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString?.(),
+          },
+        });
+      })
+      .catch((err) => {
+        this._setTx(tx.hash, {
+          status: 'FAILED',
+          error: err?.message || String(err),
+        });
+      });
 
     return {
       success: true,
+      status: 'PENDING',
       loanId: normalizedLoanId,
-      txId: this.bytes32ToHex(txId),
-      txHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString(),
-      changeCount: changeCount
+      txHash: tx.hash
     };
   }
+
 
   /**
    * ✅ Leer loan por ID

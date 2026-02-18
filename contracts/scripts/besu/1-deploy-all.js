@@ -1,4 +1,5 @@
 const hre = require("hardhat");
+const { upgrades } = hre;
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -25,7 +26,11 @@ async function main() {
   // ✅ OPCIÓN 1: Mantener UserRegistry pero no usarlo en MarketplaceBridge
   console.log("📝 Deploying UserRegistry (optional)...");
   const UserRegistry = await hre.ethers.getContractFactory("UserRegistry");
-  const userRegistry = await UserRegistry.deploy(deployer.address);
+  const userRegistry = await upgrades.deployProxy(
+    UserRegistry,
+    [deployer.address],
+    { kind: "uups" }
+  );
   await userRegistry.waitForDeployment();
   const userRegistryAddress = await userRegistry.getAddress();
   console.log("✅ UserRegistry:", userRegistryAddress);
@@ -33,7 +38,11 @@ async function main() {
   // 2. Deploy USFCI
   console.log("\n📝 Deploying USFCI...");
   const USFCI = await hre.ethers.getContractFactory("USFCI");
-  const usfci = await USFCI.deploy(deployer.address);
+  const usfci = await upgrades.deployProxy(
+    USFCI,
+    [deployer.address],
+    { kind: "uups" }
+  );
   await usfci.waitForDeployment();
   const usfciAddress = await usfci.getAddress();
   console.log("✅ USFCI:", usfciAddress);
@@ -41,9 +50,10 @@ async function main() {
   // 3. Deploy LoanRegistry
   console.log("\n📝 Deploying LoanRegistry...");
   const LoanRegistry = await hre.ethers.getContractFactory("LoanRegistry");
-  const loanRegistry = await LoanRegistry.deploy(
-    deployer.address,
-    userRegistryAddress
+  const loanRegistry = await upgrades.deployProxy(
+    LoanRegistry,
+    [deployer.address, userRegistryAddress],
+    { kind: "uups" }
   );
   await loanRegistry.waitForDeployment();
   const loanRegistryAddress = await loanRegistry.getAddress();
@@ -52,9 +62,10 @@ async function main() {
   // ⭐⭐ MODIFICADO: Deploy MarketplaceBridge SIMPLIFICADO
   console.log("\n📝 Deploying MarketplaceBridge (SIMPLIFIED VERSION)...");
   const MarketplaceBridge = await hre.ethers.getContractFactory("MarketplaceBridge");
-  const marketplaceBridge = await MarketplaceBridge.deploy(
-    deployer.address,           // initialOwner
-    loanRegistryAddress         // ⭐ Solo loanRegistry, NO userRegistry
+  const marketplaceBridge = await upgrades.deployProxy(
+    MarketplaceBridge,
+    [deployer.address, loanRegistryAddress],  // ⭐ Solo loanRegistry, NO userRegistry
+    { kind: "uups" }
   );
   await marketplaceBridge.waitForDeployment();
   const marketplaceBridgeAddress = await marketplaceBridge.getAddress();
@@ -63,7 +74,11 @@ async function main() {
   // 5. Deploy ShareLoans
   console.log("\n📝 Deploying ShareLoans...");
   const ShareLoans = await hre.ethers.getContractFactory("ShareLoans");
-  const shareLoans = await ShareLoans.deploy(deployer.address);
+  const shareLoans = await upgrades.deployProxy(
+    ShareLoans,
+    [deployer.address],
+    { kind: "uups" }
+  );
   await shareLoans.waitForDeployment();
   const shareLoansAddress = await shareLoans.getAddress();
   console.log("✅ ShareLoans:", shareLoansAddress);
@@ -71,7 +86,11 @@ async function main() {
   // 6. Deploy Portfolio
   console.log("\n📝 Deploying Portfolio...");
   const Portfolio = await hre.ethers.getContractFactory("Portfolio");
-  const portfolio = await Portfolio.deploy(deployer.address);
+  const portfolio = await upgrades.deployProxy(
+    Portfolio,
+    [deployer.address],
+    { kind: "uups" }
+  );
   await portfolio.waitForDeployment();
   const portfolioAddress = await portfolio.getAddress();
   console.log("✅ Portfolio:", portfolioAddress);
@@ -98,9 +117,11 @@ async function main() {
   console.log("\n👤 Registering test user (optional)...");
   try {
     const testUserTx = await userRegistry.registerUser(
-      "test-lender-001",
-      "Test Lender",
-      "test@example.com"
+      deployer.address,     // walletAddress
+      "test-lender-001",    // userId
+      "Test Lender",        // name
+      "TestOrg",            // organization
+      "operator"            // role
     );
     await testUserTx.wait();
     console.log("✅ Test user registered");
@@ -113,7 +134,7 @@ async function main() {
   const registryAddress = await loanRegistry.userRegistry();
   const bridgeAddress = await loanRegistry.marketplaceBridge();
   const configuredRelayer = await marketplaceBridge.relayerAddress();
-  
+
   console.log("LoanRegistry -> UserRegistry:", registryAddress);
   console.log("LoanRegistry -> MarketplaceBridge:", bridgeAddress);
   console.log("MarketplaceBridge -> Relayer:", configuredRelayer);
@@ -172,8 +193,6 @@ async function main() {
   console.log("  ShareLoans:         ", shareLoansAddress);
   console.log("  Portfolio:          ", portfolioAddress);
   console.log("  Relayer:            ", relayerAddress);
-
-
 }
 
 main().catch((error) => {

@@ -2,6 +2,7 @@ import { PDFExport } from '@progress/kendo-react-pdf';
 import { useRef } from 'react';
 import { PortafolioCertificate } from './portafolio/PortafolioCertificate';
 import { useVaultAuth } from '../../../hooks/useVaultAuth';
+import { PageMeta } from '../../ui/PageMeta';
 
 const A4LandscapeWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -35,6 +36,7 @@ export const WalletVault = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center gap-6 p-6">
+       <PageMeta title="Vault Portfolio" />
       <button
         onClick={exportPDF}
         className="px-4 py-2 bg-blue-600 text-white rounded"

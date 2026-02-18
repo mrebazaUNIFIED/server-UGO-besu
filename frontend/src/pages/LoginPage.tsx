@@ -3,6 +3,7 @@ import walletIllustration from '../assets/wallet-bitcoin3.svg';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import fciLogo from "../assets/fci-logo.png"
+import { PageMeta } from '../components/ui/PageMeta';
 
 export const LoginPage: React.FC = () => {
   const { user, loading } = useAuth();
@@ -12,6 +13,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row">
+         <PageMeta title="Login" />
       {/* Columna izquierda: Imagen + texto */}
       <div className="w-full md:w-1/2 bg-gradient-to-br from-[var(--rojo)] via-[var(--rojo-claro)] to-[var(--rojo-oscuro)] flex flex-col items-center justify-center p-10 text-center text-white">
         <div className="max-w-md">

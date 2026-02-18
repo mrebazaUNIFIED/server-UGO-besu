@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./LoanRegistry.sol";
 
 /**
- * @title MarketplaceBridge - VERSIÓN CON MAPPING BIDIRECCIONAL
- * @notice ⭐ MEJORA: Agregado mapping loanIdToTxHash para obtener txHash desde loanId
+ * @title MarketplaceBridge - UPGRADEABLE (UUPS)
+ * @notice Versión upgradeable de MarketplaceBridge usando patrón UUPS.
+ *         El storage es idéntico al contrato original para permitir migración.
+ * @dev Para upgradear: upgrades.upgradeProxy(PROXY_ADDRESS, MarketplaceBridgeV2)
  */
-contract MarketplaceBridge is Ownable {
+contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+
     LoanRegistry public loanRegistry;
     address public relayerAddress;
 
@@ -21,75 +26,42 @@ contract MarketplaceBridge is Ownable {
         bool isCancelled;
     }
 
+    // ⚠️ IMPORTANTE: El orden de estas variables NUNCA debe cambiar en upgrades futuros.
+    // Solo se pueden AGREGAR nuevas variables al FINAL.
     mapping(string => ApprovalData) public loanApprovals;
     mapping(string => uint256) public loanToAvalancheTokenId;
-    
-    // ⭐ MAPPINGS BIDIRECCIONALES para txHash
-    mapping(bytes32 => string) public txHashToLoanId;      // txHash → loanId (ya existía)
-    mapping(string => bytes32) public loanIdToTxHash;       // ⭐ NUEVO: loanId → txHash
+    mapping(bytes32 => string) public txHashToLoanId;
+    mapping(string => bytes32) public loanIdToTxHash;
 
     // ===== EVENTOS =====
-    event LoanApprovedForSale(
-        string indexed loanId,
-        address indexed lenderAddress,
-        uint256 askingPrice,
-        uint256 timestamp
-    );
-
-    event LoanApprovalCancelled(
-        string indexed loanId,
-        address indexed lenderAddress,
-        uint256 timestamp
-    );
-
-    event AvalancheTokenIdSet(
-        string indexed loanId,
-        uint256 tokenId,
-        uint256 timestamp
-    );
-
-    event EmergencyUnlockNeedsSync(
-        string indexed loanId,
-        uint256 indexed tokenId,
-        uint256 timestamp
-    );
-
-    event OwnershipTransferred(
-        string indexed loanId,
-        address indexed newOwner,
-        uint256 salePrice,
-        uint256 timestamp
-    );
-
-    event PaymentRecorded(
-        string indexed loanId,
-        uint256 amount,
-        uint256 timestamp
-    );
-
+    event LoanApprovedForSale(string indexed loanId, address indexed lenderAddress, uint256 askingPrice, uint256 timestamp);
+    event LoanApprovalCancelled(string indexed loanId, address indexed lenderAddress, uint256 timestamp);
+    event AvalancheTokenIdSet(string indexed loanId, uint256 tokenId, uint256 timestamp);
+    event EmergencyUnlockNeedsSync(string indexed loanId, uint256 indexed tokenId, uint256 timestamp);
+    event OwnershipTransferred(string indexed loanId, address indexed newOwner, uint256 salePrice, uint256 timestamp);
+    event PaymentRecorded(string indexed loanId, uint256 amount, uint256 timestamp);
     event LoanPaidOff(string indexed loanId, uint256 timestamp);
-    
-    event NFTBurnRequired(
-        string indexed loanId,
-        uint256 indexed tokenId,
-        address indexed requester,
-        uint256 timestamp
-    );
-    
-    event NFTBurnConfirmed(
-        string indexed loanId,
-        uint256 indexed tokenId,
-        uint256 timestamp
-    );
+    event NFTBurnRequired(string indexed loanId, uint256 indexed tokenId, address indexed requester, uint256 timestamp);
+    event NFTBurnConfirmed(string indexed loanId, uint256 indexed tokenId, uint256 timestamp);
 
-    constructor(
-        address initialOwner,
-        address _loanRegistry
-    ) Ownable(initialOwner) {
+    // ===== CONSTRUCTOR (deshabilitado para proxies) =====
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // ===== INICIALIZADOR =====
+    function initialize(address initialOwner, address _loanRegistry) public initializer {
         require(_loanRegistry != address(0), "Invalid LoanRegistry");
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
         loanRegistry = LoanRegistry(_loanRegistry);
     }
 
+    // ===== REQUERIDO POR UUPS =====
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    // ===== MODIFIERS =====
     modifier onlyApprover(string memory loanId) {
         ApprovalData storage approval = loanApprovals[loanId];
         require(approval.lenderAddress == msg.sender, "Not the original approver");
@@ -102,25 +74,16 @@ contract MarketplaceBridge is Ownable {
     }
 
     // ===== FUNCIÓN PRINCIPAL: APROBAR PARA VENTA =====
-    function approveLoanForSale(
-        string memory loanId,
-        uint256 askingPrice
-    ) public returns (bool) {
+    function approveLoanForSale(string memory loanId, uint256 askingPrice) public returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
         require(!loanRegistry.isLoanLocked(loanId), "Loan already tokenized");
         require(!loanApprovals[loanId].isApproved, "Already approved");
-        require(
-            !loanApprovals[loanId].isCancelled,
-            "Was cancelled, use new approval"
-        );
+        require(!loanApprovals[loanId].isCancelled, "Was cancelled, use new approval");
         require(askingPrice > 0, "Invalid price");
 
         LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
         require(loan.CurrentBalance > 0, "Loan balance must be > 0");
-        require(
-            keccak256(bytes(loan.Status)) != keccak256(bytes("Paid Off")),
-            "Cannot sell paid off loan"
-        );
+        require(keccak256(bytes(loan.Status)) != keccak256(bytes("Paid Off")), "Cannot sell paid off loan");
 
         require(loanRegistry.lockLoan(loanId), "Failed to lock loan");
 
@@ -133,61 +96,35 @@ contract MarketplaceBridge is Ownable {
             isCancelled: false
         });
 
-        emit LoanApprovedForSale(
-            loanId,
-            msg.sender,
-            askingPrice,
-            block.timestamp
-        );
-
+        emit LoanApprovedForSale(loanId, msg.sender, askingPrice, block.timestamp);
         return true;
     }
 
-    // ⭐ FUNCIÓN MEJORADA: Registrar txHash en AMBOS mappings
-    function registerApprovalTxHash(
-        string memory loanId,
-        bytes32 txHash
-    ) external onlyRelayer returns (bool) {
+    function registerApprovalTxHash(string memory loanId, bytes32 txHash) external onlyRelayer returns (bool) {
         require(loanApprovals[loanId].isApproved, "Loan not approved");
         require(txHash != bytes32(0), "Invalid txHash");
-        
-        // ⭐ Guardar en AMBAS direcciones
-        txHashToLoanId[txHash] = loanId;     // txHash → loanId
-        loanIdToTxHash[loanId] = txHash;     // loanId → txHash
-        
+        txHashToLoanId[txHash] = loanId;
+        loanIdToTxHash[loanId] = txHash;
         return true;
     }
 
-    // ⭐ NUEVA FUNCIÓN: Obtener txHash desde loanId
-    function getApprovalTxHash(
-        string memory loanId
-    ) public view returns (bytes32) {
+    function getApprovalTxHash(string memory loanId) public view returns (bytes32) {
         return loanIdToTxHash[loanId];
     }
 
-    // Función existente: Obtener loanId desde txHash
-    function getLoanIdByTxHash(
-        bytes32 txHash
-    ) public view returns (string memory) {
+    function getLoanIdByTxHash(bytes32 txHash) public view returns (string memory) {
         return txHashToLoanId[txHash];
     }
 
-    // Función existente: Obtener ApprovalData por txHash
-    function getApprovalDataByTxHash(
-        bytes32 txHash
-    ) public view returns (ApprovalData memory, string memory) {
+    function getApprovalDataByTxHash(bytes32 txHash) public view returns (ApprovalData memory, string memory) {
         string memory loanId = txHashToLoanId[txHash];
         require(bytes(loanId).length > 0, "TxHash not found");
-        
         return (loanApprovals[loanId], loanId);
     }
 
     // ===== CANCELAR APROBACIÓN =====
-    function cancelSaleListing(
-        string memory loanId
-    ) public onlyApprover(loanId) returns (bool) {
+    function cancelSaleListing(string memory loanId) public onlyApprover(loanId) returns (bool) {
         ApprovalData storage approval = loanApprovals[loanId];
-
         require(approval.isApproved, "Not approved for sale");
         require(!approval.isMinted, "NFT already minted, use requestBurnAndCancel()");
         require(!approval.isCancelled, "Already cancelled");
@@ -196,16 +133,12 @@ contract MarketplaceBridge is Ownable {
         approval.isApproved = false;
 
         require(loanRegistry.unlockLoan(loanId), "Failed to unlock loan");
-
         emit LoanApprovalCancelled(loanId, msg.sender, block.timestamp);
         return true;
     }
 
-    function requestBurnAndCancel(
-        string memory loanId
-    ) public onlyApprover(loanId) returns (bool) {
+    function requestBurnAndCancel(string memory loanId) public onlyApprover(loanId) returns (bool) {
         ApprovalData storage approval = loanApprovals[loanId];
-
         require(approval.isApproved, "Not approved for sale");
         require(approval.isMinted, "NFT not minted yet, use cancelSaleListing()");
         require(!approval.isCancelled, "Already cancelled");
@@ -214,15 +147,11 @@ contract MarketplaceBridge is Ownable {
         require(tokenId > 0, "Token ID not set");
 
         emit NFTBurnRequired(loanId, tokenId, msg.sender, block.timestamp);
-
         return true;
     }
 
-    function confirmBurnAndCancel(
-        string memory loanId
-    ) external onlyRelayer returns (bool) {
+    function confirmBurnAndCancel(string memory loanId) external onlyRelayer returns (bool) {
         ApprovalData storage approval = loanApprovals[loanId];
-
         require(approval.isApproved, "Not approved");
         require(approval.isMinted, "Not minted");
         require(!approval.isCancelled, "Already cancelled");
@@ -236,20 +165,14 @@ contract MarketplaceBridge is Ownable {
         delete loanToAvalancheTokenId[loanId];
 
         require(loanRegistry.unlockLoan(loanId), "Failed to unlock");
-
         emit NFTBurnConfirmed(loanId, tokenId, block.timestamp);
         emit LoanApprovalCancelled(loanId, approval.lenderAddress, block.timestamp);
-
         return true;
     }
 
     // ===== FUNCIONES DEL RELAYER =====
-    function setAvalancheTokenId(
-        string memory loanId,
-        uint256 tokenId
-    ) public onlyRelayer returns (bool) {
+    function setAvalancheTokenId(string memory loanId, uint256 tokenId) public onlyRelayer returns (bool) {
         ApprovalData storage approval = loanApprovals[loanId];
-
         require(approval.isApproved, "Loan not approved");
         require(!approval.isCancelled, "Approval was cancelled");
         require(!approval.isMinted, "Already minted");
@@ -259,71 +182,39 @@ contract MarketplaceBridge is Ownable {
         approval.isMinted = true;
         loanToAvalancheTokenId[loanId] = tokenId;
 
-        require(
-            loanRegistry.setAvalancheTokenId(loanId, tokenId),
-            "Failed to set token ID"
-        );
-
+        require(loanRegistry.setAvalancheTokenId(loanId, tokenId), "Failed to set token ID");
         emit AvalancheTokenIdSet(loanId, tokenId, block.timestamp);
         return true;
     }
 
-    function recordOwnershipTransfer(
-        string memory loanId,
-        address newOwnerAddress,
-        uint256 salePrice
-    ) public onlyRelayer returns (bool) {
+    function recordOwnershipTransfer(string memory loanId, address newOwnerAddress, uint256 salePrice) public onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
         require(loanApprovals[loanId].isMinted, "NFT not minted yet");
         require(newOwnerAddress != address(0), "Invalid address");
-
-        emit OwnershipTransferred(
-            loanId,
-            newOwnerAddress,
-            salePrice,
-            block.timestamp
-        );
-
+        emit OwnershipTransferred(loanId, newOwnerAddress, salePrice, block.timestamp);
         return true;
     }
 
-    function recordPayment(
-        string memory loanId,
-        uint256 amount
-    ) public onlyRelayer returns (bool) {
+    function recordPayment(string memory loanId, uint256 amount) public onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
         require(amount > 0, "Invalid amount");
-
         emit PaymentRecorded(loanId, amount, block.timestamp);
         return true;
     }
 
-    function markLoanAsPaidOff(
-        string memory loanId
-    ) external onlyRelayer returns (bool) {
+    function markLoanAsPaidOff(string memory loanId) external onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
         require(loanApprovals[loanId].isMinted, "Not minted");
-
         LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
-        require(
-            keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off")),
-            "Loan not paid off"
-        );
-
+        require(keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off")), "Loan not paid off");
         emit LoanPaidOff(loanId, block.timestamp);
         return true;
     }
 
     // ===== FUNCIONES AUXILIARES =====
-    
-    function getApprovedLoansByLender(address lenderAddress) 
-        public 
-        view 
-        returns (string[] memory) 
-    {
+    function getApprovedLoansByLender(address lenderAddress) public view returns (string[] memory) {
         uint256 count = 0;
         string[] memory allLoanIds = loanRegistry.getAllLoanIds();
-        
         for (uint256 i = 0; i < allLoanIds.length; i++) {
             if (loanApprovals[allLoanIds[i]].lenderAddress == lenderAddress &&
                 loanApprovals[allLoanIds[i]].isApproved &&
@@ -331,10 +222,8 @@ contract MarketplaceBridge is Ownable {
                 count++;
             }
         }
-        
         string[] memory result = new string[](count);
         uint256 index = 0;
-        
         for (uint256 i = 0; i < allLoanIds.length; i++) {
             if (loanApprovals[allLoanIds[i]].lenderAddress == lenderAddress &&
                 loanApprovals[allLoanIds[i]].isApproved &&
@@ -343,109 +232,65 @@ contract MarketplaceBridge is Ownable {
                 index++;
             }
         }
-        
         return result;
     }
 
-    function getTokenizedLoans() 
-        public 
-        view 
-        returns (string[] memory) 
-    {
+    function getTokenizedLoans() public view returns (string[] memory) {
         uint256 count = 0;
         string[] memory allLoanIds = loanRegistry.getAllLoanIds();
-        
         for (uint256 i = 0; i < allLoanIds.length; i++) {
-            if (loanRegistry.isLoanTokenized(allLoanIds[i])) {
-                count++;
-            }
+            if (loanRegistry.isLoanTokenized(allLoanIds[i])) count++;
         }
-        
         string[] memory result = new string[](count);
         uint256 index = 0;
-        
         for (uint256 i = 0; i < allLoanIds.length; i++) {
             if (loanRegistry.isLoanTokenized(allLoanIds[i])) {
                 result[index] = allLoanIds[i];
                 index++;
             }
         }
-        
         return result;
     }
 
-    function canApproveLoan(string memory loanId) 
-        public 
-        view 
-        returns (bool canApprove, string memory reason) 
-    {
-        if (!loanRegistry.loanExists(loanId)) {
-            return (false, "Loan does not exist");
-        }
-        
-        if (loanRegistry.isLoanLocked(loanId)) {
-            return (false, "Loan already tokenized");
-        }
-        
-        if (loanApprovals[loanId].isApproved) {
-            return (false, "Already approved");
-        }
-        
-        if (loanApprovals[loanId].isCancelled) {
-            return (false, "Was cancelled");
-        }
-        
+    function canApproveLoan(string memory loanId) public view returns (bool canApprove, string memory reason) {
+        if (!loanRegistry.loanExists(loanId)) return (false, "Loan does not exist");
+        if (loanRegistry.isLoanLocked(loanId)) return (false, "Loan already tokenized");
+        if (loanApprovals[loanId].isApproved) return (false, "Already approved");
+        if (loanApprovals[loanId].isCancelled) return (false, "Was cancelled");
         LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
-        
-        if (loan.CurrentBalance == 0) {
-            return (false, "Loan balance must be > 0");
-        }
-        
-        if (keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off"))) {
-            return (false, "Cannot sell paid off loan");
-        }
-        
+        if (loan.CurrentBalance == 0) return (false, "Loan balance must be > 0");
+        if (keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off"))) return (false, "Cannot sell paid off loan");
         return (true, "");
     }
 
     // ===== FUNCIONES DE VISTA =====
-    function isLoanApprovedForSale(
-        string memory loanId
-    ) public view returns (bool) {
+    function isLoanApprovedForSale(string memory loanId) public view returns (bool) {
         ApprovalData memory approval = loanApprovals[loanId];
         return approval.isApproved && !approval.isCancelled;
     }
 
-    function getApprovalData(
-        string memory loanId
-    ) public view returns (ApprovalData memory) {
+    function getApprovalData(string memory loanId) public view returns (ApprovalData memory) {
         return loanApprovals[loanId];
     }
 
-    function getAvalancheTokenId(
-        string memory loanId
-    ) public view returns (uint256) {
+    function getAvalancheTokenId(string memory loanId) public view returns (uint256) {
         return loanToAvalancheTokenId[loanId];
     }
 
     function canBeMinted(string memory loanId) public view returns (bool) {
         ApprovalData memory approval = loanApprovals[loanId];
-        return
-            approval.isApproved && !approval.isMinted && !approval.isCancelled;
+        return approval.isApproved && !approval.isMinted && !approval.isCancelled;
     }
-    
+
     function canCancel(string memory loanId) public view returns (bool canCancelNow, bool needsBurn) {
         ApprovalData memory approval = loanApprovals[loanId];
-        
-        if (!approval.isApproved || approval.isCancelled) {
-            return (false, false);
-        }
-        
-        if (!approval.isMinted) {
-            return (true, false);
-        }
-        
+        if (!approval.isApproved || approval.isCancelled) return (false, false);
+        if (!approval.isMinted) return (true, false);
         return (true, true);
+    }
+
+    function getApprover(string memory loanId) public view returns (address) {
+        return loanApprovals[loanId].lenderAddress;
     }
 
     // ===== ADMINISTRACIÓN =====
@@ -460,70 +305,43 @@ contract MarketplaceBridge is Ownable {
     }
 
     // ===== FUNCIÓN DE EMERGENCIA =====
-    function emergencyUnlock(
-        string memory loanId
-    ) external onlyOwner returns (bool) {
+    function emergencyUnlock(string memory loanId) external onlyOwner returns (bool) {
         ApprovalData storage approval = loanApprovals[loanId];
-
         require(approval.isApproved, "Not approved");
         require(!approval.isMinted, "NFT already minted");
 
         uint256 tokenIdBeforeUnlock = loanToAvalancheTokenId[loanId];
-
         approval.isCancelled = true;
         approval.isApproved = false;
 
         require(loanRegistry.unlockLoan(loanId), "Failed to unlock");
-
-        emit LoanApprovalCancelled(
-            loanId,
-            approval.lenderAddress,
-            block.timestamp
-        );
+        emit LoanApprovalCancelled(loanId, approval.lenderAddress, block.timestamp);
 
         if (tokenIdBeforeUnlock > 0) {
-            emit EmergencyUnlockNeedsSync(
-                loanId,
-                tokenIdBeforeUnlock,
-                block.timestamp
-            );
+            emit EmergencyUnlockNeedsSync(loanId, tokenIdBeforeUnlock, block.timestamp);
         }
-
         return true;
     }
 
-    function forceUnlockPaidOffLoan(string memory loanId) 
-        external 
-        onlyRelayer 
-        returns (bool) 
-    {
+    function forceUnlockPaidOffLoan(string memory loanId) external onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
-        
         LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
-        require(
-            keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off")),
-            "Loan not paid off"
-        );
-        
+        require(keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off")), "Loan not paid off");
+
         if (loanRegistry.isLoanLocked(loanId)) {
             require(loanRegistry.unlockLoan(loanId), "Failed to unlock");
         }
-        
+
         if (loanApprovals[loanId].isApproved) {
             loanApprovals[loanId].isCancelled = true;
             loanApprovals[loanId].isApproved = false;
-            
-            emit LoanApprovalCancelled(
-                loanId,
-                loanApprovals[loanId].lenderAddress,
-                block.timestamp
-            );
+            emit LoanApprovalCancelled(loanId, loanApprovals[loanId].lenderAddress, block.timestamp);
         }
-        
         return true;
     }
 
-    function getApprover(string memory loanId) public view returns (address) {
-        return loanApprovals[loanId].lenderAddress;
+    // ===== FUNCIÓN DE VERSIÓN =====
+    function version() public pure returns (string memory) {
+        return "1.0.0";
     }
 }

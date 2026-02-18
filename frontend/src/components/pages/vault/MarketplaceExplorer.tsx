@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FaSearch, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { useApprovalByTxHash } from "../../../services/apiMarketplace";
+import { PageMeta } from "../../ui/PageMeta";
 
 export const MarketplaceExplorer = () => {
   const [searchTxHash, setSearchTxHash] = useState("");
@@ -35,6 +36,7 @@ export const MarketplaceExplorer = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      <PageMeta title="Vault Marketplace" />
       <div className="max-w-6xl w-full flex flex-col items-center px-6 py-10 overflow-y-auto h-screen">
         {/* Título */}
         <h1 className="text-3xl font-bold text-[#0280CC] mb-2 text-center">
@@ -228,9 +230,8 @@ const DetailField: React.FC<DetailFieldProps> = ({
         {label}
       </p>
       <p
-        className={`text-sm break-all ${
-          mono ? "font-mono" : ""
-        } ${highlight ? "font-bold text-blue-600" : "text-gray-800"}`}
+        className={`text-sm break-all ${mono ? "font-mono" : ""
+          } ${highlight ? "font-bold text-blue-600" : "text-gray-800"}`}
       >
         {value || "N/A"}
       </p>
@@ -240,9 +241,9 @@ const DetailField: React.FC<DetailFieldProps> = ({
 
 const formatDate = (timestamp: Date | string | number) => {
   if (!timestamp) return "N/A";
-  
+
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-  
+
   return date.toLocaleString("en-US", {
     year: "numeric",
     month: "short",

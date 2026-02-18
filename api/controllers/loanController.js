@@ -97,6 +97,7 @@ class LoanController {
       const privateKey = getPrivateKey();
       const rawLoanData = req.body?.loanData ?? req.body;
       const loanData = normalizeLoanKeys(rawLoanData);
+      const wait = req.query.wait === 'true';
 
 
       console.log("========== POST /loans =========="); //
@@ -114,7 +115,7 @@ class LoanController {
       }
 
       // ✅ PASO 1: Generar el ID compuesto
-      const loanId = loanService.generateLoanId(loanData.LenderUid, loanData.LoanUid);
+      const loanId = await loanService.generateLoanId(loanData.LenderUid, loanData.LoanUid);
 
       // ✅ PASO 2: Verificar si el loan existe
       const loanExists = await loanService.loanExists(loanId);
@@ -135,7 +136,7 @@ class LoanController {
         }
 
         // Crear loan completo
-        const result = await loanService.createLoan(privateKey, loanData);
+        const result = await loanService.createLoan(privateKey, loanData, { wait });
 
         return res.status(201).json({
           success: true,
@@ -146,9 +147,6 @@ class LoanController {
       }
 
       // ✅ CASO 2 y 3: Loan SÍ existe → Determinar si es actualización parcial o completa
-
-      // Leer el loan actual para saber qué campos tiene
-      const currentLoan = await loanService.readLoan(loanId);
 
       // Contar cuántos campos enviaron (sin contar LenderUid y LoanUid que son ID)
       const providedFields = Object.keys(loanData).filter(
@@ -186,7 +184,8 @@ class LoanController {
         const result = await loanService.updateLoanPartial(
           privateKey,
           loanId,
-          partialUpdateFields
+          partialUpdateFields,
+          { wait }
         );
 
         return res.json({
@@ -205,7 +204,7 @@ class LoanController {
       console.log(`📝 Detected FULL update: ${providedFieldCount} fields provided`);
 
       // Para actualización completa, usar createLoan (que funciona como upsert)
-      const result = await loanService.createLoan(privateKey, loanData);
+      const result = await loanService.createLoan(privateKey, loanData, { wait });
 
       return res.json({
         success: true,
@@ -376,7 +375,8 @@ class LoanController {
       const { lenderUid, loanUid } = req.params;
 
       // Generar loanId
-      const loanId = loanService.generateLoanId(lenderUid, loanUid);
+      const loanId = await loanService.generateLoanId(lenderUid, loanUid);
+
 
       const loan = await loanService.readLoan(loanId);
 
@@ -691,7 +691,7 @@ class LoanController {
   async checkLoanExistsByUids(req, res, next) {
     try {
       const { lenderUid, loanUid } = req.params;
-      const loanId = loanService.generateLoanId(lenderUid, loanUid);
+      const loanId = await loanService.generateLoanId(lenderUid, loanUid);
       const exists = await loanService.loanExists(loanId);
 
       res.json({
@@ -840,7 +840,7 @@ class LoanController {
         });
       }
 
-      const loanId = loanService.generateLoanId(lenderUid, loanUid);
+      const loanId = await loanService.generateLoanId(lenderUid, loanUid);
 
       res.json({
         success: true,

@@ -4,6 +4,7 @@ import { useSharedByUser, useDisableShareAsset, useEnableShareAsset } from '../.
 import { useVaultAuth } from '../../../hooks/useVaultAuth';
 import { ViewModalShared } from './shared/ViewModalShared';
 import { toast } from 'react-toastify';
+import { PageMeta } from '../../ui/PageMeta';
 
 export const SharedLoans = () => {
   const { vaultUser } = useVaultAuth();
@@ -109,6 +110,7 @@ export const SharedLoans = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+       <PageMeta title="Shared Loans" />
       <div className="max-w-7xl mx-auto">
         
         {/* Header */}
