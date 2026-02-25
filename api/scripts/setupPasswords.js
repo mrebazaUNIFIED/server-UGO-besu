@@ -8,10 +8,13 @@ const setupPasswords = async () => {
 
   // Define las contraseñas para cada wallet
   const passwords = {
-    '0x312eEB162b7d1ab08E2E2bAbCEa93CDd6C716E68': '$2a$12$HS6KBuFSKMbumIzCRZR.fOaHD/SfZ7C.JYc4NGb8CBTaeh42mBm02',     // Sunwest (admin)
-    '0x31A772fcEe51d5442a3828bd6CC3d3a48882abc8': '$2a$12$Wh3aqtll0bmjCCGeNPgOxeM.hRcrce.oTdSUa8x7F6qFD8cWcX4w6',        // Mike (operator)
-    '0xb30AAa44d403bD8a0c46D90Af628829720D0b204': '$2a$12$hJOpPFGkPql94bGKtI6dL.FOAyyiK2QEiYSvT9fEoWwMSzksv4xme',    // FCI Corporate (operator)
-    '0x09003f398B872e51736B834AADBE949F51a0154F': '$2a$12$wysVx36TYTQ3AgVqkyyi9.NPuY4wNX4eKF4zAIhZsc.1vAKcAjdGW'         // Tim (operator)
+
+    '0x9E8387a25007e6A76d72fdB69c82e18B4E30A57f': 'Nuevapassword',
+    '0x95C0Bd95daCECc1eC8821545959bB2abF9990641': 'Nuevapassword',
+    '0x074e93e3E69746CEc02E676759bCB1eff6Ea84dc': 'Nuevapassword',
+    '0xfa9f306F6060eadF3dD6DbF675cf78fd03E242D7': 'Nuevapassword',
+
+    // Tim (operator)
   };
 
   try {
@@ -23,11 +26,11 @@ const setupPasswords = async () => {
     // Agregar passwordHash a cada usuario
     for (const [userId, user] of Object.entries(users)) {
       const password = passwords[user.address];
-      
+
       if (password) {
         const passwordHash = await bcrypt.hash(password, 10);
         user.passwordHash = passwordHash;
-        
+
         console.log(`✅ ${user.name} (${user.address})`);
         console.log(`   Password: ${password}`);
         console.log(`   Hash: ${passwordHash.substring(0, 20)}...`);
@@ -39,11 +42,11 @@ const setupPasswords = async () => {
 
     // Guardar archivo actualizado
     await fs.writeFile(usersFile, JSON.stringify(users, null, 2));
-    
+
     console.log('✅ Contraseñas configuradas exitosamente!');
     console.log('\n📝 Credenciales de acceso:');
     console.log('═══════════════════════════════════════════════════════════');
-    
+
     for (const [userId, user] of Object.entries(users)) {
       const password = passwords[user.address];
       if (password) {
@@ -52,9 +55,9 @@ const setupPasswords = async () => {
         console.log(`Password: ${password}`);
       }
     }
-    
+
     console.log('\n═══════════════════════════════════════════════════════════');
-    
+
   } catch (error) {
     console.error('❌ Error:', error.message);
   }

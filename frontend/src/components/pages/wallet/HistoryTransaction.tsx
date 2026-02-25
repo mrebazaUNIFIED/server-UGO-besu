@@ -7,6 +7,7 @@ import { RiEyeLine } from "react-icons/ri";
 import { useMyTransactions } from "../../../hooks/useApi";
 import { type TransactionRecord } from "../../../types";
 import { formatMoney } from "../../../lib/utils";
+import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 
 
 export const HistoryTransaction = () => {
@@ -117,22 +118,7 @@ export const HistoryTransaction = () => {
     );
   }
 
-  // ERROR O VACÍO
-  if (error || sortedData.length === 0) {
-    return (
-      <div className="w-full py-12 px-4 flex flex-col items-center justify-center">
-        <p className="text-red-600 mb-4">
-          {error?.message || "No transactions found."}
-        </p>
-        <button
-          onClick={() => refetch()}
-          className="bg-indigo-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+
 
   // RENDER PRINCIPAL
   return (
@@ -142,19 +128,19 @@ export const HistoryTransaction = () => {
         onClose={() => setModalOpened(false)}
         transaction={selectedTransaction}
       />
-      <div className="w-full">
-        <div className="max-w-7xl py-8 px-4 mx-auto bg-white rounded-lg">
+      <div className="w-full fci-card p-8 border-gray-100 rounded-4xl">
+        <div className="max-w-7xl ">
           {/* Header */}
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-[var(--rojo)] mb-2">
-              My Transactions
+              My Recent Movements
             </h2>
             <p className="text-[var(--gris-oscuro)]">View your USFCI transfers.</p>
           </div>
 
           {/* Search and Total */}
           <div className="my-6 p-4 bg-gray-50 rounded-lg flex justify-between items-center">
-            <p className="text-sm text-gray-600 font-semibold">
+            <p className="text-lg text-gray-600 font-bold">
               Total transactions:{" "}
               <span className="font-semibold text-[var(--rojo)]">
                 {sortedData.length}
@@ -171,121 +157,126 @@ export const HistoryTransaction = () => {
           </div>
 
           {/* Table */}
-          <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+          <div className="rounded-lg overflow-hidden">
             <div className="overflow-auto max-h-96">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      N°
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount (USFCI)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Address
-                    </th>
-                    
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date and time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentData.map((item: TransactionRecord, index: number) => {
-                    const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                    const isSent = item.type === "sent";
-                    const decimals = 18;
-                    const formattedAmount = formatMoney(Number(BigInt(item.amount) / BigInt(10 ** decimals)));
-                    return (
-                      <tr
-                        key={index}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                          {rowNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                              isSent
-                                ? "bg-red-100 text-red-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
+              <div className="space-y-5">
+                {currentData.map((item: TransactionRecord, index: number) => {
+                  const isSent = item.type === "sent";
+                  const decimals = 18;
+                  const formattedAmount = formatMoney(
+                    Number(BigInt(item.amount) / BigInt(10 ** decimals))
+                  );
+
+                  return (
+                    <div
+                      key={index}
+                      className="
+          
+                      flex justify-between items-center
+                      p-6
+                      rounded-3xl
+                      border-2
+                    border-gray-200
+                    "
+                    >
+                      {/* LEFT COLUMN */}
+                      <div className="flex items-start gap-4">
+                        {/* Icon Circle */}
+                        <div
+                          className={`
+              w-12 h-12 flex items-center justify-center rounded-full
+              ${isSent ? "bg-red-500/40 text-red-400" : "bg-emerald-500/40 text-emerald-400"}
+            `}
+                        >
+                          {isSent ? (
+                            <FaArrowUp className="w-5 h-5" />
+                          ) : (
+                            <FaArrowDown className="w-5 h-5" />
+                          )}
+                        </div>
+
+                        <div>
+                          {/* Wallet */}
+                          <p className=" font-semibold text-gray-600">
+                            {isSent
+                              ? `To ${item.recipientAddress.slice(0, 14)}...`
+                              : `From ${item.senderAddress.slice(0, 14)}...`}
+                          </p>
+
+                          {/* Date */}
+                          <p className="text-sm text-gray-400 mt-1">
+                            {new Date(item.timestamp).toLocaleString()}
+                          </p>
+
+                          {/* Type */}
+                          <p
+                            className={`
+                              w-24
+                              py-1.5
+                              text-xs
+                              font-semibold
+                              text-center
+                              rounded-full
+                              border
+                              transition-all duration-300
+                              ${isSent
+                                ? "bg-red-500/10 text-red-400 border-red-500/30"
+                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                              }
+                              `}
                           >
-                            {isSent ? (
-                              <>
-                                <ArrowUpRight className="w-3 h-3" />
-                                Sent
-                              </>
-                            ) : (
-                              <>
-                                <ArrowDownLeft className="w-3 h-3" />
-                                Received
-                              </>
-                            )}
-                          </span>
-                        </td>
-                        <td
-                          className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
-                            isSent ? "text-red-600" : "text-green-600"
-                          }`}
+                            {isSent ? "Sent" : "Received"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* RIGHT COLUMN */}
+                      <div className="text-right">
+                        {/* Amount */}
+                        <p
+                          className={`text-lg font-bold ${isSent ? "text-red-500" : "text-emerald-500"
+                            }`}
                         >
                           {isSent ? "-" : "+"}
-                          {formattedAmount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span
-                            className="font-mono max-w-xs truncate block"
-                            title={
-                              isSent
-                                ? item.recipientAddress
-                                : item.senderAddress
-                            }
-                          >
-                            {isSent
-                              ? `To: ${item.recipientAddress.slice(0, 12)}...`
-                              : `From: ${item.senderAddress.slice(0, 12)}...`}
-                          </span>
-                        </td>
-                      
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(item.timestamp).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <button
-                            onClick={() => handleRowClick(item)}
-                            className="cursor-pointer text-[var(--rojo)] hover:text-[var(--rojo-oscuro)] transition-colors p-1 rounded hover:bg-gray-100"
-                            title="View details"
-                          >
-                            <RiEyeLine className="w-5 h-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          {formattedAmount} USFCI
+                        </p>
+
+                        {/* Action */}
+                        <button
+                          onClick={() => handleRowClick(item)}
+                          className="
+              mt-2
+              text-sm
+              text-[var(--rojo)]
+              hover:text-white
+              hover:bg-[var(--rojo)]
+              px-3 py-1
+              rounded-lg
+              transition-all duration-300
+              focus:outline-none  
+            "
+                        >
+                          <RiEyeLine />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-6 flex justify-center">
-              <Pagination
-                total={totalPages}
-                value={currentPage}
-                onChange={setCurrentPage}
-                color="indigo"
-                size="sm"
-              />
-            </div>
+            <Pagination
+              total={totalPages}
+              value={currentPage}
+              onChange={setCurrentPage}
+              color="red"
+              size="sm"
+              radius="xl"
+              className="bg-transparent"
+            />
           )}
         </div>
       </div>

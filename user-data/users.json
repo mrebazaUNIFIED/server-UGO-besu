@@ -1,0 +1,12 @@
+{
+  "alfred_007": {
+    "userId": "alfred_007",
+    "name": "Alfredo 7",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "300",
+    "walletAddress": "0xcb8c01821403739942F846Eff54B7544eDB495ed",
+    "privateKey": "0x81eb4eea1a7396353f53061560514deec5322a7c590f6ea7efe5ccdd0acd6b3b",
+    "mnemonic": "burst faint normal abuse share hockey sign sphere moral proud food great"
+  }
+}

@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
 const { readLoadBalancer, writeLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
+const usfciService = require('./USFCIService');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,7 +13,7 @@ class UserRegistryService {
   // ✅ ESCRITURA: Usa el nodo fijo (Failover) para mantener el Nonce sincronizado
   getContract(privateKey) {
     const provider = writeLoadBalancer.getProvider();
-    
+
     // Si el provider emite un error de red, lo reportamos para rotar el nodo
     provider.on("error", (error) => {
       console.warn(`⚠️ Error detectado en el nodo de escritura: ${provider.connection.url}`);
@@ -45,20 +46,20 @@ class UserRegistryService {
       if (userData.initialBalance && funderPrivateKey) {
         const provider = writeLoadBalancer.getProvider();
         const funderWallet = new ethers.Wallet(funderPrivateKey, provider);
-        
+
         console.log(`Financiando ${userData.walletAddress} con ${userData.initialBalance} ETH...`);
         const fundTx = await funderWallet.sendTransaction({
           to: userData.walletAddress,
           value: ethers.parseEther(userData.initialBalance.toString()),
-          gasLimit: 21000 // Gas estándar para transferencia simple
+          gasLimit: 21000
         });
         await fundTx.wait();
         console.log(`✓ Financiado con ${userData.initialBalance} ETH`);
       }
 
-      // 2. Registrar en contrato
+      // 2. Registrar en UserRegistry
       const contract = this.getContract(funderPrivateKey || process.env.OWNER_PRIVATE_KEY);
-      
+
       console.log('Enviando registro a la Blockchain...');
       const tx = await contract.registerUser(
         userData.walletAddress,
@@ -66,9 +67,9 @@ class UserRegistryService {
         userData.name,
         userData.organization,
         userData.role,
-        { gasLimit: 500000 } // Colchón de gas para evitar fallos de estimación en Besu
+        { gasLimit: 500000 }
       );
-      
+
       console.log(`Transacción enviada: ${tx.hash}, esperando confirmación rápida...`);
       const receipt = await tx.wait();
       console.log(`✓ Usuario registrado en bloque ${receipt.blockNumber}`);
@@ -81,7 +82,30 @@ class UserRegistryService {
         } catch (e) { return false; }
       });
 
-      // 4. Guardar datos locales (Dev)
+      // ✅ NUEVO - 4. Registrar wallet en USFCI
+      // La wallet nueva debe ser el msg.sender en registerWallet()
+      const walletPrivateKey = generated ? wallet.privateKey : funderPrivateKey;
+
+      console.log('Registrando wallet en USFCI...');
+      await usfciService.registerWallet(
+        walletPrivateKey,
+        userData.organization,  // mspId
+        userData.userId,        // userId
+        userData.role || 'user' // accountType
+      );
+      console.log('✓ Wallet registrada en USFCI');
+
+      // ✅ NUEVO - 5. Auto-aprobar KYC (el admin firma esta transacción)
+      console.log('Aprobando KYC en USFCI...');
+      await usfciService.updateComplianceStatus(
+        funderPrivateKey || process.env.OWNER_PRIVATE_KEY,
+        userData.walletAddress,
+        'approved',
+        'low'
+      );
+      console.log('✓ KYC aprobado');
+
+      // 6. Guardar datos locales (Dev)
       if (generated) {
         this._saveUserLocally(userData, wallet);
       }
@@ -95,12 +119,12 @@ class UserRegistryService {
         gasUsed: receipt.gasUsed.toString(),
         event: event ? contract.interface.parseLog(event).args : null,
         generatedWallet: generated,
-        privateKey: generated ? wallet.privateKey : undefined
+        privateKey: generated ? wallet.privateKey : undefined,
+        kycStatus: 'approved' // ✅ NUEVO
       };
 
     } catch (error) {
       console.error('❌ Error en registerUser:', error.message);
-      // Forzamos rotación de nodo si hubo un error de conexión
       if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') {
         writeLoadBalancer.rotateNode();
       }
@@ -136,7 +160,7 @@ class UserRegistryService {
   }
 
   // --- MÉTODOS DE LECTURA (Sin cambios, ya usan ReadLoadBalancer) ---
-  
+
   async getUser(walletAddress) {
     const user = await this.getContractReadOnly().getUser(walletAddress);
     return this._mapUser(user);

@@ -39,6 +39,7 @@
     "moment": "^2.30.1",
     "motion": "^12.23.22",
     "pdfjs-dist": "^5.4.394",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",

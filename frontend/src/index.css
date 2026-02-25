@@ -32,3 +32,14 @@
 button {
   cursor: pointer;
 }
+
+.fci-card {
+      background: white;
+    
+      transition: all 0.3s ease;
+    }
+
+.fci-card:hover {
+      border-color: #8E0B27;
+      box-shadow: 0 0 20px rgba(142, 11, 39, 0.1);
+}

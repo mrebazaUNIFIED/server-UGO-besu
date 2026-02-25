@@ -4,43 +4,64 @@
     "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "address": "0x2EbcB9D63c93A522eA501615626862b3640Cc874",
-    "privateKey": "0x0dc8699e9829dd6b8c098bc5a7361b487f99cc12b0c662a6af3891364d8b4ae7",
-    "mnemonic": "dress chest short abstract health click rely scene legend foil horror travel",
+    "address": "0x9E8387a25007e6A76d72fdB69c82e18B4E30A57f",
+    "privateKey": "0xf3f45ef51ce717ce1bebf71b202a0d49f218cd7e43d95543b97022d382b34f01",
+    "mnemonic": "cram confirm improve produce toy wall verify more cherry multiply foster price",
+    "passwordHash": "$2b$10$RwhfvU6WzlNyYZQH1m7BNuFkXo.3yfxXzXQHdqeavTZF7jmxOKouC",
     "initialBalance": 0,
-    "createdAt": "2026-02-03T19:11:05.352Z"
+    "createdAt": "2026-02-25T15:08:16.047Z",
+    "lastLogin": "2026-02-25T16:07:57.310Z"
   },
   "b2c3d4e5-f6a7-4890-1213-141516171819": {
     "userId": "b2c3d4e5-f6a7-4890-1213-141516171819",
     "name": "Mike",
     "organization": "FCI",
     "role": "operator",
-    "address": "0xDB66E93F3Ea75c09F499061CD02e62b233Af3ffC",
-    "privateKey": "0xe6ebf4e5e9ed3c440101fdc0fbcd4fe7b81345c9a4b056ae3fa24f0a26709d81",
-    "mnemonic": "east quit family atom stomach season legal kiwi hair marriage cool jealous",
+    "address": "0x95C0Bd95daCECc1eC8821545959bB2abF9990641",
+    "privateKey": "0x373ba563c077227909647cc8b436752cc43ed75e13b7df9e62a9e44f5bf8bc38",
+    "mnemonic": "whisper sketch once account winter picnic brass ski school trophy flame wood",
+    "passwordHash": "$2b$10$ljmqRWST/h6aLAJi/CyMY.avKqyPjUitcWUrIV2aguwiYE8bHFqoW",
     "initialBalance": 0,
-    "createdAt": "2026-02-03T19:11:25.521Z"
+    "createdAt": "2026-02-25T15:08:58.462Z",
+    "lastLogin": "2026-02-25T15:20:25.452Z"
   },
   "581c7abb8fbd4cc1ac69b9e7d81c95ed": {
     "userId": "581c7abb8fbd4cc1ac69b9e7d81c95ed",
     "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "address": "0x90863206d7AD6F87e2927C69b57eAC712C9BAFDC",
-    "privateKey": "0x503a4eb3b8fe35c11fb30646f4b7616642a0492618b94035256a02531c370139",
-    "mnemonic": "solution soldier when side series erosion ability pair upset cliff rice neither",
+    "address": "0x074e93e3E69746CEc02E676759bCB1eff6Ea84dc",
+    "privateKey": "0x280588d5a4ff32c339f3370bfa695f82053aa599afc5fbf9916b496b42a20dbb",
+    "mnemonic": "advance start vote goose clarify mix cram clever ghost market stand smart",
+    "passwordHash": "$2b$10$IrIOOEdncW63/d.E.mvYmuWtgDGkS1jfbT29vFIVp0MFdSZSbIiVm",
     "initialBalance": 0,
-    "createdAt": "2026-02-03T19:11:45.186Z"
+    "createdAt": "2026-02-25T15:09:21.084Z",
+    "lastLogin": "2026-02-25T15:25:54.188Z"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
     "name": "Tim",
     "organization": "FCI",
     "role": "operator",
-    "address": "0xa3a80D372949dfE34F44d77e89719a6743B9F677",
-    "privateKey": "0xfec177d930388098e044bbe2d93477578589be25804ecf59f5f4c9a91b401438",
-    "mnemonic": "galaxy tuna donkey expect tackle hammer behave basic obvious public south submit",
+    "address": "0xfa9f306F6060eadF3dD6DbF675cf78fd03E242D7",
+    "privateKey": "0x4bc4884d1a40a1ce5572ff75245e7cfb7470dacab5ad2361bd66f58012e3816c",
+    "mnemonic": "glare ignore awesome shoe sting razor mixture suggest oyster frown sunset almost",
+    "passwordHash": "$2b$10$wJJi2c/lmhEX0InFCnt34ugX0iBXnBGTT1E6uQQF5qFoy2dlKd84C",
     "initialBalance": 0,
-    "createdAt": "2026-02-03T19:12:05.330Z"
+    "createdAt": "2026-02-25T15:10:04.259Z",
+    "lastLogin": null
+  },
+  "alfred_007": {
+    "userId": "alfred_007",
+    "name": "Alfredo 7",
+    "organization": "FCI",
+    "role": "operator",
+    "address": "0xcb8c01821403739942F846Eff54B7544eDB495ed",
+    "privateKey": "0x81eb4eea1a7396353f53061560514deec5322a7c590f6ea7efe5ccdd0acd6b3b",
+    "mnemonic": "burst faint normal abuse share hockey sign sphere moral proud food great",
+    "passwordHash": "$2b$10$HXp4OOQO8Oai8zduXW2ereTspT2q9YwEbdT.zAtjf1A7K8WKLjrQe",
+    "initialBalance": "300",
+    "createdAt": "2026-02-03T19:12:05.330Z",
+    "lastLogin": "2026-02-25T15:24:19.556Z"
   }
 }

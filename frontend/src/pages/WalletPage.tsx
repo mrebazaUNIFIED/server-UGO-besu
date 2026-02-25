@@ -2,27 +2,27 @@ import { HistoryTransaction } from "../components/pages/wallet/HistoryTransactio
 import { MyWallet } from "../components/pages/wallet/MyWallet"
 import { WalletCard } from "../components/pages/wallet/WalletCard"
 import { ButtonSend } from "../components/pages/wallet/ButtonSend"
+import { PageMeta } from "../components/ui/PageMeta"
 
 const WalletPage = () => {
-    return (
-        <div className="w-full mx-auto my-12 space-y-7">
-            {/* Fila de WalletCard y MyWallet con grid responsivo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 justify-items-center">
-                <WalletCard />
-                <MyWallet />
-            </div>
+  return (
+    <div className="w-full mx-auto my-12 space-y-7 ">
+      <PageMeta title="USFCI - Wallet" />
+      <h2 className="text-3xl font-bold mb-8 text-(--rojo)">My Personal Wallet</h2>
+      {/* Fila de WalletCard y MyWallet con grid responsivo */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
 
-            {/* Botón de envío centrado */}
-            <div className="flex items-center justify-center">
-                <ButtonSend />
-            </div>
-
-            {/* Historial de transacciones */}
-            <div>
-                <HistoryTransaction />
-            </div>
+          <WalletCard />
+          <HistoryTransaction />
         </div>
-    )
+        <MyWallet />
+      </div>
+
+
+
+    </div>
+  )
 }
 
 export default WalletPage
