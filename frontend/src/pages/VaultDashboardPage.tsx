@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar, SidebarBody } from "../components/ui/sidebar";
 import { cn } from "../lib/utils";
 import { Outlet } from "react-router-dom";
@@ -8,11 +8,38 @@ import { TbChartHistogram } from "react-icons/tb";
 import React from "react";
 import { UserCardVault } from "../components/ui/LogoutOption-vault";
 import { CiSearch } from "react-icons/ci";
-import {  Share2 } from "lucide-react";
+import { Share2 } from "lucide-react";
 import { TbBuildingStore } from "react-icons/tb";
+import { useAutoRegisterUser } from "../hooks/useAutoRegisterUser";
+import { RegisterAccountModal } from "../components/auth/RegisterAccountModal";
 
 export function VaultDashboardPage() {
   const [open, setOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  const {
+    checking,
+    userNotFound,
+    registering,
+    justRegistered,
+    handleRegister,
+    firstName,
+  } = useAutoRegisterUser();
+
+  // El modal se abre UNA sola vez cuando confirmamos que el usuario no existe
+  // y nunca se vuelve a cerrar por revalidaciones posteriores
+  useEffect(() => {
+    if (!checking && userNotFound) {
+      setShowModal(true);
+    }
+  }, [checking, userNotFound]);
+
+  // Se cierra cuando el registro fue exitoso
+  useEffect(() => {
+    if (justRegistered) {
+      setShowModal(false);
+    }
+  }, [justRegistered]);
 
   const links = [
     {
@@ -49,7 +76,16 @@ export function VaultDashboardPage() {
         "md:flex md:flex-row"
       )}
     >
-      {/* Sidebar */}
+      {showModal && (
+        <RegisterAccountModal
+          firstName={firstName}
+          registering={registering}
+          justRegistered={justRegistered}
+          onRegister={handleRegister}
+          onClose={() => { }}
+        />
+      )}
+
       <Sidebar open={open} setOpen={setOpen} animate={false}>
         <SidebarBody className="justify-between gap-10 bg-gray-800 text-white shadow-lg">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
@@ -71,7 +107,6 @@ export function VaultDashboardPage() {
               ))}
             </div>
 
-            {/* Logout */}
             <div className="mt-auto p-4">
               <UserCardVault />
             </div>
@@ -79,7 +114,6 @@ export function VaultDashboardPage() {
         </SidebarBody>
       </Sidebar>
 
-      {/* Contenido principal */}
       <main className="flex-1 flex flex-col z-10 overflow-y-auto">
         <div className="flex-1 flex flex-col gap-2 p-4 md:p-10">
           <Outlet />
@@ -89,7 +123,6 @@ export function VaultDashboardPage() {
   );
 }
 
-/* Logo del Vault */
 export const VaultLogoComponent = () => {
   return (
     <a
@@ -101,7 +134,6 @@ export const VaultLogoComponent = () => {
         alt="Vault Logo"
         className="w-24 mb-2 drop-shadow-lg"
       />
-
     </a>
   );
 };

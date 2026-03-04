@@ -9,20 +9,20 @@ const {
   unpause,
   getSystemConfig,
   getStatistics,
-  
+
   // Wallet
   registerWallet,
   getAccountDetails,
   getBalance,
-  
+
   // Tokens
   mintTokens,
   burnTokens,
   transfer,
-  
+
   // Compliance
   updateComplianceStatus,
-  
+
   // Historial
   getAllMintRecords,
   getMintHistory,
@@ -36,7 +36,10 @@ const {
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación
+
+router.get('/wallet/:walletAddress/balance', getBalance);
+
+//  rutas que requieren autenticación
 router.use(authenticate);
 
 // ==========================================
@@ -72,7 +75,6 @@ router.get('/history/my-transactions', getMyTransactions);
 // ==========================================
 router.post('/wallet/register', registerWallet);
 router.get('/wallet/:walletAddress', getAccountDetails);
-router.get('/wallet/:walletAddress/balance', getBalance);
 
 // Historial específico de una wallet
 router.get('/wallet/:walletAddress/history', getWalletCompleteHistory);
@@ -83,8 +85,8 @@ router.get('/wallet/:walletAddress/history/transactions', getTransactionHistory)
 // ==========================================
 // COMPLIANCE
 // ==========================================
-router.put('/wallet/:walletAddress/compliance', 
-  authorize('admin', 'operator'), 
+router.put('/wallet/:walletAddress/compliance',
+  authorize('admin', 'operator'),
   updateComplianceStatus
 );
 

@@ -16,6 +16,55 @@ function cleanupTxStore() {
   }
 }
 
+// ===== HELPER: Extraer revert reason real de ethers v6 =====
+function extractErrorReason(err) {
+  // ethers v6: err.reason contiene el revert reason legible
+  if (err?.reason) return err.reason;
+
+  // Si viene data hexadecimal del revert (Error(string) ABI-encoded)
+  if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x')) {
+    try {
+      // Error(string) selector = 0x08c379a0
+      if (err.data.startsWith('0x08c379a0')) {
+        const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
+          ['string'],
+          '0x' + err.data.slice(10)
+        );
+        return decoded[0];
+      }
+    } catch (_) { }
+    return err.data; // Devolver raw si no se pudo decodificar
+  }
+
+  // Panic code (0x4e487b71)
+  if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x4e487b71')) {
+    try {
+      const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
+        ['uint256'],
+        '0x' + err.data.slice(10)
+      );
+      return `Panic(${decoded[0].toString()})`;
+    } catch (_) { }
+  }
+
+  return err?.message || String(err);
+}
+
+function logTxError(context, txHash, err) {
+  const reason = extractErrorReason(err);
+  console.error(`\n[TX FAILED] ─── ${context} ───────────────────────`);
+  console.error(`  txHash  : ${txHash}`);
+  console.error(`  reason  : ${reason}`);
+  console.error(`  code    : ${err?.code ?? 'N/A'}`);
+  if (err?.receipt) {
+    console.error(`  block   : ${err.receipt.blockNumber}`);
+    console.error(`  gasUsed : ${err.receipt.gasUsed?.toString()}`);
+    console.error(`  status  : ${err.receipt.status}`);
+  }
+  console.error(`────────────────────────────────────────────────────\n`);
+  return reason;
+}
+
 class LoanRegistryService extends BaseContractService {
   constructor() {
     super('LoanRegistry', 'LoanRegistry');
@@ -132,27 +181,27 @@ class LoanRegistryService extends BaseContractService {
    * ✅ Normalizar loanId (asegurar formato correcto)
    */
   normalizeLoanId(loanId) {
-      if (!loanId) return '';
+    if (!loanId) return '';
 
-      // Convertir a string si no lo es
-      let idStr = loanId;
-      if (typeof idStr !== 'string') {
-        if (typeof idStr === 'object' || typeof idStr === 'bigint') {
-          idStr = idStr.toString();
-        } else {
-          idStr = String(idStr);
-        }
+    // Convertir a string si no lo es
+    let idStr = loanId;
+    if (typeof idStr !== 'string') {
+      if (typeof idStr === 'object' || typeof idStr === 'bigint') {
+        idStr = idStr.toString();
+      } else {
+        idStr = String(idStr);
       }
-
-      // Si viene con "0x", removerlo (el contrato usa sin "0x")
-      if (idStr.startsWith('0x')) {
-        return idStr.substring(2);
-      }
-
-      return idStr;
     }
 
-    getTxStatus(txHash) {
+    // Si viene con "0x", removerlo (el contrato usa sin "0x")
+    if (idStr.startsWith('0x')) {
+      return idStr.substring(2);
+    }
+
+    return idStr;
+  }
+
+  getTxStatus(txHash) {
     if (!txHash) return null;
     cleanupTxStore();
     return txStore.get(txHash.toLowerCase()) || null;
@@ -199,25 +248,26 @@ class LoanRegistryService extends BaseContractService {
   // ===== FUNCIONES PRINCIPALES =====
 
   /**
-   * ✅ Crear un loan - Nueva estructura con ID generado automáticamente
+   * ✅ Crear/Upsert loan
+   *
+   * Por defecto SIEMPRE espera el receipt (wait=true).
+   * Pasar options.wait=false solo si explícitamente se quiere modo background.
    */
-  /**
- * ✅ Crear/Upsert loan
- * options.wait=true  => espera receipt (modo antiguo)
- * options.wait=false => responde rápido y confirma en background
- */
-async createLoan(privateKey, loanData, options = {}) {
-  const wait = options.wait === true;
-  const contract = this.getContract(privateKey);
+  async createLoan(privateKey, loanData, options = {}) {
+    // ── CAMBIO PRINCIPAL: wait=true por defecto ──────────────────────────────
+    const wait = options.wait !== false;
+    // ────────────────────────────────────────────────────────────────────────
 
-  if (!loanData.LenderUid || !loanData.LoanUid) {
-    throw new Error('LenderUid and LoanUid are required');
-  }
+    const contract = this.getContract(privateKey);
 
-  // LoanId determinístico (mismo algoritmo que contrato)
-  const computedLoanId = await this.generateLoanId(loanData.LenderUid, loanData.LoanUid);
+    if (!loanData.LenderUid || !loanData.LoanUid) {
+      throw new Error('LenderUid and LoanUid are required');
+    }
 
-  const tx = await contract.createLoan(
+    // LoanId determinístico (mismo algoritmo que contrato)
+    const computedLoanId = await this.generateLoanId(loanData.LenderUid, loanData.LoanUid);
+
+    const tx = await contract.createLoan(
       loanData.LoanUid || '',
       loanData.Account || '',
       loanData.LenderUid || '',
@@ -263,54 +313,88 @@ async createLoan(privateKey, loanData, options = {}) {
       loanUid: loanData.LoanUid,
     });
 
-    // wait=true => devolver con receipt (modo antiguo)
+    // ── MODO WAIT (default) ──────────────────────────────────────────────────
     if (wait) {
-      const receipt = await tx.wait();
+      let receipt;
+      try {
+        receipt = await tx.wait();
+      } catch (err) {
+        // La tx llegó a la red pero fue revertida — loguear con detalle completo
+        const reason = logTxError('createLoan', tx.hash, err);
+        this._setTx(tx.hash, {
+          status: 'FAILED',
+          error: reason,
+          receipt: err?.receipt ? {
+            txHash: err.receipt.hash,
+            blockNumber: err.receipt.blockNumber,
+            gasUsed: err.receipt.gasUsed?.toString(),
+          } : null,
+        });
+        throw new Error(`createLoan failed: ${reason}`);
+      }
+
       const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+      const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
+
+      if (receipt.status !== 1) {
+        // Receipt llegó pero status=0 (revert sin throw en ethers)
+        console.error(`[TX FAILED] createLoan | txHash: ${tx.hash} | status: 0 (reverted) | block: ${receipt.blockNumber}`);
+      }
 
       this._setTx(tx.hash, {
-        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        status: finalStatus,
         txId: parsed.txId,
         receipt: {
           txHash: receipt.hash,
           blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed?.toString?.(),
+          gasUsed: receipt.gasUsed?.toString(),
         },
         loanId: parsed.loanId ?? this.normalizeLoanId(computedLoanId),
       });
 
       return {
-        success: true,
-        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        success: receipt.status === 1,
+        status: finalStatus,
         loanId: parsed.loanId ?? this.normalizeLoanId(computedLoanId),
         lenderUid: loanData.LenderUid,
         loanUid: loanData.LoanUid,
         txId: parsed.txId || '',
         txHash: receipt.hash,
-        blockNumber: receipt.blockNumber
+        blockNumber: receipt.blockNumber,
       };
     }
 
-    // Background confirm (no bloquea el request)
+    // ── MODO BACKGROUND (wait=false explícito) ───────────────────────────────
     tx.wait()
       .then((receipt) => {
         const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+        const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
+
+        if (receipt.status !== 1) {
+          console.error(`[TX FAILED] createLoan (background) | txHash: ${tx.hash} | status: 0 (reverted) | block: ${receipt.blockNumber}`);
+        }
 
         this._setTx(tx.hash, {
-          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+          status: finalStatus,
           txId: parsed.txId,
           receipt: {
             txHash: receipt.hash,
             blockNumber: receipt.blockNumber,
-            gasUsed: receipt.gasUsed?.toString?.(),
+            gasUsed: receipt.gasUsed?.toString(),
           },
           loanId: parsed.loanId ?? this.normalizeLoanId(computedLoanId),
         });
       })
       .catch((err) => {
+        const reason = logTxError('createLoan (background)', tx.hash, err);
         this._setTx(tx.hash, {
           status: 'FAILED',
-          error: err?.message || String(err),
+          error: reason,
+          receipt: err?.receipt ? {
+            txHash: err.receipt.hash,
+            blockNumber: err.receipt.blockNumber,
+            gasUsed: err.receipt.gasUsed?.toString(),
+          } : null,
         });
       });
 
@@ -321,24 +405,29 @@ async createLoan(privateKey, loanData, options = {}) {
       loanId: this.normalizeLoanId(computedLoanId),
       lenderUid: loanData.LenderUid,
       loanUid: loanData.LoanUid,
-      txHash: tx.hash
+      txHash: tx.hash,
     };
   }
 
 
   /**
    * ✅ Actualización parcial de loan
+   *
+   * Por defecto SIEMPRE espera el receipt (wait=true).
+   * Pasar options.wait=false solo si explícitamente se quiere modo background.
    */
   async updateLoanPartial(privateKey, loanId, fieldsToUpdate, options = {}) {
-  const wait = options.wait === true;
+    // ── CAMBIO PRINCIPAL: wait=true por defecto ──────────────────────────────
+    const wait = options.wait !== false;
+    // ────────────────────────────────────────────────────────────────────────
 
-  const normalizedLoanId = this.normalizeLoanId(loanId);
-  const exists = await this.loanExists(normalizedLoanId);
-  if (!exists) throw new Error('Loan does not exist');
+    const normalizedLoanId = this.normalizeLoanId(loanId);
+    const exists = await this.loanExists(normalizedLoanId);
+    if (!exists) throw new Error('Loan does not exist');
 
-  const contract = this.getContract(privateKey);
+    const contract = this.getContract(privateKey);
 
-  const updateFields = { /* <-- DEJA TU STRUCT EXACTAMENTE IGUAL (no lo cambio) */ 
+    const updateFields = {
       updateCurrentBalance: fieldsToUpdate.CurrentBalance !== undefined,
       CurrentBalance: fieldsToUpdate.CurrentBalance !== undefined
         ? BigInt(this.usdToCents(fieldsToUpdate.CurrentBalance))
@@ -399,7 +488,7 @@ async createLoan(privateKey, loanData, options = {}) {
       State: fieldsToUpdate.State || '',
 
       updatePropertyZip: fieldsToUpdate.PropertyZip !== undefined,
-      PropertyZip: fieldsToUpdate.PropertyZip || ''
+      PropertyZip: fieldsToUpdate.PropertyZip || '',
     };
 
     const tx = await contract.updateLoanPartial(normalizedLoanId, updateFields);
@@ -412,49 +501,83 @@ async createLoan(privateKey, loanData, options = {}) {
       loanId: normalizedLoanId,
     });
 
+    // ── MODO WAIT (default) ──────────────────────────────────────────────────
     if (wait) {
-      const receipt = await tx.wait();
+      let receipt;
+      try {
+        receipt = await tx.wait();
+      } catch (err) {
+        const reason = logTxError('updateLoanPartial', tx.hash, err);
+        this._setTx(tx.hash, {
+          status: 'FAILED',
+          error: reason,
+          receipt: err?.receipt ? {
+            txHash: err.receipt.hash,
+            blockNumber: err.receipt.blockNumber,
+            gasUsed: err.receipt.gasUsed?.toString(),
+          } : null,
+        });
+        throw new Error(`updateLoanPartial failed: ${reason}`);
+      }
+
       const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+      const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
+
+      if (receipt.status !== 1) {
+        console.error(`[TX FAILED] updateLoanPartial | txHash: ${tx.hash} | status: 0 (reverted) | block: ${receipt.blockNumber}`);
+      }
 
       this._setTx(tx.hash, {
-        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        status: finalStatus,
         txId: parsed.txId,
         receipt: {
           txHash: receipt.hash,
           blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed?.toString?.(),
+          gasUsed: receipt.gasUsed?.toString(),
         },
       });
 
       return {
-        success: true,
-        status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        success: receipt.status === 1,
+        status: finalStatus,
         loanId: normalizedLoanId,
         txId: parsed.txId || '',
         txHash: receipt.hash,
         blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed?.toString?.()
+        gasUsed: receipt.gasUsed?.toString(),
       };
     }
 
-    // Background confirm
+    // ── MODO BACKGROUND (wait=false explícito) ───────────────────────────────
     tx.wait()
       .then((receipt) => {
         const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
+        const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
+
+        if (receipt.status !== 1) {
+          console.error(`[TX FAILED] updateLoanPartial (background) | txHash: ${tx.hash} | status: 0 | block: ${receipt.blockNumber}`);
+        }
+
         this._setTx(tx.hash, {
-          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+          status: finalStatus,
           txId: parsed.txId,
           receipt: {
             txHash: receipt.hash,
             blockNumber: receipt.blockNumber,
-            gasUsed: receipt.gasUsed?.toString?.(),
+            gasUsed: receipt.gasUsed?.toString(),
           },
         });
       })
       .catch((err) => {
+        const reason = logTxError('updateLoanPartial (background)', tx.hash, err);
         this._setTx(tx.hash, {
           status: 'FAILED',
-          error: err?.message || String(err),
+          error: reason,
+          receipt: err?.receipt ? {
+            txHash: err.receipt.hash,
+            blockNumber: err.receipt.blockNumber,
+            gasUsed: err.receipt.gasUsed?.toString(),
+          } : null,
         });
       });
 
@@ -462,7 +585,7 @@ async createLoan(privateKey, loanData, options = {}) {
       success: true,
       status: 'PENDING',
       loanId: normalizedLoanId,
-      txHash: tx.hash
+      txHash: tx.hash,
     };
   }
 
@@ -487,7 +610,6 @@ async createLoan(privateKey, loanData, options = {}) {
   async readLoanByUids(lenderUid, loanUid) {
     const contract = this.getContractReadOnly();
 
-    // Usar la función del contrato directamente
     const loan = await contract.getLoanByLenderAndUid(lenderUid, loanUid, {
       gasLimit: 100000000
     });
@@ -500,7 +622,7 @@ async createLoan(privateKey, loanData, options = {}) {
    */
   _formatLoan(loan) {
     return {
-      ID: loan.ID, // ✅ Ya viene como string hexadecimal del contrato
+      ID: loan.ID,
       LoanUid: loan.LoanUid,
       Account: loan.Account,
       LenderUid: loan.LenderUid,
@@ -699,7 +821,6 @@ async createLoan(privateKey, loanData, options = {}) {
     const contract = this.getContractReadOnly();
 
     try {
-      // ✅ CORRECTO: Usar queryLoansPaginated del contrato
       const result = await contract.queryLoansPaginated(offset, limit, {
         gasLimit: 100000000
       });
@@ -717,7 +838,6 @@ async createLoan(privateKey, loanData, options = {}) {
     } catch (error) {
       console.warn('queryLoansPaginated failed, trying getAllLoanIds...', error.message);
 
-      // Fallback: usar getAllLoanIds y luego leer cada loan
       try {
         const loanIds = await contract.getAllLoanIds({
           gasLimit: 100000000
@@ -733,7 +853,6 @@ async createLoan(privateKey, loanData, options = {}) {
           }
         }
 
-        // Paginación manual
         const start = Math.min(offset, allLoans.length);
         const end = Math.min(offset + limit, allLoans.length);
         const paginatedLoans = allLoans.slice(start, end);
@@ -856,7 +975,6 @@ async createLoan(privateKey, loanData, options = {}) {
 
     const receipt = await tx.wait();
 
-    // Extraer eventos
     let txId = null;
     const logs = receipt.logs.map(log => {
       try {
@@ -885,7 +1003,6 @@ async createLoan(privateKey, loanData, options = {}) {
    * ✅ Generar ID localmente (solo para verificación, no para el contrato)
    */
   async generateLoanIdLocally(lenderUid, loanUid) {
-    // Solo para uso interno/debug, no para interactuar con el contrato
     return this.generateLoanId(lenderUid, loanUid);
   }
 }

@@ -10,7 +10,7 @@
     "passwordHash": "$2b$10$RwhfvU6WzlNyYZQH1m7BNuFkXo.3yfxXzXQHdqeavTZF7jmxOKouC",
     "initialBalance": 0,
     "createdAt": "2026-02-25T15:08:16.047Z",
-    "lastLogin": "2026-02-25T16:07:57.310Z"
+    "lastLogin": "2026-03-03T22:20:16.015Z"
   },
   "b2c3d4e5-f6a7-4890-1213-141516171819": {
     "userId": "b2c3d4e5-f6a7-4890-1213-141516171819",
@@ -36,20 +36,20 @@
     "passwordHash": "$2b$10$IrIOOEdncW63/d.E.mvYmuWtgDGkS1jfbT29vFIVp0MFdSZSbIiVm",
     "initialBalance": 0,
     "createdAt": "2026-02-25T15:09:21.084Z",
-    "lastLogin": "2026-02-25T15:25:54.188Z"
+    "lastLogin": "2026-03-04T16:15:55.453Z"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
     "name": "Tim",
     "organization": "FCI",
     "role": "operator",
-    "address": "0xfa9f306F6060eadF3dD6DbF675cf78fd03E242D7",
+    "address": "0xD3f51E1a182fEC070369AafC17fBF932d41DB1A7",
     "privateKey": "0x4bc4884d1a40a1ce5572ff75245e7cfb7470dacab5ad2361bd66f58012e3816c",
     "mnemonic": "glare ignore awesome shoe sting razor mixture suggest oyster frown sunset almost",
     "passwordHash": "$2b$10$wJJi2c/lmhEX0InFCnt34ugX0iBXnBGTT1E6uQQF5qFoy2dlKd84C",
     "initialBalance": 0,
     "createdAt": "2026-02-25T15:10:04.259Z",
-    "lastLogin": null
+    "lastLogin": "2026-03-04T14:39:11.275Z"
   },
   "alfred_007": {
     "userId": "alfred_007",
@@ -62,6 +62,6 @@
     "passwordHash": "$2b$10$HXp4OOQO8Oai8zduXW2ereTspT2q9YwEbdT.zAtjf1A7K8WKLjrQe",
     "initialBalance": "300",
     "createdAt": "2026-02-03T19:12:05.330Z",
-    "lastLogin": "2026-02-25T15:24:19.556Z"
+    "lastLogin": "2026-03-03T16:07:30.458Z"
   }
 }

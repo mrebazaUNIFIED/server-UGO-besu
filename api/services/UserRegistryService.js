@@ -10,27 +10,24 @@ class UserRegistryService {
     this.abi = ABIs.UserRegistry;
   }
 
-  // ✅ ESCRITURA: Usa el nodo fijo (Failover) para mantener el Nonce sincronizado
-  getContract(privateKey) {
+  // ESCRITURA: usa siempre process.env.PRIVATE_KEY
+  getContract() {
     const provider = writeLoadBalancer.getProvider();
-
-    // Si el provider emite un error de red, lo reportamos para rotar el nodo
-    provider.on("error", (error) => {
-      console.warn(`⚠️ Error detectado en el nodo de escritura: ${provider.connection.url}`);
+    provider.on("error", () => {
+      console.warn(`⚠️ Error en nodo de escritura: ${provider.connection.url}`);
       writeLoadBalancer.reportError(provider.connection.url);
     });
-
-    const wallet = new ethers.Wallet(privateKey, provider);
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     return new ethers.Contract(this.contractAddress, this.abi, wallet);
   }
 
-  // ✅ LECTURA: Usa el balanceador Round Robin para repartir la carga
+  // LECTURA: Round Robin
   getContractReadOnly() {
     const provider = readLoadBalancer.getProvider();
     return new ethers.Contract(this.contractAddress, this.abi, provider);
   }
 
-  async registerUser(funderPrivateKey, userData) {
+  async registerUser(userData) {
     let wallet;
     let generated = false;
 
@@ -43,10 +40,9 @@ class UserRegistryService {
 
     try {
       // 1. Financiar si es necesario
-      if (userData.initialBalance && funderPrivateKey) {
+      if (userData.initialBalance) {
         const provider = writeLoadBalancer.getProvider();
-        const funderWallet = new ethers.Wallet(funderPrivateKey, provider);
-
+        const funderWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
         console.log(`Financiando ${userData.walletAddress} con ${userData.initialBalance} ETH...`);
         const fundTx = await funderWallet.sendTransaction({
           to: userData.walletAddress,
@@ -58,8 +54,7 @@ class UserRegistryService {
       }
 
       // 2. Registrar en UserRegistry
-      const contract = this.getContract(funderPrivateKey || process.env.OWNER_PRIVATE_KEY);
-
+      const contract = this.getContract();
       console.log('Enviando registro a la Blockchain...');
       const tx = await contract.registerUser(
         userData.walletAddress,
@@ -69,8 +64,7 @@ class UserRegistryService {
         userData.role,
         { gasLimit: 500000 }
       );
-
-      console.log(`Transacción enviada: ${tx.hash}, esperando confirmación rápida...`);
+      console.log(`Transacción enviada: ${tx.hash}, esperando confirmación...`);
       const receipt = await tx.wait();
       console.log(`✓ Usuario registrado en bloque ${receipt.blockNumber}`);
 
@@ -82,33 +76,19 @@ class UserRegistryService {
         } catch (e) { return false; }
       });
 
-      // ✅ NUEVO - 4. Registrar wallet en USFCI
-      // La wallet nueva debe ser el msg.sender en registerWallet()
-      const walletPrivateKey = generated ? wallet.privateKey : funderPrivateKey;
-
+      // 4. Registrar wallet en USFCI
+      const walletPrivateKey = generated ? wallet.privateKey : process.env.PRIVATE_KEY;
       console.log('Registrando wallet en USFCI...');
-      await usfciService.registerWallet(
-        walletPrivateKey,
-        userData.organization,  // mspId
-        userData.userId,        // userId
-        userData.role || 'user' // accountType
-      );
+      await usfciService.registerWallet(walletPrivateKey, userData.organization, userData.userId, userData.role || 'user');
       console.log('✓ Wallet registrada en USFCI');
 
-      // ✅ NUEVO - 5. Auto-aprobar KYC (el admin firma esta transacción)
+      // 5. Auto-aprobar KYC
       console.log('Aprobando KYC en USFCI...');
-      await usfciService.updateComplianceStatus(
-        funderPrivateKey || process.env.OWNER_PRIVATE_KEY,
-        userData.walletAddress,
-        'approved',
-        'low'
-      );
+      await usfciService.updateComplianceStatus(process.env.PRIVATE_KEY, userData.walletAddress, 'approved', 'low');
       console.log('✓ KYC aprobado');
 
       // 6. Guardar datos locales (Dev)
-      if (generated) {
-        this._saveUserLocally(userData, wallet);
-      }
+      if (generated) this._saveUserLocally(userData, wallet);
 
       return {
         success: true,
@@ -120,22 +100,19 @@ class UserRegistryService {
         event: event ? contract.interface.parseLog(event).args : null,
         generatedWallet: generated,
         privateKey: generated ? wallet.privateKey : undefined,
-        kycStatus: 'approved' // ✅ NUEVO
+        kycStatus: 'approved'
       };
 
     } catch (error) {
       console.error('❌ Error en registerUser:', error.message);
-      if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') {
-        writeLoadBalancer.rotateNode();
-      }
+      if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') writeLoadBalancer.rotateNode();
       throw error;
     }
   }
 
-  // Métodos de actualización (Update, Deactivate, etc.) optimizados
-  async updateUser(privateKey, walletAddress, updateData) {
+  async updateUser(walletAddress, updateData) {
     try {
-      const contract = this.getContract(privateKey);
+      const contract = this.getContract();
       const tx = await contract.updateUser(walletAddress, updateData.name, updateData.role, { gasLimit: 300000 });
       const receipt = await tx.wait();
       return { success: true, txHash: receipt.hash, blockNumber: receipt.blockNumber };
@@ -145,30 +122,28 @@ class UserRegistryService {
     }
   }
 
-  async deactivateUser(privateKey, walletAddress) {
-    const contract = this.getContract(privateKey);
+  async deactivateUser(walletAddress) {
+    const contract = this.getContract();
     const tx = await contract.deactivateUser(walletAddress, { gasLimit: 200000 });
     const receipt = await tx.wait();
     return { success: true, txHash: receipt.hash, blockNumber: receipt.blockNumber };
   }
 
-  async reactivateUser(privateKey, walletAddress) {
-    const contract = this.getContract(privateKey);
+  async reactivateUser(walletAddress) {
+    const contract = this.getContract();
     const tx = await contract.reactivateUser(walletAddress, { gasLimit: 200000 });
     const receipt = await tx.wait();
     return { success: true, txHash: receipt.hash, blockNumber: receipt.blockNumber };
   }
 
-  // --- MÉTODOS DE LECTURA (Sin cambios, ya usan ReadLoadBalancer) ---
+  // --- LECTURA ---
 
   async getUser(walletAddress) {
-    const user = await this.getContractReadOnly().getUser(walletAddress);
-    return this._mapUser(user);
+    return this._mapUser(await this.getContractReadOnly().getUser(walletAddress));
   }
 
   async getUserByUserId(userId) {
-    const user = await this.getContractReadOnly().getUserByUserId(userId);
-    return this._mapUser(user);
+    return this._mapUser(await this.getContractReadOnly().getUserByUserId(userId));
   }
 
   async getUsersByOrganization(organization, start = 0, limit = 10) {
@@ -176,7 +151,22 @@ class UserRegistryService {
     return users.map(u => this._mapUser(u));
   }
 
-  // Helpers internos
+  async isUserActive(walletAddress) {
+    return await this.getContractReadOnly().isUserActive(walletAddress);
+  }
+
+  async userRegistered(walletAddress) {
+    return await this.getContractReadOnly().userRegistered(walletAddress);
+  }
+
+  async getTotalUsers() {
+    return await this.getContractReadOnly().getTotalUsers();
+  }
+
+  async getActiveUsersCount() {
+    return await this.getContractReadOnly().getActiveUsersCount();
+  }
+
   _mapUser(user) {
     return {
       userId: user.userId,

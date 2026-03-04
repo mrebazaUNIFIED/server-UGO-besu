@@ -8,5 +8,55 @@
     "walletAddress": "0xcb8c01821403739942F846Eff54B7544eDB495ed",
     "privateKey": "0x81eb4eea1a7396353f53061560514deec5322a7c590f6ea7efe5ccdd0acd6b3b",
     "mnemonic": "burst faint normal abuse share hockey sign sphere moral proud food great"
+  },
+  "test-id": {
+    "userId": "test-id",
+    "name": "Test User",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0xC6c90A4760401E85FABd791c1c5C19f93C201174",
+    "privateKey": "0x313aac42180a03c586d6a2a9f816efe73fd54bfff49fce06f878217f1c7d938b",
+    "mnemonic": "decade town wealth scout culture pigeon swap best mosquito title around hill"
+  },
+  "test-id2": {
+    "userId": "test-id2",
+    "name": "Test User2",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0x74a69e07ff9C4EcA31e6cD6419B83759e7cfB14c",
+    "privateKey": "0x407688e233afdcab85b1f44407bfbf3d2fe8b00734f90fc3bb0f9408b62f5a71",
+    "mnemonic": "van goose cheese choose snake will main season engine absorb move inject"
+  },
+  "860b28f4540e4d0ba21afd9279a7bb45": {
+    "userId": "860b28f4540e4d0ba21afd9279a7bb45",
+    "name": "Michael",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0x44Ed51d43B106B173D06268B3dbC8CFdBA4a9fE1",
+    "privateKey": "0x248170c0790ef23a03eafbf982c714dee215f5fbef1a0976b9d3c00948927b67",
+    "mnemonic": "oval outer bone mimic talk flat outdoor script control tobacco rich disagree"
+  },
+  "bf1aac583e964c8a8fc55d500f6b33b5": {
+    "userId": "bf1aac583e964c8a8fc55d500f6b33b5",
+    "name": "Gen",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0x1F2245b0FC9CAb01F79A63a257638F49e17616DA",
+    "privateKey": "0xb8b2bc83675385aa2e92dc54fcc98dbaf4713f8aa4b16c9675e567ab15b3654c",
+    "mnemonic": "square claim uncle expire cinnamon unable neutral axis solid foster return slim"
+  },
+  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
+    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
+    "name": "Kyle",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0x7BcF57e6B591ed8343Aa0aB4Fde3d57188248821",
+    "privateKey": "0x50afcd59ee04da5d7c7b8f34b0cedc738437e352605955b2d0132d7dc4548e5e",
+    "mnemonic": "royal goose rather repeat evil club helmet dish illegal primary clutch renew"
   }
 }
