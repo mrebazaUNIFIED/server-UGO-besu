@@ -82,9 +82,9 @@ start_node() {
     cd "$node_dir"
     
     # Iniciar Besu en background
-    nohup besu --config-file=config.toml > "$node_dir/besu.log" 2>&1 &
+    #nohup besu --config-file=config.toml > "$node_dir/besu.log" 2>&1 &
     #Para produccion habilitar este y deshabilitar el de arriba
-    #nohup env JAVA_OPTS="-Djava.io.tmpdir=/var/tmp/besu-tmp" besu --config-file=config.toml > "$node_dir/besu.log" 2>&1 &
+    nohup env JAVA_OPTS="-Djava.io.tmpdir=/var/tmp/besu-tmp" besu --config-file=config.toml > "$node_dir/besu.log" 2>&1 &
     local pid=$!
     
     # Guardar PID

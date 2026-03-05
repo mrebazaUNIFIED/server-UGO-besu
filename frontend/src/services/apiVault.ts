@@ -29,12 +29,81 @@ import type {
   CurrentTransactionResponse
 } from '../types/vaultTypes';
 
+
+/*Para el graph*/ 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8070';
+const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL as string;
+interface PortfolioLoanRef {
+  loanUid: string;
+  lenderUid: string;
+}
+
+
+export const fetchPortfolioRefs = async (): Promise<PortfolioLoanRef[]> => {
+  const token = localStorage.getItem('vaultKey');
+
+  if (!token) {
+    throw new Error('No authentication token found. Please log in.');
+  }
+
+  const response = await fetch(GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      query: `{
+        getLoanPortfolioBCv2 {
+          loanUid
+          lenderUid
+        }
+      }`,
+      variables: {},
+    }),
+  });
+
+  const json = await response.json();
+
+  if (json.errors) {
+    throw new Error(json.errors[0]?.message || 'GraphQL error');
+  }
+
+  return json.data.getLoanPortfolioBCv2;
+};
+
+export const fetchPortfolioLoans = async (): Promise<Loan[]> => {
+  const refs = await fetchPortfolioRefs();
+
+  const results = await Promise.allSettled(
+    refs.map(({ lenderUid, loanUid }) =>
+      getLoanByUids(lenderUid, loanUid).then(res => res.data)
+    )
+  );
+
+  const loans: Loan[] = [];
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      loans.push(result.value);
+    } else {
+      console.warn(
+      
+        result.reason?.message
+      );
+    }
+  });
+
+  return loans;
+};
+
+
 
 const api = axios.create({
   baseURL: `${API_URL}`,
   headers: { 'Content-Type': 'application/json' }
 });
+
+
 
 // ==================== INTERCEPTORS ====================
 api.interceptors.request.use(
@@ -378,6 +447,7 @@ export const vaultKeys = {
   currentTx: (loanId: string) => [...vaultKeys.loan(loanId), 'current-tx'] as const,
   loanHistory: (loanId: string) => [...vaultKeys.loan(loanId), 'history'] as const,
   totalCount: () => [...vaultKeys.loans(), 'total-count'] as const,
+  portfolio: () => [...vaultKeys.all, 'portfolio'] as const,
 };
 
 // ==================== LOAN REACT QUERY HOOKS ====================
@@ -553,6 +623,20 @@ export const useTotalLoansCount = () => {
   });
 };
 
+
+// ==================== HOOK ====================
+
+export const usePortfolioLoans = () => {
+  const token = localStorage.getItem('vaultKey');
+
+  return useQuery({
+    queryKey: vaultKeys.portfolio(),  
+    queryFn: fetchPortfolioLoans,
+    enabled: !!token,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+};
 // ==================== LOAN MUTATIONS ====================
 
 // Mutation compatible con el documento original
@@ -757,3 +841,6 @@ export const useGenerateLoanId = () => {
     },
   });
 };
+
+
+

@@ -1,22 +1,20 @@
 import { useState } from "react";
 import { Search, Share2, Store, X } from "lucide-react";
-import { useMyLoans } from "../../../services/apiVault";
-import { useVaultAuth } from "../../../hooks/useVaultAuth";
+import { usePortfolioLoans } from "../../../services/apiVault";
 import { formatMoney } from "../../../lib/utils";
-import type { CompactLoan } from "../../../types/vaultTypes";
+import type { Loan } from "../../../types/vaultTypes";
 import { LoanDetailModal } from "../../Modals/LoanDetailModal";
 import { SharedModal } from "./shared/SharedModal";
 import { DetailMarketplace } from "./marketplace/DetailMarketplace";
 import { CancelMarketplace } from "./marketplace/CancelMarketplace";
 
 interface MarketplaceButtonProps {
-  loan: CompactLoan;
+  loan: Loan;
   onPublish: () => void;
   onCancel: () => void;
 }
 
 const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps) => {
-  // Si está tokenizado, mostrar botón de cancelar
   if (loan.isTokenized) {
     return (
       <button
@@ -30,7 +28,6 @@ const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps
     );
   }
 
-  // Si no está tokenizado, mostrar botón de publicar
   return (
     <button
       onClick={onPublish}
@@ -44,21 +41,19 @@ const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps
 };
 
 export const TableVault = () => {
-  const { vaultUser } = useVaultAuth();
-  const userId = vaultUser?.uid || "";
-  const { data: loans, isLoading, isError, refetch } = useMyLoans(userId, !!userId);
+  const { data: loans, isLoading, isError, refetch } = usePortfolioLoans();
   const [filter, setFilter] = useState<"All" | "Open" | "Closed">("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [selectLoanDetail, setSelectLoanDetail] = useState<CompactLoan | null>(null);
+  const [selectLoanDetail, setSelectLoanDetail] = useState<Loan | null>(null);
   const [isSharedModalOpen, setIsSharedModalOpen] = useState(false);
   const [isMarketplaceModalOpen, setIsMarketplaceModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [selectedLoanForMarketplace, setSelectedLoanForMarketplace] = useState<CompactLoan | null>(null);
+  const [selectedLoanForMarketplace, setSelectedLoanForMarketplace] = useState<Loan | null>(null);
 
   const statusFilteredLoans =
-    loans?.filter((loan: CompactLoan) => {
+    loans?.filter((loan: Loan) => {
       if (filter === "All") return true;
       if (filter === "Open") {
         const status = loan.Status?.toLowerCase();
@@ -71,8 +66,7 @@ export const TableVault = () => {
       return true;
     }) || [];
 
-  // Filtrar por búsqueda (nombre o dirección)
-  const filteredLoans = statusFilteredLoans.filter((loan: CompactLoan) => {
+  const filteredLoans = statusFilteredLoans.filter((loan: Loan) => {
     const search = searchTerm.toLowerCase();
     const name = loan.LenderName?.toLowerCase() || "";
     const address = loan.PropertyZip?.toLowerCase() || "";
@@ -80,7 +74,7 @@ export const TableVault = () => {
     return name.includes(search) || address.includes(search) || id.includes(search);
   });
 
-  const handleOpenModal = (loan: CompactLoan) => {
+  const handleOpenModal = (loan: Loan) => {
     setIsOpen(true);
     setSelectLoanDetail(loan);
   };
@@ -89,7 +83,6 @@ export const TableVault = () => {
     setIsOpen(false);
   };
 
-  // Manejar selección individual
   const handleSelectLoan = (loanId: string) => {
     setSelectedLoans((prev) =>
       prev.includes(loanId)
@@ -98,7 +91,6 @@ export const TableVault = () => {
     );
   };
 
-  // Seleccionar/deseleccionar todos
   const handleSelectAll = () => {
     if (selectedLoans.length === filteredLoans.length) {
       setSelectedLoans([]);
@@ -107,7 +99,6 @@ export const TableVault = () => {
     }
   };
 
-  // Manejar compartir - ahora abre el modal
   const handleShare = () => {
     setIsSharedModalOpen(true);
   };
@@ -116,8 +107,7 @@ export const TableVault = () => {
     setIsSharedModalOpen(false);
   };
 
-  // Manejar marketplace - Publicar
-  const handleOpenMarketplace = (loan: CompactLoan) => {
+  const handleOpenMarketplace = (loan: Loan) => {
     setSelectedLoanForMarketplace(loan);
     setIsMarketplaceModalOpen(true);
   };
@@ -127,8 +117,7 @@ export const TableVault = () => {
     setSelectedLoanForMarketplace(null);
   };
 
-  // Manejar marketplace - Cancelar
-  const handleOpenCancelMarketplace = (loan: CompactLoan) => {
+  const handleOpenCancelMarketplace = (loan: Loan) => {
     setSelectedLoanForMarketplace(loan);
     setIsCancelModalOpen(true);
   };
@@ -136,11 +125,9 @@ export const TableVault = () => {
   const handleCloseCancelMarketplace = () => {
     setIsCancelModalOpen(false);
     setSelectedLoanForMarketplace(null);
-    // Refrescar la lista después de cancelar
     refetch();
   };
 
-  // Obtener los préstamos seleccionados completos
   const selectedLoansData = filteredLoans.filter((loan) =>
     selectedLoans.includes(loan.ID)
   );
@@ -192,7 +179,6 @@ export const TableVault = () => {
           Clear Filters
         </button>
 
-        {/* Botón de compartir (aparece cuando hay selección) */}
         {selectedLoans.length > 0 && (
           <button
             onClick={handleShare}
@@ -253,14 +239,13 @@ export const TableVault = () => {
                 </td>
               </tr>
             ) : (
-              filteredLoans.map((loan: CompactLoan) => (
+              filteredLoans.map((loan: Loan) => (
                 <tr
                   key={loan.Account}
-                  className={`border-t transition-colors text-center ${
-                    selectedLoans.includes(loan.Account)
+                  className={`border-t transition-colors text-center ${selectedLoans.includes(loan.Account)
                       ? "bg-blue-50"
                       : "hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <td className="p-2">
                     <input
@@ -303,7 +288,6 @@ export const TableVault = () => {
           </tbody>
         </table>
 
-        {/* Modal de detalles del préstamo */}
         {selectLoanDetail && (
           <LoanDetailModal
             isOpen={isOpen}
@@ -312,14 +296,12 @@ export const TableVault = () => {
           />
         )}
 
-        {/* Modal de compartir */}
         <SharedModal
           isOpen={isSharedModalOpen}
           onClose={handleCloseSharedModal}
           selectedLoans={selectedLoansData}
         />
 
-        {/* Modal de marketplace - Publicar */}
         {selectedLoanForMarketplace && (
           <DetailMarketplace
             isOpen={isMarketplaceModalOpen}
@@ -328,7 +310,6 @@ export const TableVault = () => {
           />
         )}
 
-        {/* Modal de marketplace - Cancelar */}
         {selectedLoanForMarketplace && (
           <CancelMarketplace
             isOpen={isCancelModalOpen}
