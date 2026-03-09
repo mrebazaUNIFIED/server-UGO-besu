@@ -67,7 +67,7 @@ function logTxError(context, txHash, err) {
 
 class LoanRegistryService extends BaseContractService {
   constructor() {
-    super('LoanRegistry', 'LoanRegistry');
+    super('LoanRegistry', 'LoanRegistry', 'loans');
   }
 
   // ===== FUNCIONES DE CONVERSIÓN =====

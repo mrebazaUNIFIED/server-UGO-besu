@@ -3,7 +3,7 @@ const BaseContractService = require('./BaseContractService');
 
 class PortfolioService extends BaseContractService {
   constructor() {
-    super('Portfolio', 'Portfolio');
+    super('Portfolio', 'Portfolio', 'marketplace');
     // Gas limit para creación de certificados (puede ser alto si el array de loanIds crece)
     this.GAS_LIMIT_WRITE = 800000;
   }
@@ -14,7 +14,7 @@ class PortfolioService extends BaseContractService {
   async createPortfolioCertificate(privateKey, userId, userAddress, loanIds, totalPrincipal) {
     try {
       const contract = this.getContract(privateKey);
-      
+
       console.log(`📜 Generando Certificado para Usuario: ${userId} (${loanIds.length} préstamos)...`);
 
       const tx = await contract.createPortfolioCertificate(

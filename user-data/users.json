@@ -78,5 +78,15 @@
     "walletAddress": "0xE28D3e9A8e6A2c58DBEA356F305b3ED70CA6C2dd",
     "privateKey": "0x381e65c9a0ef5d5e9ab42391eafce188f671003c69f27a236b79356468eeb009",
     "mnemonic": "demand digital carry parent motor hat pole jelly armed area among menu"
+  },
+  "test-id3": {
+    "userId": "test-id3",
+    "name": "Test User3",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0xB96Dc9b3777ebC5Ab92E65dbdD8A495618B15e6D",
+    "privateKey": "0x2a708209aa1bd9dc68396bfd89afaf4ebeac71a012ea81597d582a1e69bd21ab",
+    "mnemonic": "major motor scan bulb scissors snow century cliff arctic jewel tent post"
   }
 }

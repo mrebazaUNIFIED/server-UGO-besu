@@ -1,34 +1,50 @@
 const { ethers } = require('ethers');
 const RPCLoadBalancer = require('./rpcLoadBalancer');
-const RPCFailover = require('./rpcFailover'); // Asegúrate de haber creado este archivo
+const RPCFailover = require('./rpcFailover');
 require('dotenv').config();
-
-// 1. Nodos RPC (Para Lectura y Escritura Recomendada)
-const RPC_URLS = [
-  process.env.RPC_NODE_1, // Node-FCI-RPC1 (8547)
-  process.env.RPC_NODE_2, // Node-FCI-RPC2 (8549)
-  process.env.RPC_NODE_3  // Node-Sunwest-RPC (8551)
-].filter(url => url);
-
-
-const WRITE_RPC_URLS = [
-  process.env.VALIDATOR_NODE_1,
-  process.env.VALIDATOR_NODE_2,
-  process.env.VALIDATOR_NODE_3,
-  process.env.VALIDATOR_NODE_4
-].filter(url => url);
-
 
 const chainId = parseInt(process.env.CHAIN_ID) || 12345;
 
-// 2. Inicializar los manejadores
-// Lectura: Reparte consultas entre los 3 RPCs
-const readLoadBalancer = new RPCLoadBalancer(RPC_URLS, chainId);
+// ─── LECTURA ──────────────────────────────────────────────────────────────────
+const readLoadBalancer = new RPCLoadBalancer([
+  process.env.RPC_NODE_1,
+  process.env.RPC_NODE_2,
+  process.env.RPC_NODE_3,
+].filter(Boolean), chainId);
 
-// Escritura: Se queda fijo en un nodo para no romper los Nonces
-const writeLoadBalancer = new RPCFailover(WRITE_RPC_URLS, chainId);
+// ─── ESCRITURA POR DOMINIO ────────────────────────────────────────────────────
+const writeNodes = {
+  loans: new RPCFailover([
+    process.env.VALIDATOR_LOANS,
+    process.env.VALIDATOR_USERS,       // fallback
+  ].filter(Boolean), chainId, 'loans'),
 
-// 3. Direcciones de todos tus contratos (Según tu tree)
+  users: new RPCFailover([
+    process.env.VALIDATOR_USERS,
+    process.env.VALIDATOR_LOANS,       // fallback
+  ].filter(Boolean), chainId, 'users'),
+
+  usfci: new RPCFailover([
+    process.env.VALIDATOR_USFCI,
+    process.env.VALIDATOR_MARKETPLACE, // fallback
+  ].filter(Boolean), chainId, 'usfci'),
+
+  marketplace: new RPCFailover([
+    process.env.VALIDATOR_MARKETPLACE,
+    process.env.VALIDATOR_USFCI,       // fallback
+  ].filter(Boolean), chainId, 'marketplace'),
+};
+
+// Backward compat con server.js (usa writeLoadBalancer.getStats etc.)
+const writeLoadBalancer = writeNodes.loans;
+
+// Helper para obtener el provider correcto por dominio
+const getWriteProvider = (domain) => {
+  const node = writeNodes[domain] || writeNodes.loans;
+  return node.getProvider();
+};
+
+// ─── CONTRATOS ────────────────────────────────────────────────────────────────
 const CONTRACTS = {
   UserRegistry: process.env.USER_REGISTRY_ADDRESS,
   USFCI: process.env.USFCI_ADDRESS,
@@ -39,13 +55,12 @@ const CONTRACTS = {
   MarketplaceBridge: process.env.MARKETPLACE_BRIDGE_ADDRESS,
 };
 
-// 4. ABIs (Carga segura)
 const getAbi = (name) => {
   try {
     const json = require(`../contracts/${name}.json`);
     return json.abi || json;
   } catch (e) {
-    console.warn(`⚠️ No se pudo cargar el ABI: ${name}`);
+    console.warn(`⚠️ No ABI found for: ${name}`);
     return null;
   }
 };
@@ -61,7 +76,9 @@ const ABIs = {
 
 module.exports = {
   readLoadBalancer,
-  writeLoadBalancer,
+  writeLoadBalancer,  // backward compat
+  writeNodes,
+  getWriteProvider,
   CONTRACTS,
-  ABIs
+  ABIs,
 };

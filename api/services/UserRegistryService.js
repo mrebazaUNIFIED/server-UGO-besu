@@ -1,5 +1,5 @@
 const { ethers } = require('ethers');
-const { readLoadBalancer, writeLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
+const { readLoadBalancer, getWriteProvider, CONTRACTS, ABIs } = require('../config/blockchain');
 const usfciService = require('./USFCIService');
 const fs = require('fs');
 const path = require('path');
@@ -12,11 +12,7 @@ class UserRegistryService {
 
   // ESCRITURA: usa siempre process.env.PRIVATE_KEY
   getContract() {
-    const provider = writeLoadBalancer.getProvider();
-    provider.on("error", () => {
-      console.warn(`⚠️ Error en nodo de escritura: ${provider.connection.url}`);
-      writeLoadBalancer.reportError(provider.connection.url);
-    });
+    const provider = getWriteProvider('users'); // 👈
     const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     return new ethers.Contract(this.contractAddress, this.abi, wallet);
   }
@@ -41,7 +37,7 @@ class UserRegistryService {
     try {
       // 1. Financiar si es necesario
       if (userData.initialBalance) {
-        const provider = writeLoadBalancer.getProvider();
+        const provider = getWriteProvider('users');
         const funderWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
         console.log(`Financiando ${userData.walletAddress} con ${userData.initialBalance} ETH...`);
         const fundTx = await funderWallet.sendTransaction({
@@ -105,7 +101,6 @@ class UserRegistryService {
 
     } catch (error) {
       console.error('❌ Error en registerUser:', error.message);
-      if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') writeLoadBalancer.rotateNode();
       throw error;
     }
   }

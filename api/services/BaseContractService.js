@@ -1,20 +1,19 @@
 const { ethers } = require('ethers');
-const { readLoadBalancer, writeLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
+const { readLoadBalancer, getWriteProvider, CONTRACTS, ABIs } = require('../config/blockchain');
 
 class BaseContractService {
-  constructor(contractKey, abiKey) {
+  constructor(contractKey, abiKey, domain = 'loans') {
     this.contractAddress = CONTRACTS[contractKey];
     this.abi = ABIs[abiKey];
+    this.domain = domain;
   }
 
-  // ✅ Para ESCRITURA: Usa el nodo fijo (Sticky/Failover)
   getContract(privateKey) {
-    const provider = writeLoadBalancer.getProvider();
+    const provider = getWriteProvider(this.domain);
     const wallet = new ethers.Wallet(privateKey, provider);
     return new ethers.Contract(this.contractAddress, this.abi, wallet);
   }
 
-  // ✅ Para LECTURA: Usa el balanceador de carga (Round Robin)
   getContractReadOnly() {
     const provider = readLoadBalancer.getProvider();
     return new ethers.Contract(this.contractAddress, this.abi, provider);

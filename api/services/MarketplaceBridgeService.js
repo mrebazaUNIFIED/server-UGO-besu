@@ -3,7 +3,7 @@ const BaseContractService = require('./BaseContractService');
 
 class MarketplaceBridgeService extends BaseContractService {
   constructor() {
-    super('MarketplaceBridge', 'MarketplaceBridge');
+    super('MarketplaceBridge', 'MarketplaceBridge', 'marketplace');
     this.loanRegistryService = null;
 
     // ⭐ NUEVO: Cargar private key del .env

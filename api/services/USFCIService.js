@@ -4,7 +4,7 @@ const BaseContractService = require('./BaseContractService');
 
 class USFCIService extends BaseContractService {
   constructor() {
-    super('USFCI', 'USFCI');
+    super('USFCI', 'USFCI', 'usfci');
   }
   /**
    * Inicializar ledger (solo admin)
