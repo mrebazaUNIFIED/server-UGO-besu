@@ -27,6 +27,7 @@
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.2",
+    "@u-wave/react-vimeo": "^0.9.12",
     "axios": "^1.12.2",
     "clsx": "^2.1.1",
     "flowbite": "^4.0.1",

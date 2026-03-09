@@ -7,7 +7,7 @@ import { LoanDetailModal } from "../../Modals/LoanDetailModal";
 import { SharedModal } from "./shared/SharedModal";
 import { DetailMarketplace } from "./marketplace/DetailMarketplace";
 import { CancelMarketplace } from "./marketplace/CancelMarketplace";
-
+import { useAutoRegisterUser } from "../../../hooks/useAutoRegisterUser";
 interface MarketplaceButtonProps {
   loan: Loan;
   onPublish: () => void;
@@ -15,6 +15,8 @@ interface MarketplaceButtonProps {
 }
 
 const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps) => {
+
+
   if (loan.isTokenized) {
     return (
       <button
@@ -41,8 +43,12 @@ const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps
 };
 
 export const TableVault = () => {
-  const { data: loans, isLoading, isError, refetch } = usePortfolioLoans();
+  const { alreadyExists, justRegistered, checking } = useAutoRegisterUser();
+  const userConfirmed = alreadyExists || justRegistered;
+  const { data: loans, isLoading, isError, refetch } = usePortfolioLoans(userConfirmed);
+  const isLoadingData = checking || (userConfirmed && isLoading);
   const [filter, setFilter] = useState<"All" | "Open" | "Closed">("All");
+  const [selectedLender, setSelectedLender] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -51,6 +57,8 @@ export const TableVault = () => {
   const [isMarketplaceModalOpen, setIsMarketplaceModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [selectedLoanForMarketplace, setSelectedLoanForMarketplace] = useState<Loan | null>(null);
+
+  const uniqueLenders = Array.from(new Set(loans?.map(loan => loan.LenderName).filter(Boolean))) as string[];
 
   const statusFilteredLoans =
     loans?.filter((loan: Loan) => {
@@ -64,6 +72,9 @@ export const TableVault = () => {
         return status === "closed" || status === "paid off";
       }
       return true;
+    })?.filter((loan: Loan) => {
+      if (selectedLender === "All") return true;
+      return loan.LenderName === selectedLender;
     }) || [];
 
   const filteredLoans = statusFilteredLoans.filter((loan: Loan) => {
@@ -161,6 +172,18 @@ export const TableVault = () => {
           <option value="Closed">Closed</option>
         </select>
 
+        <label className="font-medium text-gray-700 ml-4">Accounts</label>
+        <select
+          value={selectedLender}
+          onChange={(e) => setSelectedLender(e.target.value)}
+          className="border border-gray-300 rounded-md p-1 min-w-[150px]"
+        >
+          <option value="All">All</option>
+          {uniqueLenders.map((lenderName, idx) => (
+            <option key={idx} value={lenderName}>{lenderName}</option>
+          ))}
+        </select>
+
         <button
           onClick={() => refetch()}
           className="cursor-pointer bg-blue-500 text-white px-4 py-1 rounded-md hover:bg-blue-600 transition"
@@ -171,6 +194,7 @@ export const TableVault = () => {
         <button
           onClick={() => {
             setFilter("All");
+            setSelectedLender("All");
             setSearchTerm("");
             setSelectedLoans([]);
           }}
@@ -243,8 +267,8 @@ export const TableVault = () => {
                 <tr
                   key={loan.Account}
                   className={`border-t transition-colors text-center ${selectedLoans.includes(loan.Account)
-                      ? "bg-blue-50"
-                      : "hover:bg-gray-50"
+                    ? "bg-blue-50"
+                    : "hover:bg-gray-50"
                     }`}
                 >
                   <td className="p-2">

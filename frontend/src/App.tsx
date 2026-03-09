@@ -21,6 +21,8 @@ import { SharedLoans } from "./components/pages/vault/SharedLoans";
 import { Explorer } from "./pages/Explorer";
 import { SharedExplorer } from "./components/pages/vault/SharedExplorer";
 import { MarketplaceExplorer } from "./components/pages/vault/MarketplaceExplorer";
+import LandingPage from "./pages/Landing";
+import VideosVaultPage from "./pages/VideosPage";
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({
   children,
@@ -67,13 +69,13 @@ const App: React.FC = () => {
           <Route path="audit-logs" element={<Audit />} />
         </Route>
 
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="*" element={<NotFoundPage />} />
 
-           {/* Rutas de Vault */}
+        {/* Rutas de Vault */}
         <Route path="/explorer" element={<Explorer />} />
         <Route path="/share" element={<SharedExplorer />} />
-
+        <Route path="/videos/:id" element={<VideosVaultPage />} />
 
         <Route path="/vault" element={<VaultPage />} />
 
@@ -85,7 +87,7 @@ const App: React.FC = () => {
             </VaultProtectedRoute>
           }
         >
-          <Route index element={<Vaulting/>} />
+          <Route index element={<Vaulting />} />
           <Route path="explorer" element={<VaultExplorer />} />
           <Route path="marketplace" element={<MarketplaceExplorer />} />
           <Route path="portafolio-wallet" element={<WalletVault />} />

@@ -21,6 +21,7 @@ import { useShareAssetByKey } from "../../../services/apiShared"
 import { useLoan } from '../../../services/apiVault';
 import explorerImage from "../../../assets/explorer.png";
 import { PageMeta } from '../../ui/PageMeta';
+import { Nav } from '../landing/Nav';
 
 export const SharedExplorer = () => {
   const [searchKey, setSearchKey] = useState("");
@@ -64,190 +65,193 @@ export const SharedExplorer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-       <PageMeta title="Shared Explorer" />
-      <div className="max-w-6xl w-full flex flex-col items-center px-6 py-10">
-        <h1 className="text-3xl font-bold text-[#0280CC] mb-2 text-center">
-          FCI Shared Loans
-        </h1>
-        <p className="text-gray-600 text-sm mb-6 text-center">
-          Search shared loans on the blockchain using a secure access key.
-        </p>
+    <>
+      <Nav />
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <PageMeta title="Shared Explorer" />
+        <div className="max-w-6xl w-full flex flex-col items-center px-6 py-10">
+          <h1 className="text-3xl font-bold text-[#0280CC] mb-2 text-center">
+            FCI Shared Loanss
+          </h1>
+          <p className="text-gray-600 text-sm mb-6 text-center">
+            Search shared loans on the blockchain using a secure access key.
+          </p>
 
-        <div className="flex flex-col w-full space-y-2 mb-8">
-          <div className="flex w-full">
-            <input
-              type="text"
-              value={searchKey}
-              onChange={(e) => setSearchKey(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Please enter your shared key to search"
-              className="flex-grow px-4 py-2 border border-blue-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-            />
-            <button
-              type="button"
-              onClick={() => handleSearch()}
-              disabled={!searchKey.trim() || isLoading}
-              className="cursor-pointer px-5 py-2 bg-[#0280CC] text-white font-semibold rounded-r-md hover:bg-[#026cae] transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <Search size={18} />
-              )}
-            </button>
+          <div className="flex flex-col w-full space-y-2 mb-8">
+            <div className="flex w-full">
+              <input
+                type="text"
+                value={searchKey}
+                onChange={(e) => setSearchKey(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Please enter your shared key to search"
+                className="flex-grow px-4 py-2 border border-blue-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+              />
+              <button
+                type="button"
+                onClick={() => handleSearch()}
+                disabled={!searchKey.trim() || isLoading}
+                className="cursor-pointer px-5 py-2 bg-[#0280CC] text-white font-semibold rounded-r-md hover:bg-[#026cae] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Search size={18} />
+                )}
+              </button>
+            </div>
+
+            {shouldSearch && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="cursor-pointer self-start text-sm text-[#026cae] hover:text-[#003e64] underline"
+              >
+                ← back
+              </button>
+            )}
           </div>
 
-          {shouldSearch && (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="cursor-pointer self-start text-sm text-[#026cae] hover:text-[#003e64] underline"
-            >
-              ← back
-            </button>
+          {isLoading && (
+            <div className="mt-10 text-center">
+              <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+              <p className="text-gray-600">Searching blockchain...</p>
+            </div>
           )}
-        </div>
 
-        {isLoading && (
-          <div className="mt-10 text-center">
-            <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-            <p className="text-gray-600">Searching blockchain...</p>
-          </div>
-        )}
+          {error && shouldSearch && !isLoading && (
+            <div className="mt-10 w-full max-w-4xl bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-center mb-4">
+                <XCircle className="text-red-500 text-3xl mr-3" />
+                <div>
+                  <h3 className="text-xl font-semibold text-red-700">Share Asset Not Found</h3>
+                  <p className="text-red-600 text-sm mt-1">
+                    No shared asset found for key: <code className="bg-red-100 px-2 py-1 rounded">{submittedKey}</code>
+                  </p>
+                </div>
+              </div>
+              <p className="text-gray-700 text-sm">
+                Please verify the share key and try again. Make sure you're using a valid key from a shared asset.
+              </p>
+            </div>
+          )}
 
-        {error && shouldSearch && !isLoading && (
-          <div className="mt-10 w-full max-w-4xl bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <XCircle className="text-red-500 text-3xl mr-3" />
-              <div>
-                <h3 className="text-xl font-semibold text-red-700">Share Asset Not Found</h3>
-                <p className="text-red-600 text-sm mt-1">
-                  No shared asset found for key: <code className="bg-red-100 px-2 py-1 rounded">{submittedKey}</code>
+          {asset && !isLoading && (
+            <div className="w-full max-w-5xl">
+              <div className={`rounded-t-lg p-6 ${asset.isActive ? 'bg-gradient-to-r from-[#0280CC] to-blue-500' : 'bg-gradient-to-r from-gray-500 to-gray-600'}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-white p-2 rounded-lg">
+                    <FileText className={`w-6 h-6 ${asset.isActive ? 'text-[#0280CC]' : 'text-gray-500'}`} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">{asset.name}</h2>
+                    <p className={`text-sm ${asset.isActive ? 'text-blue-100' : 'text-gray-200'}`}>Shared Loan Portfolio</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border-x border-gray-200 p-6">
+                <div className="mb-6 flex items-center gap-4">
+                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium ${asset.isActive
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                    }`}>
+                    {asset.isActive ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Active
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-4 h-4" />
+                        Inactive
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm">Created: {formatDate(asset.createdAt)}</span>
+                  </div>
+                </div>
+
+                <div className="mb-6 bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Key className="w-5 h-5 text-gray-500 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Share Key</h3>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-xs bg-white px-3 py-2 rounded border border-gray-200 font-mono text-gray-800 break-all">
+                          {asset.key}
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {!asset.isActive ? (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+                          Share Asset Not Available
+                        </h3>
+                        <p className="text-yellow-800 text-sm mb-3">
+                          This shared asset is currently inactive and its loan details are not available for viewing at this time.
+                        </p>
+                        <p className="text-yellow-700 text-xs">
+                          Please contact the asset administrator if you believe this is an error or if you need access to this information.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Loans ({asset.accounts?.length || 0})
+                    </h3>
+
+                    {!asset.accounts || asset.accounts.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg">
+                        <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-600">No loans associated with this share</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {asset.accounts.map((loanId: string, index: number) => (
+                          <LoanAccordionItem
+                            key={loanId}
+                            loanId={loanId}
+                            index={index}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-b-lg p-4 text-center">
+                <p className="text-xs text-gray-500">
+                  This record is immutably stored on the FCI Blockchain and cannot be altered or deleted
                 </p>
               </div>
             </div>
-            <p className="text-gray-700 text-sm">
-              Please verify the share key and try again. Make sure you're using a valid key from a shared asset.
-            </p>
-          </div>
-        )}
+          )}
 
-        {asset && !isLoading && (
-          <div className="w-full max-w-5xl">
-            <div className={`rounded-t-lg p-6 ${asset.isActive ? 'bg-gradient-to-r from-[#0280CC] to-blue-500' : 'bg-gradient-to-r from-gray-500 to-gray-600'}`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-white p-2 rounded-lg">
-                  <FileText className={`w-6 h-6 ${asset.isActive ? 'text-[#0280CC]' : 'text-gray-500'}`} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{asset.name}</h2>
-                  <p className={`text-sm ${asset.isActive ? 'text-blue-100' : 'text-gray-200'}`}>Shared Loan Portfolio</p>
-                </div>
-              </div>
+          {!shouldSearch && (
+            <div className="mt-10 w-full flex justify-center">
+              <img
+                src={explorerImage}
+                alt="Blockchain Diagram"
+                className="max-w-5xl w-full"
+              />
             </div>
-
-            <div className="bg-white border-x border-gray-200 p-6">
-              <div className="mb-6 flex items-center gap-4">
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium ${asset.isActive
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-                  }`}>
-                  {asset.isActive ? (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      Active
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-4 h-4" />
-                      Inactive
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-sm">Created: {formatDate(asset.createdAt)}</span>
-                </div>
-              </div>
-
-              <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Key className="w-5 h-5 text-gray-500 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Share Key</h3>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs bg-white px-3 py-2 rounded border border-gray-200 font-mono text-gray-800 break-all">
-                        {asset.key}
-                      </code>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {!asset.isActive ? (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-                        Share Asset Not Available
-                      </h3>
-                      <p className="text-yellow-800 text-sm mb-3">
-                        This shared asset is currently inactive and its loan details are not available for viewing at this time.
-                      </p>
-                      <p className="text-yellow-700 text-xs">
-                        Please contact the asset administrator if you believe this is an error or if you need access to this information.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Loans ({asset.accounts?.length || 0})
-                  </h3>
-
-                  {!asset.accounts || asset.accounts.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg">
-                      <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-600">No loans associated with this share</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {asset.accounts.map((loanId: string, index: number) => (
-                        <LoanAccordionItem
-                          key={loanId}
-                          loanId={loanId}
-                          index={index}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-gray-50 border border-gray-200 rounded-b-lg p-4 text-center">
-              <p className="text-xs text-gray-500">
-                This record is immutably stored on the FCI Blockchain and cannot be altered or deleted
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!shouldSearch && (
-          <div className="mt-10 w-full flex justify-center">
-            <img
-              src={explorerImage}
-              alt="Blockchain Diagram"
-              className="max-w-5xl w-full"
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -450,8 +454,8 @@ const LoanAccordionItem: React.FC<LoanAccordionItemProps> = ({ loanId, index }) 
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${loan.Status === 'PERFORMING'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
                           }`}>
                           {loan.Status || 'Unknown'}
                         </span>

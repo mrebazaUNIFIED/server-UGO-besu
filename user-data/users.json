@@ -58,5 +58,25 @@
     "walletAddress": "0x7BcF57e6B591ed8343Aa0aB4Fde3d57188248821",
     "privateKey": "0x50afcd59ee04da5d7c7b8f34b0cedc738437e352605955b2d0132d7dc4548e5e",
     "mnemonic": "royal goose rather repeat evil club helmet dish illegal primary clutch renew"
+  },
+  "98fe67d93a284b77a51557f9f0525aa3": {
+    "userId": "98fe67d93a284b77a51557f9f0525aa3",
+    "name": "Doug",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0x983F0c6084F7F1557F158af020791c20AcB78357",
+    "privateKey": "0x06f27dc26537422899f350fd8f2f4273d7a41a6b9c7075b04937c9091c45e68a",
+    "mnemonic": "funny carbon teach click rifle lounge emotion afraid cloud flush hammer butter"
+  },
+  "ca16f4d939ce42d39b7eb23861ad6c7c": {
+    "userId": "ca16f4d939ce42d39b7eb23861ad6c7c",
+    "name": "User",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0xE28D3e9A8e6A2c58DBEA356F305b3ED70CA6C2dd",
+    "privateKey": "0x381e65c9a0ef5d5e9ab42391eafce188f671003c69f27a236b79356468eeb009",
+    "mnemonic": "demand digital carry parent motor hat pole jelly armed area among menu"
   }
 }

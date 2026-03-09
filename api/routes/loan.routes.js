@@ -65,4 +65,7 @@ router.get('/:loanId/current-tx', loanController.getCurrentTransaction);
 // Generar loanId
 router.post('/generate-id', loanController.generateLoanId);
 
+router.get('/get/portfolio', loanController.getPortfolio);
+
+
 module.exports = router;

@@ -1,7 +1,5 @@
 const userService = require('../services/UserRegistryService');
-console.log('UserRegistryService loaded');
 
-// Función helper para convertir BigInt a string
 const serializeBigInt = (obj) => {
   return JSON.parse(JSON.stringify(obj, (key, value) =>
     typeof value === 'bigint' ? value.toString() : value
@@ -10,170 +8,124 @@ const serializeBigInt = (obj) => {
 
 const registerUser = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: registerUser - ENTERED');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-
     const { initialBalance, ...userData } = req.body;
-
-    console.log('✓ userData:', userData);
-    console.log('✓ initialBalance:', initialBalance);
-
-    console.log('\n Calling userService.registerUser...');
     const result = await userService.registerUser({ ...userData, initialBalance });
-
-    const serializedResult = serializeBigInt(result);
-
-    console.log('CONTROLLER: registerUser - SUCCESS, sending response');
-    res.status(201).json({ success: true, data: serializedResult });
+    res.status(201).json({ success: true, data: serializeBigInt(result) });
   } catch (error) {
-    console.error('\n❌ CONTROLLER: registerUser - ERROR');
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+    console.error('❌ registerUser:', error.message);
     next(error);
   }
 };
 
 const updateUser = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: updateUser - ENTERED');
     const { walletAddress } = req.params;
-
     const result = await userService.updateUser(walletAddress, req.body);
-    const serializedResult = serializeBigInt(result);
-
-    res.json({ success: true, data: serializedResult });
+    res.json({ success: true, data: serializeBigInt(result) });
   } catch (error) {
-    console.error('CONTROLLER: updateUser - ERROR:', error.message);
+    console.error('❌ updateUser:', error.message);
     next(error);
   }
 };
 
 const deactivateUser = async (req, res, next) => {
   try {
-    console.log('\nCONTROLLER: deactivateUser - ENTERED');
     const { walletAddress } = req.params;
-
     const result = await userService.deactivateUser(walletAddress);
-    const serializedResult = serializeBigInt(result);
-
-    res.json({ success: true, data: serializedResult });
+    res.json({ success: true, data: serializeBigInt(result) });
   } catch (error) {
-    console.error(' CONTROLLER: deactivateUser - ERROR:', error.message);
+    console.error('❌ deactivateUser:', error.message);
     next(error);
   }
 };
 
 const reactivateUser = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: reactivateUser - ENTERED');
     const { walletAddress } = req.params;
-
     const result = await userService.reactivateUser(walletAddress);
-    const serializedResult = serializeBigInt(result);
-
-    res.json({ success: true, data: serializedResult });
+    res.json({ success: true, data: serializeBigInt(result) });
   } catch (error) {
-    console.error(' CONTROLLER: reactivateUser - ERROR:', error.message);
+    console.error('❌ reactivateUser:', error.message);
     next(error);
   }
 };
 
 const getUser = async (req, res, next) => {
   try {
-    console.log('\nCONTROLLER: getUser - ENTERED');
     const { walletAddress } = req.params;
     const user = await userService.getUser(walletAddress);
-    const serializedUser = serializeBigInt(user);
-
-    res.json({ success: true, data: serializedUser });
+    res.json({ success: true, data: serializeBigInt(user) });
   } catch (error) {
-    console.error(' CONTROLLER: getUser - ERROR:', error.message);
+    console.error('❌ getUser:', error.message);
     next(error);
   }
 };
 
 const getUserByUserId = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: getUserByUserId - ENTERED');
     const { userId } = req.params;
     const user = await userService.getUserByUserId(userId);
-    const serializedUser = serializeBigInt(user);
-
-    res.json({ success: true, data: serializedUser });
+    res.json({ success: true, data: serializeBigInt(user) });
   } catch (error) {
-    console.error(' CONTROLLER: getUserByUserId - ERROR:', error.message);
+    console.error('❌ getUserByUserId:', error.message);
     next(error);
   }
 };
 
 const getUsersByOrganization = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: getUsersByOrganization - ENTERED');
     const { organization } = req.params;
     const start = parseInt(req.query.start) || 0;
     const limit = parseInt(req.query.limit) || 10;
-
     const users = await userService.getUsersByOrganization(organization, start, limit);
-    const serializedUsers = serializeBigInt(users);
-
-    res.json({ success: true, data: serializedUsers });
+    res.json({ success: true, data: serializeBigInt(users) });
   } catch (error) {
-    console.error(' CONTROLLER: getUsersByOrganization - ERROR:', error.message);
+    console.error('❌ getUsersByOrganization:', error.message);
     next(error);
   }
 };
 
 const isUserActive = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: isUserActive - ENTERED');
     const { walletAddress } = req.params;
     const isActive = await userService.isUserActive(walletAddress);
-
     res.json({ success: true, data: { isActive } });
   } catch (error) {
-    console.error(' CONTROLLER: isUserActive - ERROR:', error.message);
+    console.error('❌ isUserActive:', error.message);
     next(error);
   }
 };
 
 const userRegistered = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: userRegistered - ENTERED');
     const { walletAddress } = req.params;
     const registered = await userService.userRegistered(walletAddress);
-
     res.json({ success: true, data: { registered } });
   } catch (error) {
-    console.error('CONTROLLER: userRegistered - ERROR:', error.message);
+    console.error('❌ userRegistered:', error.message);
     next(error);
   }
 };
 
 const getTotalUsers = async (req, res, next) => {
   try {
-    console.log('\nCONTROLLER: getTotalUsers - ENTERED');
     const total = await userService.getTotalUsers();
-
     res.json({ success: true, data: { total } });
   } catch (error) {
-    console.error('CONTROLLER: getTotalUsers - ERROR:', error.message);
+    console.error('❌ getTotalUsers:', error.message);
     next(error);
   }
 };
 
 const getActiveUsersCount = async (req, res, next) => {
   try {
-    console.log('\n CONTROLLER: getActiveUsersCount - ENTERED');
     const count = await userService.getActiveUsersCount();
-
     res.json({ success: true, data: { count } });
   } catch (error) {
-    console.error(' CONTROLLER: getActiveUsersCount - ERROR:', error.message);
+    console.error('❌ getActiveUsersCount:', error.message);
     next(error);
   }
 };
-
-console.log(' userController exports ready');
 
 module.exports = {
   registerUser,

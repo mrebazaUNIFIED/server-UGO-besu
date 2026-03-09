@@ -44,10 +44,10 @@ export const useGetUserByUserId = (userId: string, enabled: boolean = true) => {
     queryKey: userKeys.user(userId),
     queryFn: () => getUserByUserId(userId),
     enabled: enabled && !!userId,
-    staleTime: Infinity,       // nunca se marca como stale → no revalida al volver a la pestaña
-    gcTime: 1000 * 60 * 60,    // mantiene en caché 1 hora
-    refetchOnWindowFocus: false, // no revalida al cambiar de pestaña
-    refetchOnReconnect: false,   // no revalida al reconectar
+    staleTime: Infinity,      
+    gcTime: 1000 * 60 * 60,    
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,   
     retry: 1,
   });
 };

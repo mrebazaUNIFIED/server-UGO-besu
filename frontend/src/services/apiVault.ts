@@ -30,72 +30,21 @@ import type {
 } from '../types/vaultTypes';
 
 
-/*Para el graph*/ 
+/*Para el graph*/
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8070';
-const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL as string;
-interface PortfolioLoanRef {
-  loanUid: string;
-  lenderUid: string;
-}
 
 
-export const fetchPortfolioRefs = async (): Promise<PortfolioLoanRef[]> => {
-  const token = localStorage.getItem('vaultKey');
-
-  if (!token) {
-    throw new Error('No authentication token found. Please log in.');
-  }
-
-  const response = await fetch(GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      query: `{
-        getLoanPortfolioBCv2 {
-          loanUid
-          lenderUid
-        }
-      }`,
-      variables: {},
-    }),
-  });
-
-  const json = await response.json();
-
-  if (json.errors) {
-    throw new Error(json.errors[0]?.message || 'GraphQL error');
-  }
-
-  return json.data.getLoanPortfolioBCv2;
-};
 
 export const fetchPortfolioLoans = async (): Promise<Loan[]> => {
-  const refs = await fetchPortfolioRefs();
+  const token = localStorage.getItem('vaultKey');
+  if (!token) throw new Error('No authentication token found.');
 
-  const results = await Promise.allSettled(
-    refs.map(({ lenderUid, loanUid }) =>
-      getLoanByUids(lenderUid, loanUid).then(res => res.data)
-    )
-  );
-
-  const loans: Loan[] = [];
-  results.forEach((result, index) => {
-    if (result.status === 'fulfilled') {
-      loans.push(result.value);
-    } else {
-      console.warn(
-      
-        result.reason?.message
-      );
-    }
+  const response = await api.get('/loans/get/portfolio', {
+    headers: { Authorization: `Bearer ${token}` }
   });
 
-  return loans;
+  return response.data.data;
 };
-
 
 
 const api = axios.create({
@@ -239,7 +188,7 @@ export const readLoan = async (loanId: string): Promise<Loan> => {
  * Obtener loan por LenderUid + LoanUid
  */
 export const getLoanByUids = async (
-  lenderUid: string, 
+  lenderUid: string,
   loanUid: string
 ): Promise<LoanResponse> => {
   const response = await api.get<LoanResponse>(
@@ -422,27 +371,27 @@ export const vaultKeys = {
   allLoans: () => [...vaultKeys.loans(), 'all'] as const,
   // Mantener myLoans para compatibilidad (mapea a lenderLoans)
   myLoans: (lenderUid: string) => [...vaultKeys.loans(), 'my', lenderUid] as const,
-  lenderLoans: (lenderUid: string) => 
+  lenderLoans: (lenderUid: string) =>
     [...vaultKeys.loans(), 'lender', lenderUid] as const,
-  lenderLoansCount: (lenderUid: string) => 
+  lenderLoansCount: (lenderUid: string) =>
     [...vaultKeys.lenderLoans(lenderUid), 'count'] as const,
   loan: (loanId: string) => [...vaultKeys.loans(), loanId] as const,
-  loanByUids: (lenderUid: string, loanUid: string) => 
+  loanByUids: (lenderUid: string, loanUid: string) =>
     [...vaultKeys.loans(), 'uids', lenderUid, loanUid] as const,
   // Mantener loanByUid para compatibilidad
   loanByUid: (loanUid: string) => [...vaultKeys.loans(), 'uid', loanUid] as const,
-  loanByLoanUid: (loanUid: string) => 
+  loanByLoanUid: (loanUid: string) =>
     [...vaultKeys.loans(), 'loanuid', loanUid] as const,
   loanByTxId: (txId: string) => [...vaultKeys.loans(), 'tx', txId] as const,
-  loanByAccount: (lenderUid: string, account: string) => 
+  loanByAccount: (lenderUid: string, account: string) =>
     [...vaultKeys.loans(), 'account', lenderUid, account] as const,
   loanExists: (loanId: string) => [...vaultKeys.loan(loanId), 'exists'] as const,
-  loanExistsByUids: (lenderUid: string, loanUid: string) => 
+  loanExistsByUids: (lenderUid: string, loanUid: string) =>
     [...vaultKeys.loanByUids(lenderUid, loanUid), 'exists'] as const,
   loanIsLocked: (loanId: string) => [...vaultKeys.loan(loanId), 'locked'] as const,
-  loanIsTokenized: (loanId: string) => 
+  loanIsTokenized: (loanId: string) =>
     [...vaultKeys.loan(loanId), 'tokenized'] as const,
-  avalancheTokenId: (loanId: string) => 
+  avalancheTokenId: (loanId: string) =>
     [...vaultKeys.loan(loanId), 'avalanche-token'] as const,
   currentTx: (loanId: string) => [...vaultKeys.loan(loanId), 'current-tx'] as const,
   loanHistory: (loanId: string) => [...vaultKeys.loan(loanId), 'history'] as const,
@@ -498,8 +447,8 @@ export const useLoan = (loanId: string, enabled: boolean = true) => {
 };
 
 export const useLoanByUids = (
-  lenderUid: string, 
-  loanUid: string, 
+  lenderUid: string,
+  loanUid: string,
   enabled: boolean = true
 ) => {
   return useQuery({
@@ -625,14 +574,13 @@ export const useTotalLoansCount = () => {
 
 
 // ==================== HOOK ====================
-
-export const usePortfolioLoans = () => {
+export const usePortfolioLoans = (enabled: boolean = true) => {
   const token = localStorage.getItem('vaultKey');
 
   return useQuery({
-    queryKey: vaultKeys.portfolio(),  
+    queryKey: vaultKeys.portfolio(),
     queryFn: fetchPortfolioLoans,
-    enabled: !!token,
+    enabled: !!token && enabled,
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
@@ -647,7 +595,7 @@ export const useCreateLoan = () => {
     mutationFn: (loanData: CreateLoanRequest) => createLoan(loanData),
     onSuccess: (response, variables) => {
       const operation = response.operation || 'CREATE';
-      
+
       if (operation === 'CREATE') {
         toast.success('Loan created successfully');
       } else {
@@ -656,13 +604,13 @@ export const useCreateLoan = () => {
 
       // Invalidar queries relevantes
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
-      
+
       if (variables.LenderUid) {
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.myLoans(variables.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.myLoans(variables.LenderUid)
         });
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.lenderLoans(variables.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.lenderLoans(variables.LenderUid)
         });
       }
     },
@@ -677,30 +625,30 @@ export const useUpdateLoan = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
-      loanId, 
-      loanData 
-    }: { 
-      loanId: string; 
-      loanData: CreateLoanRequest 
+    mutationFn: ({
+      loanId,
+      loanData
+    }: {
+      loanId: string;
+      loanData: CreateLoanRequest
     }) => updateLoan(loanId, loanData),
     onSuccess: (response, variables) => {
       toast.success('Loan updated successfully');
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
-      
+
       if (variables.loanData.LenderUid) {
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.myLoans(variables.loanData.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.myLoans(variables.loanData.LenderUid)
         });
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.lenderLoans(variables.loanData.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.lenderLoans(variables.loanData.LenderUid)
         });
       }
-      
+
       queryClient.invalidateQueries({ queryKey: vaultKeys.loan(variables.loanId) });
-      queryClient.invalidateQueries({ 
-        queryKey: vaultKeys.loanHistory(variables.loanId) 
+      queryClient.invalidateQueries({
+        queryKey: vaultKeys.loanHistory(variables.loanId)
       });
     },
     onError: (error: any) => {
@@ -718,7 +666,7 @@ export const useCreateOrUpdateLoan = () => {
     onSuccess: (response, variables) => {
       const operation = response.operation || 'CREATE';
       const loanId = response.loanId || response.data.loanId;
-      
+
       if (operation === 'CREATE') {
         toast.success(`Loan created successfully`);
       } else if (operation === 'PARTIAL_UPDATE') {
@@ -729,27 +677,27 @@ export const useCreateOrUpdateLoan = () => {
 
       // Invalidar queries relevantes
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
-      
+
       if (variables.LenderUid) {
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.myLoans(variables.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.myLoans(variables.LenderUid)
         });
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.lenderLoans(variables.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.lenderLoans(variables.LenderUid)
         });
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.lenderLoansCount(variables.LenderUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.lenderLoansCount(variables.LenderUid)
         });
       }
-      
+
       if (loanId) {
         queryClient.invalidateQueries({ queryKey: vaultKeys.loan(loanId) });
         queryClient.invalidateQueries({ queryKey: vaultKeys.loanHistory(loanId) });
       }
-      
+
       if (variables.LenderUid && variables.LoanUid) {
-        queryClient.invalidateQueries({ 
-          queryKey: vaultKeys.loanByUids(variables.LenderUid, variables.LoanUid) 
+        queryClient.invalidateQueries({
+          queryKey: vaultKeys.loanByUids(variables.LenderUid, variables.LoanUid)
         });
       }
     },
@@ -763,12 +711,12 @@ export const useUpdateLoanPartial = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
-      loanId, 
-      fields 
-    }: { 
-      loanId: string; 
-      fields: UpdateLoanPartialRequest['fields'] 
+    mutationFn: ({
+      loanId,
+      fields
+    }: {
+      loanId: string;
+      fields: UpdateLoanPartialRequest['fields']
     }) => updateLoanPartial(loanId, fields),
     onSuccess: (response, variables) => {
       toast.success(
@@ -777,8 +725,8 @@ export const useUpdateLoanPartial = () => {
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
       queryClient.invalidateQueries({ queryKey: vaultKeys.loan(variables.loanId) });
-      queryClient.invalidateQueries({ 
-        queryKey: vaultKeys.loanHistory(variables.loanId) 
+      queryClient.invalidateQueries({
+        queryKey: vaultKeys.loanHistory(variables.loanId)
       });
     },
     onError: (error: any) => {
@@ -791,20 +739,20 @@ export const useUpdateLockedLoan = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
-      loanId, 
-      data 
-    }: { 
-      loanId: string; 
-      data: UpdateLockedLoanRequest 
+    mutationFn: ({
+      loanId,
+      data
+    }: {
+      loanId: string;
+      data: UpdateLockedLoanRequest
     }) => updateLockedLoan(loanId, data),
     onSuccess: (response, variables) => {
       toast.success('Locked loan updated successfully');
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
       queryClient.invalidateQueries({ queryKey: vaultKeys.loan(variables.loanId) });
-      queryClient.invalidateQueries({ 
-        queryKey: vaultKeys.loanHistory(variables.loanId) 
+      queryClient.invalidateQueries({
+        queryKey: vaultKeys.loanHistory(variables.loanId)
       });
     },
     onError: (error: any) => {
@@ -832,15 +780,13 @@ export const useDeleteLoan = () => {
 
 export const useGenerateLoanId = () => {
   return useMutation({
-    mutationFn: ({ 
-      lenderUid, 
-      loanUid 
+    mutationFn: ({
+      lenderUid,
+      loanUid
     }: GenerateLoanIdRequest) => generateLoanId(lenderUid, loanUid),
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to generate loan ID');
     },
   });
 };
-
-
 

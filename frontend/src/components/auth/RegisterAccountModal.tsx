@@ -18,12 +18,10 @@ export const RegisterAccountModal = ({
 }: RegisterAccountModalProps) => {
   const [elapsed, setElapsed] = useState(0);
 
-  // Cerrar automáticamente cuando el registro sea exitoso
   useEffect(() => {
     if (justRegistered) onClose();
   }, [justRegistered]);
 
-  // Contador de segundos mientras registra
   useEffect(() => {
     if (!registering) {
       setElapsed(0);

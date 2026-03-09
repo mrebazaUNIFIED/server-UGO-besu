@@ -375,21 +375,18 @@ class LoanController {
       const loanId = await loanService.generateLoanId(lenderUid, loanUid);
       const loan = await loanService.readLoan(loanId);
 
-      res.json({
-        success: true,
-        loanId,
-        lenderUid,
-        loanUid,
-        data: loan
-      });
+      res.json({ success: true, loanId, lenderUid, loanUid, data: loan });
 
     } catch (error) {
-      console.error('Error in getLoanByUids:', error);
       if (error.message.includes('does not exist')) {
+        // 👇 console.warn en vez de console.error, y sin stack trace
+        console.warn(`⚠️ Loan not in blockchain: ${req.params.lenderUid}/${req.params.loanUid}`);
         return res.status(404).json({
-          error: `Loan not found for LenderUid: ${req.params.lenderUid}, LoanUid: ${req.params.loanUid}`
+          error: `Loan not found`,
+          inBlockchain: false  // 👈 útil para el frontend
         });
       }
+      console.error('Error in getLoanByUids:', error); // solo para errores reales
       next(error);
     }
   }
@@ -692,9 +689,65 @@ class LoanController {
       console.error('Error in getLoanByLenderAndAccount:', error);
       if (error.message.includes('Loan not found')) {
         return res.status(404).json({
-          error: `Loan not found for LenderUid: ${lenderUid}, Account: ${account}`
+          error: `Loan not found for Account: ${lenderUid}, Account: ${account}`
         });
       }
+      next(error);
+    }
+  }
+
+  async getPortfolio(req, res, next) {
+    try {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) {
+        return res.status(401).json({ error: 'No token provided' });
+      }
+
+      // 1. Pedir refs al GraphQL usando el token del usuario
+      const graphqlResponse = await fetch(process.env.GRAPHQL_URL_DEV, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `{
+          getLoanPortfolioBCv2 {
+            loanUid
+            lenderUid
+            lenderName
+          }
+        }`,
+        }),
+      });
+
+      const graphqlJson = await graphqlResponse.json();
+
+      if (graphqlJson.errors) {
+        return res.status(400).json({ error: graphqlJson.errors[0]?.message });
+      }
+
+      const refs = graphqlJson.data.getLoanPortfolioBCv2;
+
+      // 2. Por cada ref, verificar si existe en blockchain y leer
+      const results = await Promise.allSettled(
+        refs.map(async ({ lenderUid, loanUid, lenderName }) => {
+          const loanId = await loanService.generateLoanId(lenderUid, loanUid);
+          const exists = await loanService.loanExists(loanId);
+          if (!exists) return null;
+          const loan = await loanService.readLoan(loanId);
+          return { ...loan, LenderName: loan.LenderName || lenderName };
+        })
+      );
+
+      const loans = results
+        .filter(r => r.status === 'fulfilled' && r.value !== null)
+        .map(r => r.value);
+
+      res.json({ success: true, count: loans.length, data: loans });
+
+    } catch (error) {
+      console.error('❌ getPortfolio:', error.message);
       next(error);
     }
   }

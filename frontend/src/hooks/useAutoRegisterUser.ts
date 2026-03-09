@@ -3,7 +3,7 @@ import { useGetUserByUserId, useRegisterUser } from '../services/apiUserRegistry
 
 export const useAutoRegisterUser = () => {
   // Leer localStorage una sola vez, no en cada render
-  const { uid, firstName } = useMemo(() => {
+  const { uid, firstName  } = useMemo(() => {
     const raw = localStorage.getItem('vaultUser');
     const parsed = raw ? JSON.parse(raw) : null;
     return {
@@ -21,14 +21,14 @@ export const useAutoRegisterUser = () => {
   const { mutate: register, isPending: registering, isSuccess: justRegistered } = useRegisterUser();
 
   const handleRegister = () => {
-    if (!uid || !firstName) return;
-    register({
-      userId: uid,
-      name: firstName,
-      organization: 'FCI',
-      role: 'operator',
-      initialBalance: '0',
-    });
+    if (!uid) return;
+   register({
+    userId: uid,
+    name: firstName  || 'User', // fallback si firstName es null
+    organization: 'FCI',
+    role: 'operator',
+    initialBalance: '0',
+  });
   };
 
   return {
