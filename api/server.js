@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { readLoadBalancer, writeLoadBalancer } = require('./config/blockchain');
+const cache = require('./config/cache');
 require('dotenv').config();
 
 const app = express();
@@ -23,20 +24,20 @@ app.use((req, res, next) => {
 // --- Diagnóstico y Health ---
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString() 
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString()
   });
 });
 
 app.get('/rpc-status', (req, res) => {
   try {
     const readStats = readLoadBalancer.getStats();
-    const writeStats = writeLoadBalancer.getStats(); // Ahora usa el método de la nueva clase
-    
+    const writeStats = writeLoadBalancer.getStats();
+
     const readHealthy = readStats.filter(s => s.healthy).length;
     const writeHealthy = writeStats.filter(s => s.healthy).length;
-    
+
     const readRequests = readStats.reduce((sum, s) => sum + s.requestCount, 0);
     const writeRequests = writeStats.reduce((sum, s) => sum + s.requestCount, 0);
 
@@ -54,7 +55,7 @@ app.get('/rpc-status', (req, res) => {
       },
       write: {
         type: 'Validator Nodes (Sticky Failover)',
-        activeNode: writeLoadBalancer.activeNodeUrl, // Ahora funciona por el getter en la clase
+        activeNode: writeLoadBalancer.activeNodeUrl,
         totalNodes: writeStats.length,
         healthyNodes: writeHealthy,
         nodes: writeStats.map(s => ({
@@ -72,15 +73,26 @@ app.get('/rpc-status', (req, res) => {
 app.get('/test-write', (req, res) => {
   try {
     const provider = writeLoadBalancer.getProvider();
-    // En Ethers v6 el acceso a la URL es provider.provider.url o vía _getConnection()
     const url = provider.provider ? provider.provider.url : 'Unknown';
-    
-    res.json({ 
+    res.json({ success: true, activeWriteNode: url, message: 'Write Failover is ready' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ✅ Cache Status
+app.get('/cache-status', (req, res) => {
+  try {
+    res.json({
       success: true,
-      activeWriteNode: url,
-      message: 'Write Failover is ready'
+      timestamp: new Date().toISOString(),
+      loans: {
+        keys: cache.loans.keys().length,
+        stats: cache.loans.getStats()
+      }
     });
   } catch (error) {
+    console.error('❌ /cache-status:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -110,15 +122,16 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 8070;
 const server = app.listen(PORT, () => {
-  console.log(`\n${'=' .repeat(50)}`);
+  console.log(`\n${'='.repeat(50)}`);
   console.log(`🚀 BESU API GATEWAY RUNNING`);
-  console.log(`${'=' .repeat(50)}`);
+  console.log(`${'='.repeat(50)}`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`📖 Read Nodes:  ${readLoadBalancer.rpcUrls.length}`);
   console.log(`✍️ Write Nodes: ${writeLoadBalancer.rpcUrls.length}`);
-  console.log(`📊 Status: http://localhost:${PORT}/rpc-status`);
-  console.log(`${'=' .repeat(50)}\n`);
-  
+  console.log(`📊 Status:      http://localhost:${PORT}/rpc-status`);
+  console.log(`🗄️  Cache:       http://localhost:${PORT}/cache-status`);
+  console.log(`${'='.repeat(50)}\n`);
+
   readLoadBalancer.startHealthChecks();
 });
 

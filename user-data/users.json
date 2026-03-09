@@ -88,5 +88,15 @@
     "walletAddress": "0xB96Dc9b3777ebC5Ab92E65dbdD8A495618B15e6D",
     "privateKey": "0x2a708209aa1bd9dc68396bfd89afaf4ebeac71a012ea81597d582a1e69bd21ab",
     "mnemonic": "major motor scan bulb scissors snow century cliff arctic jewel tent post"
+  },
+  "test-id8": {
+    "userId": "test-id8",
+    "name": "Test User8",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0x3438A4fbbe983DAdB0512333388cB6228F79b100",
+    "privateKey": "0xca6b9a9dd8d1ca04f112210e2c4dec6b4109124ab1c83802f9b87a86af9b5fcc",
+    "mnemonic": "network solution tail flight trip recall nature abandon region pottery gentle fly"
   }
 }
