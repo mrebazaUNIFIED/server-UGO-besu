@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const { readLoadBalancer, writeLoadBalancer } = require('./config/blockchain');
+const { readLoadBalancer, writeLoadBalancer, writeNodes } = require('./config/blockchain');
 const cache = require('./config/cache');
 require('dotenv').config();
 
@@ -15,31 +15,55 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Logger visual para consola
 app.use((req, res, next) => {
   console.log(`\n🔵 ${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
-// --- Diagnóstico y Health ---
-
+// --- Health ---
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString()
+  const readStats = readLoadBalancer.getStats();
+  const readHealthy = readStats.filter(s => s.healthy).length;
+
+  const allWriteStats = Object.entries(writeNodes).map(([domain, node]) => ({
+    domain,
+    stats: node.getStats()
+  }));
+  const writeHealthy = allWriteStats.every(({ stats }) => stats.some(s => s.healthy));
+
+  const ok = readHealthy > 0 && writeHealthy;
+  res.status(ok ? 200 : 503).json({
+    status: ok ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    nodes: {
+      read: `${readHealthy}/${readStats.length}`,
+      write: Object.fromEntries(
+        allWriteStats.map(({ domain, stats }) => [
+          domain,
+          `${stats.filter(s => s.healthy).length}/${stats.length}`
+        ])
+      )
+    }
   });
 });
 
+// --- RPC Status ---
 app.get('/rpc-status', (req, res) => {
   try {
     const readStats = readLoadBalancer.getStats();
-    const writeStats = writeLoadBalancer.getStats();
+    const readTotal = readStats.reduce((sum, s) => sum + s.requestCount, 0);
 
-    const readHealthy = readStats.filter(s => s.healthy).length;
-    const writeHealthy = writeStats.filter(s => s.healthy).length;
-
-    const readRequests = readStats.reduce((sum, s) => sum + s.requestCount, 0);
-    const writeRequests = writeStats.reduce((sum, s) => sum + s.requestCount, 0);
+    const writeByDomain = Object.entries(writeNodes).map(([domain, node]) => {
+      const stats = node.getStats();
+      return {
+        domain,
+        activeNode: node.activeNodeUrl,
+        nodes: stats.map(s => ({
+          ...s,
+          status: s.isActive ? 'ACTIVE' : 'STANDBY',
+        }))
+      };
+    });
 
     res.json({
       success: true,
@@ -47,22 +71,13 @@ app.get('/rpc-status', (req, res) => {
       read: {
         type: 'RPC Nodes (Round Robin)',
         totalNodes: readStats.length,
-        healthyNodes: readHealthy,
+        healthyNodes: readStats.filter(s => s.healthy).length,
         nodes: readStats.map(s => ({
           ...s,
-          load: readRequests > 0 ? ((s.requestCount / readRequests) * 100).toFixed(1) + '%' : '0%'
+          load: readTotal > 0 ? ((s.requestCount / readTotal) * 100).toFixed(1) + '%' : '0%'
         }))
       },
-      write: {
-        type: 'Validator Nodes (Sticky Failover)',
-        activeNode: writeLoadBalancer.activeNodeUrl,
-        totalNodes: writeStats.length,
-        healthyNodes: writeHealthy,
-        nodes: writeStats.map(s => ({
-          ...s,
-          status: s.isActive ? 'ACTIVE' : 'STANDBY'
-        }))
-      }
+      write: writeByDomain
     });
   } catch (error) {
     console.error('❌ Error in /rpc-status:', error);
@@ -70,17 +85,7 @@ app.get('/rpc-status', (req, res) => {
   }
 });
 
-app.get('/test-write', (req, res) => {
-  try {
-    const provider = writeLoadBalancer.getProvider();
-    const url = provider.provider ? provider.provider.url : 'Unknown';
-    res.json({ success: true, activeWriteNode: url, message: 'Write Failover is ready' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ✅ Cache Status
+// --- Cache Status ---
 app.get('/cache-status', (req, res) => {
   try {
     res.json({
@@ -97,7 +102,7 @@ app.get('/cache-status', (req, res) => {
   }
 });
 
-// --- Rutas de Aplicación ---
+// --- Rutas ---
 app.use('/auth', require('./routes/auth.routes'));
 app.use('/loans', require('./routes/loan.routes'));
 app.use('/users', require('./routes/user.routes'));
@@ -107,7 +112,7 @@ app.use('/portfolio', require('./routes/portfolio.routes'));
 app.use('/marketplace', require('./routes/marketplace.routes'));
 app.use('/migrate', require('./routes/migration.routes'));
 
-// --- Manejo de Errores ---
+// --- Errores ---
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
@@ -120,26 +125,33 @@ app.use((err, req, res, next) => {
   });
 });
 
+// --- Arranque ---
 const PORT = process.env.PORT || 8070;
 const server = app.listen(PORT, () => {
   console.log(`\n${'='.repeat(50)}`);
   console.log(`🚀 BESU API GATEWAY RUNNING`);
   console.log(`${'='.repeat(50)}`);
-  console.log(`📍 Port: ${PORT}`);
-  console.log(`📖 Read Nodes:  ${readLoadBalancer.rpcUrls.length}`);
-  console.log(`✍️ Write Nodes: ${writeLoadBalancer.rpcUrls.length}`);
-  console.log(`📊 Status:      http://localhost:${PORT}/rpc-status`);
-  console.log(`🗄️  Cache:       http://localhost:${PORT}/cache-status`);
+  console.log(`📍 Port:    ${PORT}`);
+  console.log(`📖 Read:    ${readLoadBalancer.rpcUrls.length} nodes`);
+  console.log(`✍️  Write:   ${Object.keys(writeNodes).join(', ')}`);
+  console.log(`❤️  Health:  http://localhost:${PORT}/health`);
+  console.log(`📊 Status:  http://localhost:${PORT}/rpc-status`);
+  console.log(`🗄️  Cache:   http://localhost:${PORT}/cache-status`);
   console.log(`${'='.repeat(50)}\n`);
 
+  // ✅ Health checks para read y todos los write domains
   readLoadBalancer.startHealthChecks();
+  Object.values(writeNodes).forEach(node => node.startHealthChecks());
 });
 
-// --- Apagado Elegante ---
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
+// --- Apagado ---
 const shutdown = () => {
   console.log('\n🛑 Shutting down...');
   readLoadBalancer.stop();
-  writeLoadBalancer.stop();
+  Object.values(writeNodes).forEach(node => node.stop());
   server.close(() => {
     console.log('✅ Services stopped');
     process.exit(0);

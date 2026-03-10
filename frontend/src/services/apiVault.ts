@@ -396,7 +396,7 @@ export const vaultKeys = {
   currentTx: (loanId: string) => [...vaultKeys.loan(loanId), 'current-tx'] as const,
   loanHistory: (loanId: string) => [...vaultKeys.loan(loanId), 'history'] as const,
   totalCount: () => [...vaultKeys.loans(), 'total-count'] as const,
-  portfolio: () => [...vaultKeys.all, 'portfolio'] as const,
+  portfolio: (token?: string) => [...vaultKeys.all, 'portfolio', token] as const,
 };
 
 // ==================== LOAN REACT QUERY HOOKS ====================
@@ -578,7 +578,7 @@ export const usePortfolioLoans = (enabled: boolean = true) => {
   const token = localStorage.getItem('vaultKey');
 
   return useQuery({
-    queryKey: vaultKeys.portfolio(),
+    queryKey: vaultKeys.portfolio(token ?? ''),  // ✅ key única por token
     queryFn: fetchPortfolioLoans,
     enabled: !!token && enabled,
     staleTime: 1000 * 60 * 5,

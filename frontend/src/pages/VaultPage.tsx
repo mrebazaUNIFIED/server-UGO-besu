@@ -7,6 +7,8 @@ import vaultLogo from '../assets/vault-logo.png';
 import { FaSearch } from "react-icons/fa";
 import { PageMeta } from '../components/ui/PageMeta';
 import { Nav } from '../components/pages/landing/Nav';
+import { useQueryClient } from '@tanstack/react-query';
+
 
 interface VaultUserInfo {
   uid: string;
@@ -34,6 +36,8 @@ interface GraphQLResponse {
 }
 
 export const VaultPage = () => {
+  const queryClient = useQueryClient();
+
   const [privateKey, setPrivateKey] = useState('');
   const navigate = useNavigate();
 
@@ -83,9 +87,9 @@ export const VaultPage = () => {
       return response.data.data.getUserInfoWithToken;
     },
     onSuccess: (data) => {
+      queryClient.clear();
       localStorage.setItem('vaultUser', JSON.stringify(data));
       localStorage.setItem('vaultKey', privateKey);
-
       toast.success(`Welcome ${data.firstName}!`);
       navigate('/vaulting');
     },
