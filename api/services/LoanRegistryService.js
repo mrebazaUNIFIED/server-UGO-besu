@@ -442,8 +442,24 @@ class LoanRegistryService extends BaseContractService {
   // ===== RESTO DE LECTURA (sin caché — menos frecuentes) =====
 
   async findLoansByLenderUid(lenderUid) {
+    const cacheKey = `lender:loans:${lenderUid}`;
+
+    const cached = cache.loans.get(cacheKey);
+    if (cached) {
+      console.log(`[cache] HIT ${cacheKey} (${cached.length} loans)`);
+      return cached;
+    }
+
+    console.log(`[cache] MISS ${cacheKey}`);
     const loans = await this.getContractReadOnly().findLoansByLenderUid(lenderUid, { gasLimit: 100000000 });
-    return loans.map(loan => this._formatLoan(loan));
+    const formatted = loans.map(loan => this._formatLoan(loan));
+
+    if (formatted.length > 0) {
+      cache.loans.set(cacheKey, formatted);
+      console.log(`[cache] SET ${cacheKey} (${formatted.length} loans)`);
+    }
+
+    return formatted;
   }
 
   async findLoanByLoanUid(loanUid) {

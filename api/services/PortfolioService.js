@@ -49,12 +49,21 @@ class PortfolioService extends BaseContractService {
     txStore.set(key, { ...prev, ...patch, updatedAt: Date.now() });
   }
 
-  // ===== GRAPHQL =====
+  // ===== GRAPHQL con cache =====
 
   async fetchPortfolioFromGraphQL(userBearerToken) {
     if (!userBearerToken) throw new Error('Bearer token is required');
     if (!GRAPHQL_URL) throw new Error('GRAPHQL_URL is not set in environment');
 
+    // Cache key basado en el token — cada usuario tiene su propio cache
+    const cacheKey = `graphql:portfolio:${userBearerToken}`;
+    const cached = cache.graphql.get(cacheKey);
+    if (cached) {
+      console.log(`[cache] HIT ${cacheKey}`);
+      return cached;
+    }
+
+    console.log(`[cache] MISS ${cacheKey} — llamando GraphQL...`);
     const response = await fetch(GRAPHQL_URL, {
       method: 'POST',
       headers: {
@@ -77,10 +86,18 @@ class PortfolioService extends BaseContractService {
     const items = json?.data?.getLoanPortfolioBCv2 || [];
     const userId = items.length > 0 ? items[0].lenderUid : null;
 
-    return { userId, items };
+    const result = { userId, items };
+
+    // Solo cachear si hay datos — no cachear respuestas vacías
+    if (items.length > 0) {
+      cache.graphql.set(cacheKey, result);
+      console.log(`[cache] SET ${cacheKey} (${items.length} items)`);
+    }
+
+    return result;
   }
 
-  // ===== BLOCKCHAIN: resolver loans =====
+  // ===== BLOCKCHAIN: resolver loans con cache =====
 
   async resolveLoansFromBlockchain(portfolioItems) {
     if (!portfolioItems?.length) return [];
@@ -96,17 +113,24 @@ class PortfolioService extends BaseContractService {
     const lenderFetches = Array.from(lenderMap.entries()).map(async ([lenderUid, loanUidSet]) => {
       try {
         const cacheKey = `portfolio:lender:${lenderUid}`;
-        const cached = cache.loans?.get(cacheKey);
+        const cached = cache.loans.get(cacheKey);
         if (cached) {
-          console.log(`[cache] HIT ${cacheKey}`);
+          console.log(`[cache] HIT ${cacheKey} (${cached.length} loans)`);
           return cached;
         }
 
+        console.log(`[cache] MISS ${cacheKey} `);
         const loansFromChain = await loanRegistryService.findLoansByLenderUid(lenderUid);
         const filtered = loansFromChain.filter(loan => loanUidSet.has(loan.LoanUid));
 
-        cache.loans?.set(cacheKey, filtered);
-        console.log(`[cache] SET ${cacheKey} (${filtered.length} loans)`);
+        // Solo cachear si hay loans
+        if (filtered.length > 0) {
+          cache.loans.set(cacheKey, filtered);
+          console.log(`[cache] SET ${cacheKey} (${filtered.length} loans)`);
+        } else {
+          console.warn(`[cache] SKIP SET ${cacheKey} `);
+        }
+
         return filtered;
       } catch (err) {
         console.error(`[PortfolioService] Error fetching loans for lenderUid ${lenderUid}:`, err.message);
@@ -133,13 +157,6 @@ class PortfolioService extends BaseContractService {
 
   // ===== CERTIFICACIÓN =====
 
-  /**
-   * Certifica el portfolio en Portfolio.sol.
-   * Recibe solo userId — resuelve la walletAddress desde UserRegistryService.
-   * @param {string} userId
-   * @param {Array} loans - loans ya resueltos desde blockchain
-   * @param {object} options - { wait: bool }
-   */
   async certifyPortfolio(userId, loans, options = {}) {
     const wait = options.wait !== false;
 
@@ -147,7 +164,6 @@ class PortfolioService extends BaseContractService {
     if (!loans?.length) throw new Error('No loans to certify');
     if (!PRIVATE_KEY) throw new Error('PRIVATE_KEY is not set in environment');
 
-    // Resolver walletAddress desde UserRegistry — no hace falta que el frontend la mande
     const user = await userRegistryService.getUserByUserId(userId);
     if (!user?.walletAddress) throw new Error(`No wallet address found for userId: ${userId}`);
     const userAddress = user.walletAddress;
@@ -190,7 +206,9 @@ class PortfolioService extends BaseContractService {
       }
 
       const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
-      cache.invalidate?.(`portfolio:cert:${userId}`);
+
+      // Invalidar cache del certificado
+      cache.loans.del(`portfolio:cert:${userId}`);
 
       this._setTx(tx.hash, {
         status: finalStatus,
@@ -214,7 +232,7 @@ class PortfolioService extends BaseContractService {
     // Background
     tx.wait()
       .then((receipt) => {
-        cache.invalidate?.(`portfolio:cert:${userId}`);
+        cache.loans.del(`portfolio:cert:${userId}`);
         this._setTx(tx.hash, {
           status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
           receipt: { txHash: receipt.hash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed?.toString() },
@@ -236,14 +254,14 @@ class PortfolioService extends BaseContractService {
     };
   }
 
-  // ===== MÉTODOS DELEGADOS AL CONTRATO (compatibilidad controller existente) =====
+  // ===== MÉTODOS DELEGADOS AL CONTRATO =====
 
   async createPortfolioCertificate(privateKey, userId, userAddress, loanIds, totalPrincipal) {
     const contract = this.getContract(privateKey);
     const totalPrincipalCents = BigInt(Math.round(Number(totalPrincipal) * 100));
     const tx = await contract.createPortfolioCertificate(userId, userAddress, loanIds, totalPrincipalCents);
     const receipt = await tx.wait();
-    cache.invalidate?.(`portfolio:cert:${userId}`);
+    cache.loans.del(`portfolio:cert:${userId}`);
     return { success: receipt.status === 1, txHash: receipt.hash, blockNumber: receipt.blockNumber, userId };
   }
 
@@ -252,17 +270,20 @@ class PortfolioService extends BaseContractService {
     const totalPrincipalCents = BigInt(Math.round(Number(totalPrincipal) * 100));
     const tx = await contract.updatePortfolioCertificate(userId, loanIds, totalPrincipalCents);
     const receipt = await tx.wait();
-    cache.invalidate?.(`portfolio:cert:${userId}`);
+    cache.loans.del(`portfolio:cert:${userId}`);
     return { success: receipt.status === 1, txHash: receipt.hash, blockNumber: receipt.blockNumber, userId };
   }
 
   async getPortfolioCertificate(userId) {
     const cacheKey = `portfolio:cert:${userId}`;
-    const cached = cache.loans?.get(cacheKey);
-    if (cached) { console.log(`[cache] HIT ${cacheKey}`); return cached; }
+    const cached = cache.loans.get(cacheKey);
+    if (cached) {
+      console.log(`[cache] HIT ${cacheKey}`);
+      return cached;
+    }
     const cert = await this.getContractReadOnly().getPortfolioCertificate(userId);
     const formatted = this._formatCertificate(cert);
-    cache.loans?.set(cacheKey, formatted);
+    cache.loans.set(cacheKey, formatted);
     console.log(`[cache] SET ${cacheKey}`);
     return formatted;
   }

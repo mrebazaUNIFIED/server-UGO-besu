@@ -65,6 +65,10 @@ class LoanController {
           return res.status(400).json({ error: `Missing required fields for new loan: ${missingFields.join(', ')}` });
         }
         const result = await loanService.createLoan(privateKey, loanData, { wait });
+
+        // ✅ Invalidar cache del lender al crear un loan nuevo
+        cache.loans.del(`lender:loans:${loanData.LenderUid}`);
+
         return res.status(201).json({ success: true, message: 'Loan created successfully', operation: 'CREATE', data: result });
       }
 
@@ -83,11 +87,21 @@ class LoanController {
           return res.status(400).json({ error: 'No valid fields to update', hint: 'Provide at least one of: ' + supportedPartialFields.join(', ') });
         }
         const result = await loanService.updateLoanPartial(privateKey, loanId, partialUpdateFields, { wait });
+
+        // ✅ Invalidar cache del lender y del loan individual al actualizar
+        cache.loans.del(`lender:loans:${loanData.LenderUid}`);
+        cache.loans.del(`loan:${loanId}`);
+
         return res.json({ success: true, message: 'Loan updated partially', operation: 'PARTIAL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanData.LoanUid, updatedFields: Object.keys(partialUpdateFields), data: result });
       }
 
       console.log(`📝 Detected FULL update: ${providedFields.length} fields provided`);
       const result = await loanService.createLoan(privateKey, loanData, { wait });
+
+      // ✅ Invalidar cache del lender al hacer full update
+      cache.loans.del(`lender:loans:${loanData.LenderUid}`);
+      cache.loans.del(`loan:${loanId}`);
+
       return res.json({ success: true, message: 'Loan updated completely', operation: 'FULL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanData.LoanUid, data: result });
 
     } catch (error) {
@@ -108,6 +122,10 @@ class LoanController {
       const wait = resolveWait(req.query);
       if (!fields || Object.keys(fields).length === 0) return res.status(400).json({ error: 'No fields to update provided' });
       const result = await loanService.updateLoanPartial(privateKey, loanId, fields, { wait });
+
+      // ✅ Invalidar cache del loan individual
+      cache.loans.del(`loan:${loanId}`);
+
       res.json({ success: true, message: 'Loan updated partially', loanId, updatedFields: Object.keys(fields), data: result });
     } catch (error) {
       console.error('Error in updateLoanPartial:', error);
@@ -126,6 +144,10 @@ class LoanController {
       const privateKey = getPrivateKey();
       if (newBalance === undefined && !newStatus && !newPaidToDate) return res.status(400).json({ error: 'Provide at least one field to update: newBalance, newStatus, or newPaidToDate' });
       const result = await loanService.updateLockedLoan(privateKey, loanId, newBalance, newStatus, newPaidToDate);
+
+      // ✅ Invalidar cache del loan bloqueado
+      cache.loans.del(`loan:${loanId}`);
+
       res.json({ success: true, message: 'Locked loan updated successfully', loanId, data: result });
     } catch (error) {
       console.error('Error in updateLockedLoan:', error);
@@ -140,7 +162,7 @@ class LoanController {
   async getLoan(req, res, next) {
     try {
       const { loanId } = req.params;
-      const loan = await loanService.readLoan(loanId); // ✅ caché en service
+      const loan = await loanService.readLoan(loanId); // ✅ cache en service
       res.json({ success: true, data: loan });
     } catch (error) {
       if (error.message.includes('does not exist')) return res.status(404).json({ error: 'Loan not found' });
@@ -152,7 +174,7 @@ class LoanController {
     try {
       const { lenderUid, loanUid } = req.params;
       const loanId = await loanService.generateLoanId(lenderUid, loanUid);
-      const loan = await loanService.readLoan(loanId); // ✅ caché en service
+      const loan = await loanService.readLoan(loanId); // ✅ cache en service
       res.json({ success: true, loanId, lenderUid, loanUid, data: loan });
     } catch (error) {
       if (error.message.includes('does not exist')) {
@@ -167,20 +189,9 @@ class LoanController {
   async getLoansByLenderUid(req, res, next) {
     try {
       const { lenderUid } = req.params;
-
-      // ✅ Caché por lenderUid
-      const cacheKey = `lender:${lenderUid}`;
-      const cached = cache.loans.get(cacheKey);
-      if (cached) {
-        console.log(`[cache] HIT ${cacheKey}`);
-        return res.json(cached);
-      }
-
+      // ✅ cache ya está en findLoansByLenderUid del service — no duplicar aquí
       const loans = await loanService.findLoansByLenderUid(lenderUid);
-      const response = { success: true, count: loans.length, lenderUid, data: loans };
-      cache.loans.set(cacheKey, response);
-      console.log(`[cache] SET ${cacheKey}`);
-      res.json(response);
+      res.json({ success: true, count: loans.length, lenderUid, data: loans });
     } catch (error) {
       console.error('Error in getLoansByLenderUid:', error);
       next(error);
@@ -243,6 +254,10 @@ class LoanController {
       const isTokenized = await loanService.isLoanTokenized(loanId);
       if (isTokenized) return res.status(400).json({ error: 'Cannot delete tokenized loan. Unlock it first.' });
       const result = await loanService.deleteLoan(privateKey, loanId);
+
+      // ✅ Invalidar cache al eliminar
+      cache.loans.del(`loan:${loanId}`);
+
       res.json({ success: true, message: 'Loan deleted successfully', loanId, data: result });
     } catch (error) {
       console.error('Error in deleteLoan:', error);
@@ -259,7 +274,6 @@ class LoanController {
       const limit = parseInt(req.query.limit) || 50;
       const fetchAll = req.query.fetchAll === 'true';
 
-      // ✅ Caché para listados paginados
       const cacheKey = `allloans:${offset}:${limit}:${fetchAll}`;
       const cached = cache.loans.get(cacheKey);
       if (cached) {
@@ -374,7 +388,7 @@ class LoanController {
       const token = req.headers.authorization?.split(' ')[1];
       if (!token) return res.status(401).json({ error: 'No token provided' });
 
-      // ✅ Caché por token — cada usuario tiene su propio portfolio
+      // ✅ Cache del portfolio completo por token
       const cacheKey = `portfolio:${token}`;
       const cached = cache.loans.get(cacheKey);
       if (cached) {
@@ -393,7 +407,7 @@ class LoanController {
 
       const refs = graphqlJson.data.getLoanPortfolioBCv2;
 
-      // ✅ readLoan ya tiene caché propio — loanExists eliminado (readLoan falla si no existe)
+      // ✅ readLoan ya tiene cache propio en el service
       const results = await Promise.allSettled(
         refs.map(async ({ lenderUid, loanUid, lenderName }) => {
           try {
@@ -401,7 +415,7 @@ class LoanController {
             const loan = await loanService.readLoan(loanId);
             return { ...loan, LenderName: loan.LenderName || lenderName };
           } catch (e) {
-            return null; // loan no existe en blockchain → ignorar
+            return null;
           }
         })
       );
@@ -412,9 +426,10 @@ class LoanController {
 
       const response = { success: true, count: loans.length, data: loans };
 
-      // ✅ Guardar portfolio en caché
-      cache.loans.set(cacheKey, response);
-      console.log(`[cache] SET portfolio (${loans.length} loans)`);
+      if (loans.length > 0) {
+        cache.loans.set(cacheKey, response);
+        console.log(`[cache] SET portfolio (${loans.length} loans)`);
+      }
 
       res.json(response);
     } catch (error) {
