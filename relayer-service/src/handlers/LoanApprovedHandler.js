@@ -268,6 +268,35 @@ class LoanApprovedHandler extends BaseHandler {
       }
 
       // PASO 9: Actualizar estado local
+
+      try {
+        logger.info('Listando NFT en marketplace', { loanId, tokenId, askingPrice: askingPrice.toString() });
+
+        const marketplace = avalancheService.getContract('marketplace');
+
+        const listTx = await marketplace.listForSaleByRelayer(
+          tokenId,
+          askingPrice,  // viene del evento LoanApprovedForSale de Besu
+          lenderAddress,
+          { gasLimit: 200000 }
+        );
+        await listTx.wait();
+
+        logger.info('NFT listado en marketplace exitosamente', {
+          loanId,
+          tokenId,
+          price: askingPrice.toString(),
+          seller: lenderAddress
+        });
+      } catch (listError) {
+        logger.warn('Fallo al listar en marketplace (no crítico)', {
+          loanId,
+          tokenId,
+          error: listError.message
+        });
+        // No lanzamos el error — el mint ya fue exitoso
+      }
+
       stateManager.mapLoanToNFT(loanId, tokenId);
       stateManager.incrementMetric('nftsMinted');
 
@@ -281,6 +310,7 @@ class LoanApprovedHandler extends BaseHandler {
         success: true,
         loanId,
         tokenId,
+        askingPrice: askingPrice.toString(),  // ← agrega esto
         avalancheTxHash: receipt.hash
       };
 
@@ -324,6 +354,8 @@ class LoanApprovedHandler extends BaseHandler {
       throw error;
     }
   }
+
+
 
   /**
    * Collect multi-sig signatures from validators

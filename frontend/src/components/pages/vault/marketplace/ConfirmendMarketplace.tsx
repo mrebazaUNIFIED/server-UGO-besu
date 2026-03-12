@@ -183,15 +183,7 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                     >
                       <Copy className="w-4 h-4" />
                     </button>
-                    <a
-                      href={getExplorerUrl(data.data.approval.txHash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex-shrink-0"
-                      title="View on explorer"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+
                   </div>
                   {copied && (
                     <p className="text-xs text-green-600 mt-2">✓ Transaction hash copied!</p>
@@ -199,7 +191,7 @@ export const ConfirmendMarketplace = ({ isOpen, onClose, data, loan }: Confirmen
                 </div>
 
                 {/* Registration Info (si existe) */}
-                
+
 
                 {/* Close Button */}
                 <div className="flex justify-end pt-4">

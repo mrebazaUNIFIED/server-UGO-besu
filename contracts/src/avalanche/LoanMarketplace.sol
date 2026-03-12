@@ -43,6 +43,7 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
     uint256 public marketplaceFee = 250;
     uint256 public constant MAX_FEE = 1000; // 10% máximo
     address public feeRecipient;
+    address public relayer;
 
     struct Listing {
         address seller;
@@ -362,5 +363,38 @@ contract LoanMarketplace is Ownable, ReentrancyGuard {
         uint256 amount
     ) external onlyOwner {
         require(IERC20(token).transfer(owner(), amount), "Withdraw failed");
+    }
+
+    //FUnciona para publicar en el marketplace
+    modifier onlyRelayer() {
+        require(msg.sender == relayer, "Not relayer");
+        _;
+    }
+
+    function setRelayer(address _relayer) external onlyOwner {
+        require(_relayer != address(0), "Invalid address");
+        relayer = _relayer;
+    }
+
+    function listForSaleByRelayer(
+        uint256 tokenId,
+        uint256 price,
+        address seller
+    ) external onlyRelayer nonReentrant {
+        require(price > 0, "Price must be > 0");
+        require(loanNFT.ownerOf(tokenId) == seller, "Seller not owner");
+        require(!listings[tokenId].isActive, "Already listed");
+
+        ILoanNFT.LoanMetadata memory meta = loanNFT.getLoanMetadata(tokenId);
+        require(_isValidForSale(meta), "Invalid loan state");
+
+        listings[tokenId] = Listing({
+            seller: seller,
+            price: price,
+            isActive: true,
+            listedAt: block.timestamp
+        });
+
+        emit LoanListed(tokenId, seller, price, block.timestamp);
     }
 }

@@ -13,18 +13,18 @@ router.get('/listings', async (req, res, next) => {
   try {
     const marketplace = avalancheService.getContract('marketplace');
     const loanNFT = avalancheService.getContract('loanNFT');
-    
+
     const totalMinted = await loanNFT.getTotalMinted();
     const listings = [];
-    
+
     for (let tokenId = 1; tokenId <= Number(totalMinted); tokenId++) {
       try {
         const listing = await marketplace.getListing(tokenId);
-        
+
         if (listing.isActive) {
           const metadata = await loanNFT.getLoanMetadata(tokenId);
           const owner = await loanNFT.ownerOf(tokenId);
-          
+
           listings.push({
             tokenId: tokenId.toString(),
             loanId: metadata.loanId,
@@ -48,13 +48,13 @@ router.get('/listings', async (req, res, next) => {
         continue;
       }
     }
-    
+
     res.json({
       listings,
       total: listings.length,
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     logger.error('API: Error getting listings', { error: error.message });
     next(error);
@@ -68,20 +68,20 @@ router.get('/listings', async (req, res, next) => {
 router.get('/listings/featured', async (req, res, next) => {
   try {
     const { sortBy = 'price', limit = 10 } = req.query;
-    
+
     const marketplace = avalancheService.getContract('marketplace');
     const loanNFT = avalancheService.getContract('loanNFT');
-    
+
     const totalMinted = await loanNFT.getTotalMinted();
     const listings = [];
-    
+
     for (let tokenId = 1; tokenId <= Number(totalMinted); tokenId++) {
       try {
         const listing = await marketplace.getListing(tokenId);
-        
+
         if (listing.isActive) {
           const metadata = await loanNFT.getLoanMetadata(tokenId);
-          
+
           listings.push({
             tokenId: tokenId.toString(),
             loanId: metadata.loanId,
@@ -97,7 +97,7 @@ router.get('/listings/featured', async (req, res, next) => {
         continue;
       }
     }
-    
+
     // Sort
     listings.sort((a, b) => {
       if (sortBy === 'price') {
@@ -107,12 +107,12 @@ router.get('/listings/featured', async (req, res, next) => {
       }
       return 0;
     });
-    
+
     res.json({
       listings: listings.slice(0, Number(limit)),
       total: listings.length
     });
-    
+
   } catch (error) {
     logger.error('API: Error getting featured listings', { error: error.message });
     next(error);
@@ -126,21 +126,21 @@ router.get('/listings/featured', async (req, res, next) => {
 router.get('/nft/:tokenId/listing', async (req, res, next) => {
   try {
     const { tokenId } = req.params;
-    
+
     const marketplace = avalancheService.getContract('marketplace');
     const loanNFT = avalancheService.getContract('loanNFT');
-    
+
     const listing = await marketplace.getListing(tokenId);
-    
+
     if (!listing.isActive) {
       return res.json({
         tokenId,
         listed: false
       });
     }
-    
+
     const metadata = await loanNFT.getLoanMetadata(tokenId);
-    
+
     res.json({
       tokenId,
       listed: true,
@@ -154,17 +154,17 @@ router.get('/nft/:tokenId/listing', async (req, res, next) => {
         monthlyPayment: metadata.monthlyPayment.toString()
       }
     });
-    
+
   } catch (error) {
-    logger.error('API: Error checking listing', { 
+    logger.error('API: Error checking listing', {
       tokenId: req.params.tokenId,
-      error: error.message 
+      error: error.message
     });
-    
+
     if (error.message.includes('does not exist')) {
       return res.status(404).json({ error: 'NFT not found' });
     }
-    
+
     next(error);
   }
 });
@@ -176,10 +176,10 @@ router.get('/nft/:tokenId/listing', async (req, res, next) => {
 router.get('/loan/:loanId/listing', async (req, res, next) => {
   try {
     const { loanId } = req.params;
-    
+
     // Get tokenId from StateManager
     const tokenId = stateManager.getNFTForLoan(loanId);
-    
+
     if (!tokenId) {
       return res.json({
         loanId,
@@ -187,10 +187,10 @@ router.get('/loan/:loanId/listing', async (req, res, next) => {
         listed: false
       });
     }
-    
+
     const marketplace = avalancheService.getContract('marketplace');
     const listing = await marketplace.getListing(tokenId);
-    
+
     if (!listing.isActive) {
       return res.json({
         loanId,
@@ -199,7 +199,7 @@ router.get('/loan/:loanId/listing', async (req, res, next) => {
         listed: false
       });
     }
-    
+
     res.json({
       loanId,
       tokenized: true,
@@ -209,7 +209,7 @@ router.get('/loan/:loanId/listing', async (req, res, next) => {
       price: listing.price.toString(),
       listedAt: listing.listedAt.toString()
     });
-    
+
   } catch (error) {
     logger.error('API: Error checking loan listing', { error: error.message });
     next(error);
@@ -224,15 +224,15 @@ router.get('/stats', async (req, res, next) => {
   try {
     const marketplace = avalancheService.getContract('marketplace');
     const loanNFT = avalancheService.getContract('loanNFT');
-    
+
     const totalSales = await marketplace.totalSales();
     const totalVolume = await marketplace.totalVolume();
     const marketplaceFee = await marketplace.marketplaceFee();
-    
+
     // Count active listings
     const totalMinted = await loanNFT.getTotalMinted();
     let activeListings = 0;
-    
+
     for (let tokenId = 1; tokenId <= Number(totalMinted); tokenId++) {
       try {
         const listing = await marketplace.getListing(tokenId);
@@ -241,7 +241,7 @@ router.get('/stats', async (req, res, next) => {
         continue;
       }
     }
-    
+
     res.json({
       totalSales: totalSales.toString(),
       totalVolume: totalVolume.toString(),
@@ -249,7 +249,7 @@ router.get('/stats', async (req, res, next) => {
       marketplaceFee: (Number(marketplaceFee) / 100).toFixed(2) + '%',
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     logger.error('API: Error getting stats', { error: error.message });
     next(error);
@@ -263,16 +263,16 @@ router.get('/stats', async (req, res, next) => {
 router.get('/sales/recent', async (req, res, next) => {
   try {
     const { limit = 10 } = req.query;
-    
+
     const marketplace = avalancheService.getContract('marketplace');
-    
+
     // Get LoanSold events from last 1000 blocks
     const currentBlock = await avalancheService.getBlockNumber();
     const fromBlock = Math.max(0, currentBlock - 1000);
-    
+
     const filter = marketplace.filters.LoanSold();
     const events = await marketplace.queryFilter(filter, fromBlock, currentBlock);
-    
+
     const recentSales = events
       .slice(-Number(limit))
       .reverse()
@@ -286,12 +286,12 @@ router.get('/sales/recent', async (req, res, next) => {
         txHash: event.transactionHash,
         blockNumber: event.blockNumber
       }));
-    
+
     res.json({
       sales: recentSales,
       total: recentSales.length
     });
-    
+
   } catch (error) {
     logger.error('API: Error getting recent sales', { error: error.message });
     next(error);
@@ -305,20 +305,20 @@ router.get('/sales/recent', async (req, res, next) => {
 router.get('/seller/:address', async (req, res, next) => {
   try {
     const { address } = req.params;
-    
+
     const marketplace = avalancheService.getContract('marketplace');
     const loanNFT = avalancheService.getContract('loanNFT');
-    
+
     const totalMinted = await loanNFT.getTotalMinted();
     const sellerListings = [];
-    
+
     for (let tokenId = 1; tokenId <= Number(totalMinted); tokenId++) {
       try {
         const listing = await marketplace.getListing(tokenId);
-        
+
         if (listing.isActive && listing.seller.toLowerCase() === address.toLowerCase()) {
           const metadata = await loanNFT.getLoanMetadata(tokenId);
-          
+
           sellerListings.push({
             tokenId: tokenId.toString(),
             loanId: metadata.loanId,
@@ -332,13 +332,13 @@ router.get('/seller/:address', async (req, res, next) => {
         continue;
       }
     }
-    
+
     res.json({
       seller: address,
       listings: sellerListings,
       total: sellerListings.length
     });
-    
+
   } catch (error) {
     logger.error('API: Error getting seller listings', { error: error.message });
     next(error);
@@ -352,37 +352,37 @@ router.get('/seller/:address', async (req, res, next) => {
 router.get('/validate/:tokenId', async (req, res, next) => {
   try {
     const { tokenId } = req.params;
-    
+
     const marketplace = avalancheService.getContract('marketplace');
     const canBeListed = await marketplace.canBeListed(tokenId);
-    
+
     if (!canBeListed) {
       const loanNFT = avalancheService.getContract('loanNFT');
       const metadata = await loanNFT.getLoanMetadata(tokenId);
-      
+
       return res.json({
         tokenId,
         canBeListed: false,
-        reason: metadata.status === 'Paid Off' 
+        reason: metadata.status === 'Paid Off'
           ? 'Loan is paid off'
           : metadata.currentBalance === 0n
             ? 'Loan has zero balance'
             : 'Loan is foreclosed or invalid status'
       });
     }
-    
+
     res.json({
       tokenId,
       canBeListed: true
     });
-    
+
   } catch (error) {
     logger.error('API: Error validating listing', { error: error.message });
-    
+
     if (error.message.includes('does not exist')) {
       return res.status(404).json({ error: 'NFT not found' });
     }
-    
+
     next(error);
   }
 });
