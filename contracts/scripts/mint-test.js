@@ -23,13 +23,13 @@ async function main() {
   console.log("\n💰 Balance antes:", hre.ethers.formatUnits(balanceBefore, 18), "USFCI");
 
   // Mintear 10,000 USFCI a tu wallet
-  const amount = hre.ethers.parseUnits("500000", 18);
-  console.log("\n🪙 Minteando 50000,000 USFCI...");
+  const amount = hre.ethers.parseUnits("23000000", 18);
+  console.log("\n🪙 Minteando 23000000,000 USFCI...");
 
   const tx = await usfci.mintTokens(
-    deployer.address,   // recipient — tu wallet
+    deployer.address,
     amount,
-    "test-mint-001"     // reserveProof — referencia bancaria (para pruebas cualquier string)
+    "test-mint-001"
   );
 
   console.log("  Tx enviada:", tx.hash);
