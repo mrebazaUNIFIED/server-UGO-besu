@@ -18,13 +18,13 @@ export const ViewModalShared: React.FC<ViewModalSharedProps> = ({ isOpen, onClos
   // Helper function para manejar fechas que pueden venir como string o Date
   const formatDate = (date: string | Date) => {
     if (!date) return 'N/A';
-    
+
     // Si ya es un string de fecha ISO, parsear a Date
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
+
     // Verificar si es una fecha válida
     if (isNaN(dateObj.getTime())) return 'N/A';
-    
+
     return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -100,11 +100,10 @@ export const ViewModalShared: React.FC<ViewModalSharedProps> = ({ isOpen, onClos
                 <div className="px-6 py-6 max-h-[75vh] overflow-y-auto">
                   {/* Status Badge and Dates */}
                   <div className="mb-6 flex items-center gap-4 flex-wrap">
-                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium ${
-                      asset.isActive 
-                        ? 'bg-green-100 text-green-800' 
+                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium ${asset.isActive
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
-                    }`}>
+                      }`}>
                       {asset.isActive ? (
                         <>
                           <CheckCircle className="w-4 h-4" />
@@ -136,7 +135,7 @@ export const ViewModalShared: React.FC<ViewModalSharedProps> = ({ isOpen, onClos
                       <div className="flex-1">
                         <h3 className="text-sm font-semibold text-blue-900 mb-2">Owner Information</h3>
                         <div className="grid grid-cols-1 gap-3">
-                          
+
                           <div>
                             <dt className="text-xs font-medium text-blue-700 uppercase mb-1">Owner Address</dt>
                             <dd className="text-sm font-mono text-blue-900 break-all">{asset.ownerAddress || 'N/A'}</dd>
@@ -158,11 +157,10 @@ export const ViewModalShared: React.FC<ViewModalSharedProps> = ({ isOpen, onClos
                           </code>
                           <button
                             onClick={handleCopyKey}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition ${
-                              copied
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition ${copied
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
+                              }`}
                             title={copied ? 'Copied!' : 'Copy key'}
                           >
                             {copied ? (
@@ -199,7 +197,7 @@ export const ViewModalShared: React.FC<ViewModalSharedProps> = ({ isOpen, onClos
                                     <dt className="text-xs font-medium text-purple-700 uppercase mb-1">Wallet Address</dt>
                                     <dd className="text-xs font-mono text-purple-900 break-all">{address}</dd>
                                   </div>
-                                 
+
                                 </div>
                               </div>
                             ))}
@@ -224,10 +222,10 @@ export const ViewModalShared: React.FC<ViewModalSharedProps> = ({ isOpen, onClos
                     ) : (
                       <div className="space-y-2">
                         {asset.accounts.map((accountId: string, index: number) => (
-                          <AccountAccordionItem 
-                            key={accountId} 
-                            accountId={accountId} 
-                            index={index} 
+                          <AccountAccordionItem
+                            key={accountId}
+                            accountId={accountId}
+                            index={index}
                           />
                         ))}
                       </div>
@@ -305,13 +303,12 @@ const AccountAccordionItem: React.FC<AccountAccordionItemProps> = ({ accountId, 
                 <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
               )}
               <ChevronDown
-                className={`w-5 h-5 text-gray-500 transition-transform ${
-                  open ? 'rotate-180' : ''
-                }`}
+                className={`w-5 h-5 text-gray-500 transition-transform ${open ? 'rotate-180' : ''
+                  }`}
               />
             </div>
           </Disclosure.Button>
-          
+
           <Transition
             enter="transition duration-100 ease-out"
             enterFrom="transform scale-95 opacity-0"
@@ -391,11 +388,11 @@ const AccountAccordionItem: React.FC<AccountAccordionItemProps> = ({ accountId, 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-blue-50 p-3 rounded-lg">
                         <dt className="text-xs font-medium text-blue-700 uppercase mb-1">Current Principal</dt>
-                        <dd className="text-lg font-bold text-blue-900">{formatCurrency(loan.CurrentPrincipalBal)}</dd>
+                        <dd className="text-lg font-bold text-blue-900">{formatCurrency(loan.CurrentBalance)}</dd>
                       </div>
                       <div className="bg-green-50 p-3 rounded-lg">
                         <dt className="text-xs font-medium text-green-700 uppercase mb-1">Original Loan</dt>
-                        <dd className="text-lg font-bold text-green-900">{formatCurrency(loan.OriginalLoanAmount)}</dd>
+                        <dd className="text-lg font-bold text-green-900">{formatCurrency(loan.OriginalBalance)}</dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-gray-500 uppercase mb-1">Note Rate</dt>
@@ -466,11 +463,10 @@ const AccountAccordionItem: React.FC<AccountAccordionItemProps> = ({ accountId, 
                         <dd className="text-lg font-bold text-gray-900">{loan.Status || 'N/A'}</dd>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          loan.Status === 'PERFORMING' 
-                            ? 'bg-green-100 text-green-800' 
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${loan.Status === 'PERFORMING'
+                            ? 'bg-green-100 text-green-800'
                             : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                          }`}>
                           {loan.Status || 'Unknown'}
                         </span>
                       </div>

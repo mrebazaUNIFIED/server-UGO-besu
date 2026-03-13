@@ -19,7 +19,7 @@ export function isValidTxHash(hash) {
  */
 export function validateLoanData(loan) {
   const required = ['loanId', 'currentBalance', 'interestRate', 'status'];
-  
+
   for (const field of required) {
     if (!loan[field]) {
       logger.error(`Missing required field: ${field}`);
@@ -36,7 +36,7 @@ export function validateLoanData(loan) {
 export function sanitizeLoanData(loan) {
   return {
     loanId: loan.ID,
-    currentBalance: loan.CurrentPrincipalBal,
+    currentBalance: loan.CurrentBalance,
     monthlyPayment: loan.ScheduledPayment,
     interestRate: loan.NoteRate,
     status: loan.Status,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Search, Share2, Store, X } from "lucide-react";
 import { usePortfolioLoans } from "../../../services/apiVault";
-import { formatMoney } from "../../../lib/utils";
+import { formatMoney, getFullStateName } from "../../../lib/utils";
 import type { Loan } from "../../../types/vaultTypes";
 import { LoanDetailModal } from "../../Modals/LoanDetailModal";
 import { SharedModal } from "./shared/SharedModal";
@@ -303,8 +303,8 @@ export const TableVault = () => {
                 <tr
                   key={loan.Account}
                   className={`border-t transition-colors text-center ${selectedLoans.includes(loan.Account)
-                      ? "bg-blue-50"
-                      : "hover:bg-gray-50"
+                    ? "bg-blue-50"
+                    : "hover:bg-gray-50"
                     }`}
                 >
                   <td className="p-2">
@@ -322,7 +322,7 @@ export const TableVault = () => {
                   </td>
                   <td className="p-2">{loan.LenderOwnerPct}</td>
                   <td className="p-2">{loan.City}</td>
-                  <td className="p-2">{loan.State}</td>
+                  <td className="p-2">{getFullStateName(loan.State)}</td>
                   <td className="p-2">{loan.PropertyZip}</td>
                   <td className="p-2 text-right font-semibold">
                     ${formatMoney(Number(loan.CurrentBalance || 0))}

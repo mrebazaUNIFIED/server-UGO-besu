@@ -275,12 +275,11 @@ class LoanApprovedHandler extends BaseHandler {
 
         const marketplace = avalancheService.getContract('marketplace');
 
-        // ⭐ Convertir precio a 18 decimales (USFCI)
-        // askingPrice viene de Besu en dólares enteros (ej: 250000 = $250,000)
-        // USFCI tiene 18 decimales → multiplicar por 1e18
-        // Si en Besu ya lo guardas con 6 decimales → cambiar 1e18 por 1e12
+
+        const priceInUSD = Number(askingPrice) / 100;
+
         const priceIn18Decimals = ethers.parseUnits(
-          askingPrice.toString(),
+          priceInUSD.toString(),
           18
         );
 

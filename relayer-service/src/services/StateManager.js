@@ -22,11 +22,14 @@ class StateManager {
     this.pendingTransactions = new Map(); // txHash -> data
     this.nonces = new Map(); // loanId -> nonce counter
 
+    // ⭐ Para deduplicación de eventos (polling + WS)
+    this.processedEvents = new Set();
+
     this.metrics = {
       eventsProcessed: 0,
       errors: 0,
       nftsMinted: 0,
-      nftsBurned: 0,           // ← agregado para quemados
+      nftsBurned: 0,
       salesRecorded: 0,
       paymentsDistributed: 0
     };
@@ -60,7 +63,6 @@ class StateManager {
 
   getNFTForLoan(loanId) {
     const entry = this.loanMappings.get(loanId);
-    // Solo devolvemos tokenId si está activo
     return entry && entry.status === 'active' ? entry.tokenId : null;
   }
 
@@ -69,33 +71,21 @@ class StateManager {
     return entry && entry.status === 'active';
   }
 
-  /**
-   * Marcar un préstamo/NFT como quemado
-   */
   markLoanAsBurned(loanId, reason = 'burn-requested') {
     const entry = this.loanMappings.get(loanId);
     if (!entry) {
       logger.warn('Intento de quemar mapping que no existe', { loanId });
       return;
     }
-
     if (entry.status === 'burned') {
       logger.debug('El mapping ya estaba marcado como burned', { loanId });
       return;
     }
-
     entry.status = 'burned';
-    // Puedes agregar más info si quieres (opcional):
-    // entry.burnedAt = Date.now();
-    // entry.burnReason = reason;
-
     logger.info(`NFT marcado como quemado`, { loanId, tokenId: entry.tokenId, reason });
     this.incrementMetric('nftsBurned');
   }
 
-  /**
-   * Eliminar completamente el mapping (si no quieres conservar historial)
-   */
   removeNFTMapping(loanId) {
     if (this.loanMappings.delete(loanId)) {
       logger.info(`Mapping de NFT eliminado`, { loanId });
@@ -109,7 +99,6 @@ class StateManager {
     const currentNonce = this.nonces.get(loanId) || 0;
     const nextNonce = currentNonce + 1;
     this.nonces.set(loanId, nextNonce);
-    
     logger.debug(`Nonce generated for loan`, { loanId, nonce: nextNonce });
     return nextNonce;
   }
@@ -142,6 +131,28 @@ class StateManager {
   }
 
   // ──────────────────────────────────────────────
+  // ⭐ Deduplicación de eventos
+  // Evita procesar el mismo evento dos veces cuando
+  // WS y polling HTTP coinciden en el mismo bloque
+  // ──────────────────────────────────────────────
+  isEventProcessed(eventId) {
+    return this.processedEvents.has(eventId);
+  }
+
+  markEventProcessed(eventId) {
+    this.processedEvents.add(eventId);
+
+    // Limpiar cache cuando crece demasiado — mantener últimos 5,000
+    if (this.processedEvents.size > 10000) {
+      const arr = [...this.processedEvents];
+      this.processedEvents = new Set(arr.slice(arr.length - 5000));
+      logger.info('processedEvents cache limpiado', {
+        remaining: this.processedEvents.size
+      });
+    }
+  }
+
+  // ──────────────────────────────────────────────
   // Metrics
   // ──────────────────────────────────────────────
   incrementMetric(metric) {
@@ -161,12 +172,13 @@ class StateManager {
       burnedMappings: Array.from(this.loanMappings.values())
         .filter(v => v.status === 'burned').length,
       pendingTxs: this.pendingTransactions.size,
-      nonces: this.nonces.size
+      nonces: this.nonces.size,
+      processedEventsCache: this.processedEvents.size  // ⭐ nuevo
     };
   }
 
   // ──────────────────────────────────────────────
-  // Limpieza de pending txs (sin setInterval)
+  // Limpieza de pending txs
   // ──────────────────────────────────────────────
   cleanupPendingTxs(maxAge = 3600000) { // 1 hora por defecto
     const now = Date.now();

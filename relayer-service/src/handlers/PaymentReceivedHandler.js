@@ -7,7 +7,11 @@ import { ethers } from 'ethers';
 
 /**
  * Handle PaymentRecorded event from Besu
- * Flow: Payment received in Besu → Update NFT metadata (opcional) → Record payment via bridge
+ * Flow:
+ *   1. Mintear USFCI al PaymentDistributor (respaldado por pago real en Besu)
+ *   2. Llamar processPayment en BridgeReceiver → recordPendingPayment
+ *   3. Actualizar metadata del NFT (nuevo balance)
+ *   4. Registrar pago en MarketplaceBridge de Besu
  */
 class PaymentReceivedHandler extends BaseHandler {
   constructor() {
@@ -21,61 +25,44 @@ class PaymentReceivedHandler extends BaseHandler {
     try {
       const { loanId, amount } = event;
 
-      logger.info(`Processing payment`, { 
-        loanId, 
-        amount: amount?.toString() 
+      logger.info('Processing payment', {
+        loanId,
+        amount: amount?.toString()
       });
 
-      // Step 1: Get token ID for this loan
+      // PASO 1: Obtener tokenId del loan
       const tokenId = stateManager.getNFTForLoan(loanId);
 
       if (!tokenId) {
-        logger.warn(`No NFT found for loan, skipping payment distribution`, { 
-          loanId 
-        });
-        return { 
-          success: false, 
-          reason: 'NFT not found for this loan' 
-        };
+        logger.warn('No NFT found for loan, skipping payment distribution', { loanId });
+        return { success: false, reason: 'NFT not found for this loan' };
       }
 
-      logger.info(`Found NFT for loan`, { loanId, tokenId });
+      logger.info('Found NFT for loan', { loanId, tokenId });
 
-      // Step 2: Update NFT metadata (OPCIONAL)
+      // PASO 2: Mintear USFCI al PaymentDistributor
+      // El amount viene de Besu en la misma unidad que USFCI (18 decimales)
+      // Si en Besu el amount es en dólares enteros → convertir aquí
       try {
-        logger.info(`Fetching updated loan data from Besu`, { loanId });
-        const loanRegistry = besuService.getContract('loanRegistry');
-        const loanData = await loanRegistry.readLoan(loanId);
+        const reserveProof = `PAYMENT-${loanId}-${Date.now()}`;
+        await avalancheService.mintUSFCI(amount, reserveProof);
 
-        const newBalance = loanData.CurrentPrincipalBal;
-        const newStatus = loanData.Status;
-
-        logger.info(`Updating NFT metadata`, {
-          tokenId,
-          newBalance: newBalance?.toString(),
-          newStatus
+        logger.info('USFCI minted to PaymentDistributor', {
+          loanId,
+          amount: ethers.formatUnits(amount, 18),
+          reserveProof
         });
-
-        const loanNFT = avalancheService.getContract('loanNFT');
-        const updateTx = await loanNFT.updateMetadata(
-          tokenId,
-          newBalance,
-          newStatus,
-          {
-            gasLimit: 200000
-          }
-        );
-
-        await updateTx.wait();
-        logger.info(`NFT metadata updated`, { tokenId });
-      } catch (error) {
-        logger.warn(`Failed to update NFT metadata (non-critical)`, {
-          tokenId,
-          error: error.message
+      } catch (mintError) {
+        // Si falla el mint, NO podemos registrar el pago — los fondos no existen
+        logger.error('Failed to mint USFCI — aborting payment processing', {
+          loanId,
+          error: mintError.message
         });
+        throw mintError;
       }
 
-      // Step 3: Generar mensaje para multi-sig
+      // PASO 3: Llamar processPayment en BridgeReceiver
+      // Esto llama recordPendingPayment en PaymentDistributor
       const timestamp = Math.floor(Date.now() / 1000);
       const nonce = stateManager.getNonce(loanId);
 
@@ -86,39 +73,97 @@ class PaymentReceivedHandler extends BaseHandler {
         )
       );
 
-      // Step 4: Recolectar firmas
-      const signatures = await this.collectSignatures(messageHash);  // Igual que en LoanApproved
+      const signatures = await this.collectSignatures(messageHash);
 
-      // Step 5: Llamar processPayment en BridgeReceiver
-      logger.info(`Calling processPayment in Avalanche`, { loanId });
+      logger.info('Calling processPayment in BridgeReceiver', { loanId, tokenId });
+
       const bridgeReceiver = avalancheService.getContract('bridgeReceiver');
-      const tx = await bridgeReceiver.processPayment(
-        loanId, amount, timestamp, nonce, signatures,
+      const paymentTx = await bridgeReceiver.processPayment(
+        loanId,
+        amount,
+        timestamp,
+        nonce,
+        signatures,
         { gasLimit: 500000 }
       );
 
-      logger.info(`Process payment transaction sent`, {
-        txHash: tx.hash,
-        tokenId
-      });
+      const paymentReceipt = await paymentTx.wait();
 
-      const receipt = await tx.wait();
-
-      logger.info(`Payment processed successfully via bridge`, {
+      logger.info('Payment processed via BridgeReceiver', {
+        loanId,
         tokenId,
-        amount: amount?.toString(),
-        txHash: receipt.hash,
-        blockNumber: receipt.blockNumber
+        txHash: paymentReceipt.hash
       });
 
-      // Step 6: Update metrics
+      // PASO 4: Actualizar metadata del NFT con nuevo balance de Besu
+      try {
+        const loanRegistry = besuService.getContract('loanRegistry');
+        const loanData = await loanRegistry.readLoan(loanId);
+
+        // ⭐ Campo correcto: CurrentBalance (no CurrentPrincipalBal)
+        const newBalance = loanData.CurrentBalance;
+        const newStatus = loanData.Status;
+
+        const updateTimestamp = Math.floor(Date.now() / 1000);
+        const updateNonce = stateManager.getNonce(loanId);
+
+        const updateHash = ethers.keccak256(
+          ethers.solidityPacked(
+            ['string', 'string', 'uint256', 'string', 'uint256', 'uint256'],
+            ['UPDATE', loanId, newBalance, newStatus, updateTimestamp, updateNonce]
+          )
+        );
+
+        const updateSignatures = await this.collectSignatures(updateHash);
+
+        const updateTx = await bridgeReceiver.processMetadataUpdate(
+          loanId,
+          newBalance,
+          newStatus,
+          updateTimestamp,
+          updateNonce,
+          updateSignatures,
+          { gasLimit: 300000 }
+        );
+        await updateTx.wait();
+
+        logger.info('NFT metadata updated after payment', {
+          tokenId,
+          newBalance: newBalance.toString(),
+          newStatus
+        });
+      } catch (updateError) {
+        logger.warn('Failed to update NFT metadata after payment (non-critical)', {
+          loanId,
+          error: updateError.message
+        });
+      }
+
+      // PASO 5: Registrar pago en MarketplaceBridge de Besu
+      try {
+        const marketplaceBridge = besuService.getContract('marketplaceBridge');
+        const besuTx = await marketplaceBridge.recordPayment(
+          loanId,
+          amount,
+          { gasLimit: 200000 }
+        );
+        await besuTx.wait();
+
+        logger.info('Payment recorded in Besu MarketplaceBridge', { loanId });
+      } catch (besuError) {
+        logger.warn('Failed to record payment in Besu (non-critical)', {
+          loanId,
+          error: besuError.message
+        });
+      }
+
       stateManager.incrementMetric('paymentsDistributed');
 
       this.logSuccess(event, {
         loanId,
         tokenId,
         amount: amount?.toString(),
-        avalancheTxHash: receipt.hash
+        avalancheTxHash: paymentReceipt.hash
       });
 
       return {
@@ -126,7 +171,7 @@ class PaymentReceivedHandler extends BaseHandler {
         loanId,
         tokenId,
         amount: amount?.toString(),
-        avalancheTxHash: receipt.hash
+        avalancheTxHash: paymentReceipt.hash
       };
 
     } catch (error) {
@@ -136,9 +181,14 @@ class PaymentReceivedHandler extends BaseHandler {
     }
   }
 
-  // Placeholder para signatures (igual que arriba)
   async collectSignatures(messageHash) {
-    const validatorKeys = [process.env.VALIDATOR_PK1, process.env.VALIDATOR_PK2];
+    const validatorKeys = [
+      process.env.VALIDATOR_PK1,
+      process.env.VALIDATOR_PK2,
+      process.env.VALIDATOR_PK3,
+      process.env.VALIDATOR_PK4
+    ].filter(pk => pk && pk.trim().length > 0 && pk !== 'undefined');
+
     const signatures = [];
     for (const pk of validatorKeys) {
       const wallet = new ethers.Wallet(pk);
@@ -150,14 +200,8 @@ class PaymentReceivedHandler extends BaseHandler {
 
   validate(event) {
     super.validate(event);
-
-    if (!event.loanId) {
-      throw new Error('Missing loan ID');
-    }
-    if (!event.amount) {
-      throw new Error('Missing payment amount');
-    }
-
+    if (!event.loanId) throw new Error('Missing loan ID');
+    if (!event.amount) throw new Error('Missing payment amount');
     return true;
   }
 }

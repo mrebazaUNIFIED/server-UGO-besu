@@ -30,7 +30,7 @@ class LoanApprovalCancelledHandler extends BaseHandler {
 
       // Check if NFT exists
       const tokenId = stateManager.getNFTForLoan(loanId);
-      
+
       if (!tokenId) {
         logger.info('NFT not minted yet for this loan - no action needed', { loanId });
         return {
@@ -64,7 +64,7 @@ class LoanApprovalCancelledHandler extends BaseHandler {
       const loanRegistry = besuService.getContract('loanRegistry');
       const loanData = await loanRegistry.readLoan(loanId);
 
-      const updatedBalance = loanData.CurrentPrincipalBal;
+      const updatedBalance = loanData.CurrentBalance;
       const newStatus = 'Active';
 
       logger.info('Updating NFT: status and asking price', {
@@ -78,7 +78,7 @@ class LoanApprovalCancelledHandler extends BaseHandler {
       // OPCIÓN A: Si tienes updateFullMetadata (método nuevo)
       if (typeof loanNFT.updateFullMetadata === 'function') {
         const location = `${loanData.BorrowerCity || 'N/A'}, ${loanData.BorrowerState || 'N/A'}`;
-        
+
         const tx = await loanNFT.updateFullMetadata(
           tokenId,
           updatedBalance,
@@ -105,7 +105,7 @@ class LoanApprovalCancelledHandler extends BaseHandler {
           blockNumber: receipt.blockNumber
         });
 
-      } 
+      }
       // OPCIÓN B: Si tienes updateAskingPrice (método nuevo)
       else if (typeof loanNFT.updateAskingPrice === 'function') {
         // Primero actualizar status
@@ -177,10 +177,10 @@ class LoanApprovalCancelledHandler extends BaseHandler {
     } catch (error) {
       this.logError(event, error);
       stateManager.incrementMetric('errors');
-      
-      if (error.message.includes('Token does not exist') || 
-          error.message.includes('nonexistent token') ||
-          error.message.includes('ERC721: invalid token ID')) {
+
+      if (error.message.includes('Token does not exist') ||
+        error.message.includes('nonexistent token') ||
+        error.message.includes('ERC721: invalid token ID')) {
         logger.info('NFT does not exist yet - cancellation processed in Besu only', {
           loanId: event.loanId
         });
@@ -191,7 +191,7 @@ class LoanApprovalCancelledHandler extends BaseHandler {
           skipped: true
         };
       }
-      
+
       throw error;
     }
   }
