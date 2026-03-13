@@ -24,24 +24,22 @@ async function main() {
     "0x9f214c60aaeed8c0b47965b1b359181fd37886f4"
   ];
 
+  // Dirección del relayer (wallet que firma las txs en el servicio)
+  const relayerAddress = process.env.RELAYER_ADDRESS || deployer.address;
+
   try {
 
     // ── 1. USFCI_Avalanche (UUPS Proxy) ──────────────────────────────────────
-    // CAMBIO PRINCIPAL vs tu deploy anterior:
-    // Antes: USDC_FUJI = dirección externa ya desplegada (no tuya)
-    // Ahora: desplegamos nuestro propio USFCI como proxy upgradeable
     console.log("📝 Deploying USFCI_Avalanche (UUPS Proxy)...");
-
     const USFCI = await hre.ethers.getContractFactory("USFCI_Avalanche");
     const usfci = await hre.upgrades.deployProxy(
       USFCI,
-      [deployer.address, "Sunwest Bank"],  // initialize(owner, reserveBank)
+      [deployer.address, "Sunwest Bank"],
       { kind: "uups", initializer: "initialize" }
     );
     await usfci.waitForDeployment();
     const usfciAddress = await usfci.getAddress();
     const usfciImpl = await hre.upgrades.erc1967.getImplementationAddress(usfciAddress);
-
     console.log("✅ USFCI (proxy):", usfciAddress);
     console.log("   USFCI (impl): ", usfciImpl);
 
@@ -54,13 +52,12 @@ async function main() {
     console.log("✅ LoanNFT:", loanNFTAddress);
 
     // ── 3. PaymentDistributor ─────────────────────────────────────────────────
-    // CAMBIO: paymentToken = usfciAddress (antes era USDC_FUJI)
-    console.log("\n📝 Deploying PaymentDistributor (paymentToken = USFCI)...");
+    console.log("\n📝 Deploying PaymentDistributor...");
     const PaymentDistributor = await hre.ethers.getContractFactory("PaymentDistributor");
     const paymentDistributor = await PaymentDistributor.deploy(
       deployer.address,
       loanNFTAddress,
-      usfciAddress      // ← USFCI en vez de USDC
+      usfciAddress
     );
     await paymentDistributor.waitForDeployment();
     const paymentDistributorAddress = await paymentDistributor.getAddress();
@@ -74,20 +71,19 @@ async function main() {
       loanNFTAddress,
       paymentDistributorAddress,
       validatorAddresses,
-      3 // requiredSignatures (3 de 4)
+      3
     );
     await bridgeReceiver.waitForDeployment();
     const bridgeReceiverAddress = await bridgeReceiver.getAddress();
     console.log("✅ BridgeReceiver:", bridgeReceiverAddress);
 
     // ── 5. LoanMarketplace ────────────────────────────────────────────────────
-    // CAMBIO: paymentToken = usfciAddress (antes era USDC_FUJI)
-    console.log("\n📝 Deploying LoanMarketplace (paymentToken = USFCI)...");
+    console.log("\n📝 Deploying LoanMarketplace...");
     const LoanMarketplace = await hre.ethers.getContractFactory("LoanMarketplace");
     const marketplace = await LoanMarketplace.deploy(
       deployer.address,
       loanNFTAddress,
-      usfciAddress,     // ← USFCI en vez de USDC
+      usfciAddress,
       deployer.address  // feeRecipient
     );
     await marketplace.waitForDeployment();
@@ -97,44 +93,51 @@ async function main() {
     // ── 6. Configurar permisos ────────────────────────────────────────────────
     console.log("\n🔧 Configuring contracts...");
 
+    // LoanNFT → BridgeReceiver
     console.log("  Setting BridgeReceiver in LoanNFT...");
     await (await loanNFT.setBridgeReceiver(bridgeReceiverAddress)).wait();
-    console.log("  ✅ LoanNFT configured");
+    console.log("  ✅ LoanNFT.bridgeReceiver =", bridgeReceiverAddress);
 
+    // PaymentDistributor → BridgeReceiver
     console.log("  Setting BridgeReceiver in PaymentDistributor...");
     await (await paymentDistributor.setBridgeReceiver(bridgeReceiverAddress)).wait();
-    console.log("  ✅ PaymentDistributor configured");
+    console.log("  ✅ PaymentDistributor.bridgeReceiver =", bridgeReceiverAddress);
 
-    // ← AGREGA ESTO
+    // ⭐ BridgeReceiver → Marketplace (para el auto-approve después del mint)
+    console.log("  Setting Marketplace in BridgeReceiver...");
+    await (await bridgeReceiver.setMarketplace(marketplaceAddress)).wait();
+    console.log("  ✅ BridgeReceiver.marketplace =", marketplaceAddress);
+
+    // Marketplace → Relayer (para listForSaleByRelayer)
     console.log("  Setting Relayer in LoanMarketplace...");
-    const relayerAddress = deployer.address;
     await (await marketplace.setRelayer(relayerAddress)).wait();
-    console.log("  ✅ Marketplace relayer set:", relayerAddress);
+    console.log("  ✅ Marketplace.relayer =", relayerAddress);
 
-    // ── 7. Verificar ──────────────────────────────────────────────────────────
+    // ── 7. Dar MINTER_ROLE al relayer en USFCI ────────────────────────────────
+    console.log("  Granting MINTER_ROLE to relayer in USFCI...");
+    const MINTER_ROLE = await usfci.MINTER_ROLE();
+    await (await usfci.grantRole(MINTER_ROLE, relayerAddress)).wait();
+    console.log("  ✅ USFCI MINTER_ROLE granted to:", relayerAddress);
+
+    // ── 8. Verificar setup ────────────────────────────────────────────────────
     console.log("\n🔗 Verifying setup...");
 
     const validators = await bridgeReceiver.getValidators();
     const requiredSigs = await bridgeReceiver.requiredSignatures();
-    console.log("  Validators:", validators.length);
-    console.log("  Required signatures:", requiredSigs.toString());
+    console.log("  Validators:", validators.length, "| Required:", requiredSigs.toString());
 
     const loanNFTBridge = await loanNFT.bridgeReceiver();
     const pdBridge = await paymentDistributor.bridgeReceiver();
-    const bridgeOK =
-      loanNFTBridge === bridgeReceiverAddress &&
-      pdBridge === bridgeReceiverAddress;
+    const bridgeMarketplace = await bridgeReceiver.marketplace();
+    const marketplaceRelayer = await marketplace.relayer();
 
-    console.log(bridgeOK
-      ? "  ✅ Bridge configuration verified!"
-      : "  ⚠️  Warning: Bridge configuration mismatch!"
-    );
+    console.log("  LoanNFT.bridgeReceiver:          ", loanNFTBridge === bridgeReceiverAddress ? "✅" : "❌", loanNFTBridge);
+    console.log("  PaymentDistributor.bridgeReceiver:", pdBridge === bridgeReceiverAddress ? "✅" : "❌", pdBridge);
+    console.log("  BridgeReceiver.marketplace:       ", bridgeMarketplace === marketplaceAddress ? "✅" : "❌", bridgeMarketplace);
+    console.log("  Marketplace.relayer:              ", marketplaceRelayer === relayerAddress ? "✅" : "❌", marketplaceRelayer);
 
-    const usfciVersion = await usfci.version();
-    const usfciBank = await usfci.reserveBank();
-    console.log(`  ✅ USFCI version: ${usfciVersion} | Reserve: ${usfciBank}`);
-
-    // ── 8. Guardar en .env ────────────────────────────────────────────────────
+    // ── 9. Guardar en .env ────────────────────────────────────────────────────
+    // ⭐ Nombres alineados con lo que lee el relayer en contracts.js
     const envPath = path.join(__dirname, "..", "..", ".env");
     let envContent = "";
     if (fs.existsSync(envPath)) {
@@ -152,39 +155,42 @@ async function main() {
     }
 
     setEnvVar("AVALANCHE_NETWORK", "fuji");
-    setEnvVar("AVALANCHE_CHAIN_ID", 43113);
+    setEnvVar("AVALANCHE_CHAIN_ID", "43113");
     setEnvVar("AVALANCHE_DEPLOYER_ADDRESS", deployer.address);
-    setEnvVar("AVALANCHE_USFCI_ADDRESS", usfciAddress);
+
+    // ⭐ Nombres exactos que usa contracts.js en el relayer
+    setEnvVar("AVALANCHE_USFCI_ADDRESS", usfciAddress);         // contracts.js: usfci
     setEnvVar("AVALANCHE_USFCI_IMPL", usfciImpl);
-    setEnvVar("AVALANCHE_LOAN_NFT_ADDRESS", loanNFTAddress);
-    setEnvVar("AVALANCHE_BRIDGE_RECEIVER_ADDRESS", bridgeReceiverAddress);
-    setEnvVar("AVALANCHE_PAYMENT_DISTRIBUTOR_ADDRESS", paymentDistributorAddress);
-    setEnvVar("AVALANCHE_LOAN_MARKETPLACE_ADDRESS", marketplaceAddress);
+    setEnvVar("AVALANCHE_LOAN_NFT", loanNFTAddress);            // contracts.js: loanNFT
+    setEnvVar("AVALANCHE_BRIDGE_RECEIVER", bridgeReceiverAddress); // contracts.js: bridgeReceiver
+    setEnvVar("AVALANCHE_PAYMENT_DISTRIBUTOR", paymentDistributorAddress); // contracts.js: paymentDistributor
+    setEnvVar("AVALANCHE_MARKETPLACE", marketplaceAddress);     // contracts.js: marketplace
 
     fs.writeFileSync(envPath, envContent.trim() + "\n");
 
-    // ── 9. Resumen ────────────────────────────────────────────────────────────
+    // ── 10. Resumen ───────────────────────────────────────────────────────────
     console.log("\n✅ Avalanche Deployment Complete!");
     console.log("📄 Addresses saved to .env\n");
 
     console.log("📋 Contract Addresses:");
-    console.log("  USFCI (proxy):        ", usfciAddress);
-    console.log("  USFCI (impl):         ", usfciImpl);
-    console.log("  LoanNFT:              ", loanNFTAddress);
-    console.log("  BridgeReceiver:       ", bridgeReceiverAddress);
-    console.log("  PaymentDistributor:   ", paymentDistributorAddress);
-    console.log("  LoanMarketplace:      ", marketplaceAddress);
+    console.log("  USFCI (proxy):       ", usfciAddress);
+    console.log("  USFCI (impl):        ", usfciImpl);
+    console.log("  LoanNFT:             ", loanNFTAddress);
+    console.log("  BridgeReceiver:      ", bridgeReceiverAddress);
+    console.log("  PaymentDistributor:  ", paymentDistributorAddress);
+    console.log("  LoanMarketplace:     ", marketplaceAddress);
 
     console.log("\n🔗 View on Snowtrace (Fuji):");
-    console.log(`  USFCI:       https://testnet.snowtrace.io/address/${usfciAddress}`);
-    console.log(`  LoanNFT:     https://testnet.snowtrace.io/address/${loanNFTAddress}`);
-    console.log(`  Marketplace: https://testnet.snowtrace.io/address/${marketplaceAddress}`);
+    console.log(`  USFCI:        https://testnet.snowtrace.io/address/${usfciAddress}`);
+    console.log(`  LoanNFT:      https://testnet.snowtrace.io/address/${loanNFTAddress}`);
+    console.log(`  Marketplace:  https://testnet.snowtrace.io/address/${marketplaceAddress}`);
+    console.log(`  BridgeRcvr:   https://testnet.snowtrace.io/address/${bridgeReceiverAddress}`);
 
     console.log("\n⚠️  Next Steps:");
-    console.log("  1. Mintear USFCI de prueba a tu wallet:");
+    console.log("  1. Mintear USFCI de prueba:");
     console.log(`     usfci.mintTokens("${deployer.address}", ethers.parseUnits("10000", 18), "test-001")`);
-    console.log("  2. Transferir MINTER_ROLE al Relayer cuando esté listo");
-    console.log("  3. Actualizar las direcciones en el Relayer (.env)");
+    console.log("  2. Actualizar ABIs en el relayer si cambiaron contratos");
+    console.log("  3. Reiniciar el relayer: pm2 restart relayer");
     console.log("  4. Probar flujo completo end-to-end");
 
   } catch (error) {

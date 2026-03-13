@@ -267,25 +267,36 @@ class LoanApprovedHandler extends BaseHandler {
         logger.warn('Fallo al registrar token ID en Besu (no crítico)', { error: err.message });
       }
 
-      // PASO 9: Actualizar estado local
-
+      // PASO 9: Listar NFT en marketplace
       try {
-        logger.info('Listando NFT en marketplace', { loanId, tokenId, askingPrice: askingPrice.toString() });
+        logger.info('Listando NFT en marketplace', {
+          loanId, tokenId, askingPrice: askingPrice.toString()
+        });
 
         const marketplace = avalancheService.getContract('marketplace');
 
+        // ⭐ Convertir precio a 18 decimales (USFCI)
+        // askingPrice viene de Besu en dólares enteros (ej: 250000 = $250,000)
+        // USFCI tiene 18 decimales → multiplicar por 1e18
+        // Si en Besu ya lo guardas con 6 decimales → cambiar 1e18 por 1e12
+        const priceIn18Decimals = ethers.parseUnits(
+          askingPrice.toString(),
+          18
+        );
+
         const listTx = await marketplace.listForSaleByRelayer(
           tokenId,
-          askingPrice,  // viene del evento LoanApprovedForSale de Besu
+          priceIn18Decimals,
           lenderAddress,
           { gasLimit: 200000 }
         );
         await listTx.wait();
 
-        logger.info('NFT listado en marketplace exitosamente', {
+        logger.info('NFT listado exitosamente', {
           loanId,
           tokenId,
-          price: askingPrice.toString(),
+          priceOriginal: askingPrice.toString(),
+          priceNormalized: priceIn18Decimals.toString(),
           seller: lenderAddress
         });
       } catch (listError) {
@@ -294,7 +305,6 @@ class LoanApprovedHandler extends BaseHandler {
           tokenId,
           error: listError.message
         });
-        // No lanzamos el error — el mint ya fue exitoso
       }
 
       stateManager.mapLoanToNFT(loanId, tokenId);

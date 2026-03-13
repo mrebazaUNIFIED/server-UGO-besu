@@ -15,7 +15,6 @@ const cache = {
   invalidateUser(userId) {
     // Invalida todo lo relacionado a un usuario
     this.graphql.del(`graphql:portfolio:${userId}`);
-    this.loans.del(`portfolio:lender:${userId}`);
     this.loans.del(`portfolio:cert:${userId}`);
   },
 

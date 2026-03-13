@@ -3,9 +3,9 @@ const BaseContractService = require('./BaseContractService');
 const loanRegistryService = require('./LoanRegistryService');
 const userRegistryService = require('./UserRegistryService');
 const cache = require('../config/cache');
+const graphqlService = require('./GraphqlService');
 
 // ===== CONFIG =====
-const GRAPHQL_URL = process.env.GRAPHQL_URL || process.env.GRAPHQL_URL_DEV;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 // ===== TX STORE (memoria) =====
@@ -19,16 +19,6 @@ function cleanupTxStore() {
     if (now - t > TX_TTL_MS) txStore.delete(hash);
   }
 }
-
-// ===== GRAPHQL QUERY =====
-const GET_LOAN_PORTFOLIO_QUERY = `
-  {
-    getLoanPortfolioBCv2 {
-      loanUid
-      lenderUid
-    }
-  }
-`;
 
 class PortfolioService extends BaseContractService {
   constructor() {
@@ -49,105 +39,45 @@ class PortfolioService extends BaseContractService {
     txStore.set(key, { ...prev, ...patch, updatedAt: Date.now() });
   }
 
-  // ===== GRAPHQL con cache =====
-
-  async fetchPortfolioFromGraphQL(userBearerToken) {
-    if (!userBearerToken) throw new Error('Bearer token is required');
-    if (!GRAPHQL_URL) throw new Error('GRAPHQL_URL is not set in environment');
-
-    // Cache key basado en el token — cada usuario tiene su propio cache
-    const cacheKey = `graphql:portfolio:${userBearerToken}`;
-    const cached = cache.graphql.get(cacheKey);
-    if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
-      return cached;
-    }
-
-    console.log(`[cache] MISS ${cacheKey} — llamando GraphQL...`);
-    const response = await fetch(GRAPHQL_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userBearerToken}`,
-      },
-      body: JSON.stringify({ query: GET_LOAN_PORTFOLIO_QUERY }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
-    }
-
-    const json = await response.json();
-
-    if (json.errors?.length) {
-      throw new Error(`GraphQL errors: ${json.errors.map(e => e.message).join(', ')}`);
-    }
-
-    const items = json?.data?.getLoanPortfolioBCv2 || [];
-    const userId = items.length > 0 ? items[0].lenderUid : null;
-
-    const result = { userId, items };
-
-    // Solo cachear si hay datos — no cachear respuestas vacías
-    if (items.length > 0) {
-      cache.graphql.set(cacheKey, result);
-      console.log(`[cache] SET ${cacheKey} (${items.length} items)`);
-    }
-
-    return result;
-  }
-
   // ===== BLOCKCHAIN: resolver loans con cache =====
 
   async resolveLoansFromBlockchain(portfolioItems) {
     if (!portfolioItems?.length) return [];
 
-    const lenderMap = new Map();
-    for (const item of portfolioItems) {
-      if (!lenderMap.has(item.lenderUid)) {
-        lenderMap.set(item.lenderUid, new Set());
-      }
-      lenderMap.get(item.lenderUid).add(item.loanUid);
+    // Validar concurrencia máxima de llamadas RPC a Besu para evitar Sockets Hang up
+    const MAX_CONCURRENT = 10;
+    const results = [];
+
+    for (let i = 0; i < portfolioItems.length; i += MAX_CONCURRENT) {
+      const chunk = portfolioItems.slice(i, i + MAX_CONCURRENT);
+
+      const chunkResults = await Promise.allSettled(
+        chunk.map(async (item) => {
+          try {
+            const loanId = await loanRegistryService.generateLoanIdLocally(item.lenderUid, item.loanUid);
+            if (!loanId) return null;
+            const loan = await loanRegistryService.readLoan(loanId);
+            return { ...loan, LenderName: loan.LenderName || item.lenderName };
+          } catch (err) {
+            return null;
+          }
+        })
+      );
+
+      results.push(...chunkResults);
     }
 
-    const lenderFetches = Array.from(lenderMap.entries()).map(async ([lenderUid, loanUidSet]) => {
-      try {
-        const cacheKey = `portfolio:lender:${lenderUid}`;
-        const cached = cache.loans.get(cacheKey);
-        if (cached) {
-          console.log(`[cache] HIT ${cacheKey} (${cached.length} loans)`);
-          return cached;
-        }
-
-        console.log(`[cache] MISS ${cacheKey} `);
-        const loansFromChain = await loanRegistryService.findLoansByLenderUid(lenderUid);
-        const filtered = loansFromChain.filter(loan => loanUidSet.has(loan.LoanUid));
-
-        // Solo cachear si hay loans
-        if (filtered.length > 0) {
-          cache.loans.set(cacheKey, filtered);
-          console.log(`[cache] SET ${cacheKey} (${filtered.length} loans)`);
-        } else {
-          console.warn(`[cache] SKIP SET ${cacheKey} `);
-        }
-
-        return filtered;
-      } catch (err) {
-        console.error(`[PortfolioService] Error fetching loans for lenderUid ${lenderUid}:`, err.message);
-        return [];
-      }
-    });
-
-    const results = await Promise.all(lenderFetches);
-    return results.flat();
+    return results
+      .filter(r => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value);
   }
 
   // ===== MÉTODO PRINCIPAL: getPortfolio =====
 
   async getPortfolio(userBearerToken) {
-    const { userId, items } = await this.fetchPortfolioFromGraphQL(userBearerToken);
+    const { userId, items } = await graphqlService.getLoanPortfolio(userBearerToken);
 
-    if (!items.length) {
+    if (!items || !items.length) {
       return { userId, totalLoans: 0, loans: [] };
     }
 

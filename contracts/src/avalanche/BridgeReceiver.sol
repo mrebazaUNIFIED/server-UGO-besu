@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface ILoanNFT {
-    // ⭐ ACTUALIZADO: Nueva firma del mint
     function mint(
         string memory loanId,
         address lenderAddress,
@@ -22,13 +21,14 @@ interface ILoanNFT {
         string memory newStatus
     ) external;
 
-    // ⭐ NUEVO: Burn functions
     function burn(uint256 tokenId) external;
     function burnByLoanId(string memory loanId) external;
 
     function loanIdToTokenId(
         string memory loanId
     ) external view returns (uint256);
+
+    function approveMarketplace(uint256 tokenId, address marketplace) external;
 }
 
 interface IPaymentDistributor {
@@ -38,6 +38,7 @@ interface IPaymentDistributor {
 contract BridgeReceiver is Ownable {
     ILoanNFT public loanNFT;
     IPaymentDistributor public paymentDistributor;
+    address public marketplace;
 
     mapping(address => bool) public validators;
     address[] public validatorList;
@@ -175,10 +176,8 @@ contract BridgeReceiver is Ownable {
             "Loan not approved or was cancelled in Besu"
         );
 
-        // Marcar como procesado
         processedMessages[ethSignedHash] = true;
 
-        // ⭐ Mintear NFT con nueva firma
         uint256 tokenId = loanNFT.mint(
             loanId,
             lenderAddress,
@@ -190,7 +189,10 @@ contract BridgeReceiver is Ownable {
             location
         );
 
-        // Emitir evento para sincronización con Besu
+        if (marketplace != address(0)) {
+            loanNFT.approveMarketplace(tokenId, marketplace);
+        }
+
         emit TokenIdNeedsSyncToBesu(loanId, tokenId, block.timestamp);
         emit LoanMinted(loanId, tokenId, lenderAddress, block.timestamp);
 
@@ -222,6 +224,11 @@ contract BridgeReceiver is Ownable {
         approvedInBesu[loanId] = true;
 
         return true;
+    }
+
+    function setMarketplace(address _marketplace) external onlyOwner {
+        require(_marketplace != address(0), "Invalid address");
+        marketplace = _marketplace;
     }
 
     /**

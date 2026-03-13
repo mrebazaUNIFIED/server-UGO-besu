@@ -6,7 +6,7 @@ async function main() {
 
   const usfci = await hre.ethers.getContractAt(
     "USFCI_Avalanche",
-    "0x37F9f888F8984856E9E7f4675a8B20E5F5527596"
+    "0x924Ea78fB94818dCC2b96BD591de35577F84984d"
   );
 
   // Verificar info del contrato
@@ -24,7 +24,7 @@ async function main() {
 
   // Mintear 10,000 USFCI a tu wallet
   const amount = hre.ethers.parseUnits("500000", 18);
-  console.log("\n🪙 Minteando 10000,000 USFCI...");
+  console.log("\n🪙 Minteando 50000,000 USFCI...");
 
   const tx = await usfci.mintTokens(
     deployer.address,   // recipient — tu wallet

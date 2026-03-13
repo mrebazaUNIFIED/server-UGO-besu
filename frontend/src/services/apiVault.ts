@@ -604,6 +604,7 @@ export const useCreateLoan = () => {
 
       // Invalidar queries relevantes
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
 
       if (variables.LenderUid) {
         queryClient.invalidateQueries({
@@ -636,6 +637,7 @@ export const useUpdateLoan = () => {
       toast.success('Loan updated successfully');
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
 
       if (variables.loanData.LenderUid) {
         queryClient.invalidateQueries({
@@ -677,6 +679,7 @@ export const useCreateOrUpdateLoan = () => {
 
       // Invalidar queries relevantes
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
 
       if (variables.LenderUid) {
         queryClient.invalidateQueries({
@@ -724,6 +727,7 @@ export const useUpdateLoanPartial = () => {
       );
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
       queryClient.invalidateQueries({ queryKey: vaultKeys.loan(variables.loanId) });
       queryClient.invalidateQueries({
         queryKey: vaultKeys.loanHistory(variables.loanId)
@@ -750,6 +754,7 @@ export const useUpdateLockedLoan = () => {
       toast.success('Locked loan updated successfully');
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
       queryClient.invalidateQueries({ queryKey: vaultKeys.loan(variables.loanId) });
       queryClient.invalidateQueries({
         queryKey: vaultKeys.loanHistory(variables.loanId)
@@ -770,6 +775,7 @@ export const useDeleteLoan = () => {
       toast.success('Loan deleted successfully');
 
       queryClient.invalidateQueries({ queryKey: vaultKeys.loans() });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
       queryClient.removeQueries({ queryKey: vaultKeys.loan(loanId) });
     },
     onError: (error: any) => {

@@ -8,6 +8,7 @@ import { SharedModal } from "./shared/SharedModal";
 import { DetailMarketplace } from "./marketplace/DetailMarketplace";
 import { CancelMarketplace } from "./marketplace/CancelMarketplace";
 import { useAutoRegisterUser } from "../../../hooks/useAutoRegisterUser";
+
 interface MarketplaceButtonProps {
   loan: Loan;
   onPublish: () => void;
@@ -15,8 +16,6 @@ interface MarketplaceButtonProps {
 }
 
 const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps) => {
-
-
   if (loan.isTokenized) {
     return (
       <button
@@ -41,6 +40,45 @@ const MarketplaceButton = ({ loan, onPublish, onCancel }: MarketplaceButtonProps
     </button>
   );
 };
+
+// Skeleton row component
+const SkeletonRow = ({ index }: { index: number }) => (
+  <tr className={`border-t ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+    <td className="p-2">
+      <div className="h-4 w-4 animate-pulse rounded bg-gray-200 mx-auto" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-4/5" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-3/4" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-full font-mono" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-2/5 mx-auto" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-3/4" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-2/5 mx-auto" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-3/5" />
+    </td>
+    <td className="p-2">
+      <div className="h-3.5 animate-pulse rounded bg-gray-200 w-4/5 ml-auto" />
+    </td>
+    <td className="p-2">
+      <div className="flex gap-2 justify-center">
+        <div className="h-7 w-14 animate-pulse rounded-md bg-gray-200" />
+        <div className="h-7 w-16 animate-pulse rounded-md bg-gray-200" />
+      </div>
+    </td>
+  </tr>
+);
 
 export const TableVault = () => {
   const { alreadyExists, justRegistered, checking } = useAutoRegisterUser();
@@ -136,7 +174,6 @@ export const TableVault = () => {
   const handleCloseCancelMarketplace = () => {
     setIsCancelModalOpen(false);
     setSelectedLoanForMarketplace(null);
-    refetch();
   };
 
   const selectedLoansData = filteredLoans.filter((loan) =>
@@ -242,12 +279,11 @@ export const TableVault = () => {
           </thead>
 
           <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={10} className="text-center p-4 text-gray-600">
-                  Loading loans...
-                </td>
-              </tr>
+            {isLoadingData ? (
+              // 🦴 Skeleton rows
+              Array.from({ length: 5 }).map((_, i) => (
+                <SkeletonRow key={i} index={i} />
+              ))
             ) : isError ? (
               <tr>
                 <td colSpan={10} className="text-center p-4 text-red-600">
@@ -267,8 +303,8 @@ export const TableVault = () => {
                 <tr
                   key={loan.Account}
                   className={`border-t transition-colors text-center ${selectedLoans.includes(loan.Account)
-                    ? "bg-blue-50"
-                    : "hover:bg-gray-50"
+                      ? "bg-blue-50"
+                      : "hover:bg-gray-50"
                     }`}
                 >
                   <td className="p-2">
@@ -282,7 +318,7 @@ export const TableVault = () => {
                   <td className="p-2 font-medium">{loan.Account}</td>
                   <td className="p-2">{loan.LenderName}</td>
                   <td className="p-2 truncate max-w-[120px] font-mono text-xs" title={loan.TxId}>
-                    {loan.TxId ? `${loan.TxId.slice(0, 10)}...${loan.TxId.slice(-8)}` : 'N/A'}
+                    {loan.TxId ? `${loan.TxId.slice(0, 10)}...${loan.TxId.slice(-8)}` : "N/A"}
                   </td>
                   <td className="p-2">{loan.LenderOwnerPct}</td>
                   <td className="p-2">{loan.City}</td>

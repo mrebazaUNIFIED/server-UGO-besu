@@ -37,6 +37,7 @@ import type {
   TokenIdResponse,
   RegisterTxHashResponse
 } from '../types/marketplaceTypes';
+import { vaultKeys } from './apiVault';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8070';
 
@@ -489,6 +490,7 @@ export const useApproveLoanForSale = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to approve loan for sale');
@@ -509,6 +511,7 @@ export const useCancelSaleListing = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to cancel sale listing');
@@ -526,6 +529,7 @@ export const useSetAvalancheTokenId = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.approval(variables.lenderUid, variables.loanUid)
       });
@@ -549,6 +553,7 @@ export const useRecordOwnershipTransfer = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to record ownership transfer');
@@ -566,6 +571,7 @@ export const useRecordPayment = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to record payment');
@@ -583,6 +589,7 @@ export const useMarkLoanAsPaidOff = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to mark loan as paid off');
@@ -607,6 +614,7 @@ export const useRequestBurnAndCancel = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.canCancel(variables.lenderUid, variables.loanUid)
       });
@@ -630,6 +638,7 @@ export const useConfirmBurnAndCancel = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.canCancel(variables.lenderUid, variables.loanUid)
       });
@@ -650,6 +659,7 @@ export const useEmergencyUnlock = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to perform emergency unlock');
@@ -667,6 +677,7 @@ export const useRegisterApprovalTxHash = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.approval(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to register transaction hash');
@@ -685,6 +696,7 @@ export const useForceUnlockPaidOffLoan = () => {
       queryClient.invalidateQueries({
         queryKey: marketplaceKeys.status(variables.lenderUid, variables.loanUid)
       });
+      queryClient.invalidateQueries({ queryKey: [...vaultKeys.all, 'portfolio'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to force unlock paid off loan');

@@ -388,50 +388,16 @@ class LoanController {
       const token = req.headers.authorization?.split(' ')[1];
       if (!token) return res.status(401).json({ error: 'No token provided' });
 
-      // ✅ Cache del portfolio completo por token
-      const cacheKey = `portfolio:${token}`;
-      const cached = cache.loans.get(cacheKey);
-      if (cached) {
-        console.log(`[cache] HIT portfolio`);
-        return res.json(cached);
-      }
+      // ✅ Usar el servicio unificado en lugar de duplicar lógica GraphQL
+      // (requiere inyectar o requerir portfolioService)
+      const portfolioService = require('../services/PortfolioService');
+      const result = await portfolioService.getPortfolio(token);
 
-      const graphqlResponse = await fetch(process.env.GRAPHQL_URL_DEV, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ query: `{ getLoanPortfolioBCv2 { loanUid lenderUid lenderName } }` }),
+      res.json({
+        success: true,
+        count: result.totalLoans,
+        data: result.loans
       });
-
-      const graphqlJson = await graphqlResponse.json();
-      if (graphqlJson.errors) return res.status(400).json({ error: graphqlJson.errors[0]?.message });
-
-      const refs = graphqlJson.data.getLoanPortfolioBCv2;
-
-      // ✅ readLoan ya tiene cache propio en el service
-      const results = await Promise.allSettled(
-        refs.map(async ({ lenderUid, loanUid, lenderName }) => {
-          try {
-            const loanId = await loanService.generateLoanId(lenderUid, loanUid);
-            const loan = await loanService.readLoan(loanId);
-            return { ...loan, LenderName: loan.LenderName || lenderName };
-          } catch (e) {
-            return null;
-          }
-        })
-      );
-
-      const loans = results
-        .filter(r => r.status === 'fulfilled' && r.value !== null)
-        .map(r => r.value);
-
-      const response = { success: true, count: loans.length, data: loans };
-
-      if (loans.length > 0) {
-        cache.loans.set(cacheKey, response);
-        console.log(`[cache] SET portfolio (${loans.length} loans)`);
-      }
-
-      res.json(response);
     } catch (error) {
       console.error('❌ getPortfolio:', error.message);
       next(error);

@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title LoanNFT - VERSIÓN MEJORADA CON CAMPOS DEL LOANREGISTRY
  * @notice NFT de préstamos con metadata completa del LoanRegistry
- * 
+ *
  * CAMBIOS PRINCIPALES:
  * 1. Agregados campos del LoanRegistry: OriginalBalance, CurrentBalance, LenderOwnerPct, NoteRate
  * 2. Removido monthlyPayment (no existe en LoanRegistry)
@@ -27,7 +27,7 @@ contract LoanNFT is ERC721, Ownable {
 
     // Permite re-mint después de burn
     mapping(string => bool) public isCurrentlyMinted;
-    
+
     // Tracking histórico opcional (para estadísticas)
     mapping(string => uint256) public totalMintsPerLoan;
 
@@ -35,20 +35,17 @@ contract LoanNFT is ERC721, Ownable {
     struct LoanMetadata {
         // Identificación
         string loanId;
-        
         // Campos financieros del LoanRegistry
-        uint256 originalBalance;      // OriginalBalance
-        uint256 currentBalance;       // CurrentBalance
-        uint256 noteRate;             // NoteRate (tasa de interés)
-        uint256 lenderOwnerPct;       // LenderOwnerPct (porcentaje del lender)
-        
+        uint256 originalBalance; // OriginalBalance
+        uint256 currentBalance; // CurrentBalance
+        uint256 noteRate; // NoteRate (tasa de interés)
+        uint256 lenderOwnerPct; // LenderOwnerPct (porcentaje del lender)
         // Campos de estado
-        string status;                // Status (ForSale, Sold, etc.)
-        string location;              // City + State
-        
+        string status; // Status (ForSale, Sold, etc.)
+        string location; // City + State
         // Campos de control
-        uint256 mintedAt;             // Timestamp de mint
-        uint256 lastUpdated;          // Última actualización
+        uint256 mintedAt; // Timestamp de mint
+        uint256 lastUpdated; // Última actualización
     }
 
     mapping(uint256 => LoanMetadata) public loanMetadata;
@@ -78,10 +75,9 @@ contract LoanNFT is ERC721, Ownable {
         uint256 timestamp
     );
 
-    constructor(address initialOwner) 
-        ERC721("FCI Loan", "FCILOAN") 
-        Ownable(initialOwner) 
-    {}
+    constructor(
+        address initialOwner
+    ) ERC721("FCI Loan", "FCILOAN") Ownable(initialOwner) {}
 
     modifier onlyBridge() {
         require(
@@ -148,9 +144,9 @@ contract LoanNFT is ERC721, Ownable {
         });
 
         emit LoanNFTMinted(
-            newTokenId, 
-            loanId, 
-            lenderAddress, 
+            newTokenId,
+            loanId,
+            lenderAddress,
             originalBalance,
             currentBalance,
             block.timestamp
@@ -166,19 +162,19 @@ contract LoanNFT is ERC721, Ownable {
      */
     function burn(uint256 tokenId) external onlyBridge {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
-        
+
         string memory loanId = tokenIdToLoanId[tokenId];
         address owner = _ownerOf(tokenId);
-        
+
         // Limpiar mappings
         delete loanIdToTokenId[loanId];
         delete tokenIdToLoanId[tokenId];
         delete loanMetadata[tokenId];
         isCurrentlyMinted[loanId] = false;
-        
+
         // Quemar el NFT
         _burn(tokenId);
-        
+
         emit LoanNFTBurned(tokenId, loanId, owner, block.timestamp);
     }
 
@@ -190,18 +186,18 @@ contract LoanNFT is ERC721, Ownable {
         uint256 tokenId = loanIdToTokenId[loanId];
         require(tokenId != 0, "No active token for this loan");
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
-        
+
         address owner = _ownerOf(tokenId);
-        
+
         // Limpiar mappings
         delete loanIdToTokenId[loanId];
         delete tokenIdToLoanId[tokenId];
         delete loanMetadata[tokenId];
         isCurrentlyMinted[loanId] = false;
-        
+
         // Quemar el NFT
         _burn(tokenId);
-        
+
         emit LoanNFTBurned(tokenId, loanId, owner, block.timestamp);
     }
 
@@ -252,7 +248,7 @@ contract LoanNFT is ERC721, Ownable {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
 
         LoanMetadata storage metadata = loanMetadata[tokenId];
-        
+
         metadata.currentBalance = newCurrentBalance;
         metadata.noteRate = newNoteRate;
         metadata.lenderOwnerPct = newLenderOwnerPct;
@@ -274,11 +270,9 @@ contract LoanNFT is ERC721, Ownable {
      * @notice Obtiene la metadata completa de un token
      * @param tokenId ID del token
      */
-    function getLoanMetadata(uint256 tokenId)
-        external
-        view
-        returns (LoanMetadata memory)
-    {
+    function getLoanMetadata(
+        uint256 tokenId
+    ) external view returns (LoanMetadata memory) {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
         return loanMetadata[tokenId];
     }
@@ -305,15 +299,17 @@ contract LoanNFT is ERC721, Ownable {
     function isLoanMinted(string memory loanId) external view returns (bool) {
         return isCurrentlyMinted[loanId];
     }
-    
+
     /**
      * @notice Obtiene cuántas veces se ha minteado un loan
      * @param loanId ID del loan
      */
-    function getMintCount(string memory loanId) external view returns (uint256) {
+    function getMintCount(
+        string memory loanId
+    ) external view returns (uint256) {
         return totalMintsPerLoan[loanId];
     }
-    
+
     /**
      * @notice Verifica si un loan puede ser minteado
      * @param loanId ID del loan
@@ -326,7 +322,9 @@ contract LoanNFT is ERC721, Ownable {
      * @notice Obtiene el balance actual de un loan por loanId
      * @param loanId ID del loan
      */
-    function getCurrentBalance(string memory loanId) external view returns (uint256) {
+    function getCurrentBalance(
+        string memory loanId
+    ) external view returns (uint256) {
         uint256 tokenId = loanIdToTokenId[loanId];
         require(tokenId != 0, "Loan not minted");
         return loanMetadata[tokenId].currentBalance;
@@ -336,28 +334,32 @@ contract LoanNFT is ERC721, Ownable {
      * @notice Obtiene el balance original de un loan por loanId
      * @param loanId ID del loan
      */
-    function getOriginalBalance(string memory loanId) external view returns (uint256) {
+    function getOriginalBalance(
+        string memory loanId
+    ) external view returns (uint256) {
         uint256 tokenId = loanIdToTokenId[loanId];
         require(tokenId != 0, "Loan not minted");
         return loanMetadata[tokenId].originalBalance;
     }
 
+    function approveMarketplace(
+        uint256 tokenId,
+        address marketplace
+    ) external onlyBridge {
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        require(marketplace != address(0), "Invalid marketplace");
+        // ⭐ Pasar el owner como auth para que OZ v5 no revierta
+        address owner = _ownerOf(tokenId);
+        _approve(marketplace, tokenId, owner);
+    }
+
     // ===== TOKEN URI =====
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
 
-        return
-            string(
-                abi.encodePacked(
-                    _baseURI(),
-                    tokenIdToLoanId[tokenId]
-                )
-            );
+        return string(abi.encodePacked(_baseURI(), tokenIdToLoanId[tokenId]));
     }
 
     // ===== OVERRIDE PARA SEGURIDAD =====
@@ -367,7 +369,7 @@ contract LoanNFT is ERC721, Ownable {
         address auth
     ) internal virtual override returns (address) {
         address from = _ownerOf(tokenId);
-        
+
         // Permitir mint (from == address(0))
         if (from == address(0)) {
             return super._update(to, tokenId, auth);
@@ -385,8 +387,9 @@ contract LoanNFT is ERC721, Ownable {
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-        return bytes(_baseTokenURI).length > 0 
-            ? _baseTokenURI 
-            : "https://api.fci-loans.com/metadata/";
+        return
+            bytes(_baseTokenURI).length > 0
+                ? _baseTokenURI
+                : "https://api.fci-loans.com/metadata/";
     }
 }
