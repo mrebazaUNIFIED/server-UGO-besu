@@ -1,26 +1,16 @@
 {
   "syncState": {
     "besu": {
-      "lastBlock": 751,
-      "lastSync": "2026-02-05T20:19:54.443Z"
+      "lastBlock": 1750,
+      "lastSync": "2026-03-25T21:20:50.181Z"
     },
     "avalanche": {
       "lastBlock": 0,
       "lastSync": null
     }
   },
-  "loanMappings": [],
-  "nonces": {
-    "86ca146d2aacc77bc7a6cca5b6b430ef1cfe2446dc5c6db2dff8f64755e3143f": 1
-  },
-  "metrics": {
-    "eventsProcessed": 1,
-    "errors": 0,
-    "nftsMinted": 0,
-    "nftsBurned": 0,
-    "salesRecorded": 0,
-    "paymentsDistributed": 0,
-    "approvalsProcessed": 0
-  },
-  "timestamp": "2026-02-05T20:19:54.443Z"
+  "processedEvents": [
+    "BridgeToBesu-0xb31afea2076903b4e873b69f87a135f82f5b931ac86f2686dd83439d27c133f9-1",
+    "BridgeToBesu-0x8f3cfd84c9953445f6a8c2e4292a9cf8110d81910b41506584b5032be2315525-1"
+  ]
 }

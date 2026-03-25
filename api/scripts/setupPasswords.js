@@ -9,10 +9,9 @@ const setupPasswords = async () => {
   // Define las contraseñas para cada wallet
   const passwords = {
 
-    '0x9E8387a25007e6A76d72fdB69c82e18B4E30A57f': 'Nuevapassword',
-    '0x95C0Bd95daCECc1eC8821545959bB2abF9990641': 'Nuevapassword',
-    '0x074e93e3E69746CEc02E676759bCB1eff6Ea84dc': 'Nuevapassword',
-    '0xfa9f306F6060eadF3dD6DbF675cf78fd03E242D7': 'Nuevapassword',
+    '0x00491756F7778d623c271733D0477609d6791A98': 'Nuevapassword',
+    '0xD391eD487C96eF0d098789b1FF5256ef49a31DC3': 'Nuevapassword',
+    '0x682785528418359e957a504427b2b58B50239643': 'Nuevapassword',
 
     // Tim (operator)
   };

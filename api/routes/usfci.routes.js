@@ -31,8 +31,16 @@ const {
   getAllTransferRecords,
   getTransactionHistory,
   getMyTransactions,
-  getWalletCompleteHistory
+  getWalletCompleteHistory,
+
+  // Avalanche
+  mintAvalanche,
+  bridgeToBesuFromAvalanche,
+  getAvalancheBalance,
+  getAvalancheStatistics,
+  getAvalancheMintRecords
 } = require('../controllers/usfciController');
+
 
 const router = express.Router();
 
@@ -54,8 +62,8 @@ router.get('/admin/statistics', getStatistics);
 // ==========================================
 // TOKENS
 // ==========================================
-router.post('/tokens/mint', authorize('admin', 'operator'), mintTokens);
-router.post('/tokens/burn', authorize('admin', 'operator'), burnTokens);
+router.post('/tokens/mint', authorize('admin'), mintTokens);
+router.post('/tokens/burn', authorize('admin'), burnTokens);
 router.post('/tokens/transfer', transfer);
 
 // ==========================================
@@ -89,5 +97,21 @@ router.put('/wallet/:walletAddress/compliance',
   authorize('admin', 'operator'),
   updateComplianceStatus
 );
+
+// ==========================================
+// AVALANCHE - Mint directo y Bridge
+// ==========================================
+
+// Solo Sunwest (admin con MINTER_ROLE en Avalanche) puede mintear capital nuevo
+router.post('/avalanche/mint', authorize('admin'), mintAvalanche);
+
+// Cualquier usuario autenticado puede iniciar bridge Avalanche → Besu
+// (quema en Avalanche, el Relayer mintea en Besu automáticamente)
+router.post('/avalanche/bridge-to-besu', bridgeToBesuFromAvalanche);
+
+// Consultas públicas de Avalanche (no requieren auth)
+router.get('/avalanche/balance/:walletAddress', getAvalancheBalance);
+router.get('/avalanche/statistics', getAvalancheStatistics);
+router.get('/avalanche/history/mints', authorize('admin', 'operator'), getAvalancheMintRecords);
 
 module.exports = router;

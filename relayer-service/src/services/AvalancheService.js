@@ -145,31 +145,17 @@ class AvalancheService {
     return await this.httpProvider.getBlockNumber();
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // ✅ NUEVO: mintUSFCI
-  // Llamado cuando el deudor paga una cuota en Besu.
-  // Mintea USFCI respaldado por el depósito real en Sunwest Bank.
-  //
-  // Flujo:
-  //   1. mintTokens(paymentDistributor, amount, reserveProof)
-  //      → USFCI aparece en el PaymentDistributor listo para ser reclamado
-  //   2. Después el handler llama processPayment() en BridgeReceiver
-  //      → recordPendingPayment() registra cuánto puede reclamar el dueño del NFT
-  // ══════════════════════════════════════════════════════════════════════════
-  async mintUSFCI(amount, reserveProof) {
-    try {
-      const distributorAddress = AVALANCHE_CONTRACTS.paymentDistributor.address;
 
-      logger.info('Minting USFCI to PaymentDistributor', {
+  async mintUSFCI(recipient, amount, reserveProof) {
+    try {
+      logger.info('Minting USFCI via Bridge', {
         amount: ethers.formatUnits(amount, 18),
-        recipient: distributorAddress,
+        recipient,
         reserveProof
       });
 
       const tx = await this.contracts.usfci.mintTokens(
-        distributorAddress,  // recipient: el contrato que distribuye pagos
-        amount,              // amount en wei (18 decimales)
-        reserveProof,        // referencia bancaria Sunwest Bank
+        recipient, amount, reserveProof,
         { gasLimit: 200000 }
       );
 

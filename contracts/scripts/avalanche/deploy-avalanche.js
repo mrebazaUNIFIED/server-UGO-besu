@@ -117,7 +117,19 @@ async function main() {
     console.log("  Granting MINTER_ROLE to relayer in USFCI...");
     const MINTER_ROLE = await usfci.MINTER_ROLE();
     await (await usfci.grantRole(MINTER_ROLE, relayerAddress)).wait();
-    console.log("  ✅ USFCI MINTER_ROLE granted to:", relayerAddress);
+    console.log("  ✅ USFCI MINTER_ROLE granted to relayer:", relayerAddress);
+
+    // ── 7b. Dar MINTER_ROLE a Sunwest (institución) ───────────────────────────
+    // Sunwest puede mintear capital nuevo directamente en Avalanche vía la API
+    // sin pasar por el bridge. Su address es diferente al relayer.
+    const sunwestAddress = process.env.SUNWEST_ADDRESS;
+    if (sunwestAddress && sunwestAddress !== relayerAddress) {
+      await (await usfci.grantRole(MINTER_ROLE, sunwestAddress)).wait();
+      console.log("  ✅ USFCI MINTER_ROLE granted to Sunwest:", sunwestAddress);
+    } else {
+      console.log("  ⚠️  SUNWEST_ADDRESS no configurado en .env — Sunwest usará el rol del deployer");
+    }
+
 
     // ── 8. Verificar setup ────────────────────────────────────────────────────
     console.log("\n🔗 Verifying setup...");

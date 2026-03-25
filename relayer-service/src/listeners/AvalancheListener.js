@@ -96,6 +96,24 @@ class AvalancheListener {
   }
 
   _registerWsListeners(wsNFT, wsMarketplace, wsDistributor) {
+    const wsUsfci = avalancheService.getWsContract('usfci');
+
+    wsUsfci.on('TokensBridgedToBesu', async (sender, targetBesu, amount, timestamp, eventObj) => {
+      const txHash = eventObj?.log?.transactionHash;
+      if (!txHash) return;
+
+      const eventId = `BridgeToBesu-${txHash}-${eventObj?.log?.index || 0}`;
+      if (stateManager.isEventProcessed(eventId)) return;
+      stateManager.markEventProcessed(eventId);
+
+      await this._handleEvent('USFCI_BRIDGE_IN', {
+        target: targetBesu,
+        amount: amount.toString(),
+        transactionHash: txHash,
+        blockNumber: eventObj?.log?.blockNumber || 0,
+        logIndex: eventObj?.log?.index || 0
+      });
+    });
 
     // LoanNFTMinted — solo logging
     wsNFT.on('LoanNFTMinted', async (tokenId, loanId, lender, originalBalance, currentBalance, timestamp, eventObj) => {
@@ -212,6 +230,7 @@ class AvalancheListener {
       await Promise.all([
         this._pollLoanSold(fromBlock, toBlock),
         this._pollLoanNFTMinted(fromBlock, toBlock),
+        this._pollBridgeToBesu(fromBlock, toBlock)
       ]);
 
       this.lastProcessedBlock = toBlock;
@@ -273,6 +292,25 @@ class AvalancheListener {
         error: error.message,
         fromBlock,
         toBlock
+      });
+    }
+  }
+
+  async _pollBridgeToBesu(fromBlock, toBlock) {
+    const usfciContract = avalancheService.getContract('usfci');
+    const filter = usfciContract.filters.TokensBridgedToBesu();
+    const events = await usfciContract.queryFilter(filter, fromBlock, toBlock);
+    for (const event of events) {
+      const { sender, targetBesu, amount } = event.args;
+      const eventId = `BridgeToBesu-${event.transactionHash}-${event.logIndex}`;
+      if (stateManager.isEventProcessed(eventId)) continue;
+      stateManager.markEventProcessed(eventId);
+      await this._handleEvent('USFCI_BRIDGE_IN', {
+        target: targetBesu,
+        amount: amount.toString(),
+        transactionHash: event.transactionHash,
+        blockNumber: event.blockNumber,
+        logIndex: event.logIndex
       });
     }
   }

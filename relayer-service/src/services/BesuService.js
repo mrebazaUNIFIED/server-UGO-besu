@@ -64,6 +64,12 @@ class BesuService {
         this.wallet
       );
 
+      this.contracts.usfci = new ethers.Contract(
+        BESU_CONTRACTS.usfci.address,
+        BESU_CONTRACTS.usfci.abi,
+        this.wallet
+      );
+
       // Initialize WebSocket contracts (for listening)
       if (this.wsProvider !== this.httpProvider) {
         this.wsContracts.marketplaceBridge = new ethers.Contract(
@@ -77,6 +83,13 @@ class BesuService {
           BESU_CONTRACTS.loanRegistry.abi,
           this.wsProvider
         );
+
+        this.wsContracts.usfci = new ethers.Contract(
+          BESU_CONTRACTS.usfci.address,
+          BESU_CONTRACTS.usfci.abi,
+          this.wsProvider
+        );
+
       } else {
         // Fallback to HTTP contracts
         this.wsContracts = this.contracts;
@@ -121,6 +134,12 @@ class BesuService {
       this.wsContracts.loanRegistry = new ethers.Contract(
         BESU_CONTRACTS.loanRegistry.address,
         BESU_CONTRACTS.loanRegistry.abi,
+        this.wsProvider
+      );
+
+      this.wsContracts.usfci = new ethers.Contract(
+        BESU_CONTRACTS.usfci.address,
+        BESU_CONTRACTS.usfci.abi,
         this.wsProvider
       );
 
@@ -263,6 +282,30 @@ class BesuService {
   /**
    * Record ownership transfer in MarketplaceBridge
    */
+  async mintTokens(recipient, amount, reserveProof) {
+    try {
+      logger.info('Minting USFCI on Besu', {
+        recipient,
+        amount: ethers.formatUnits(amount, 18),
+        reserveProof
+      });
+      const tx = await this.contracts.usfci.mintTokens(
+        recipient, amount, reserveProof,
+        { gasLimit: 200000 }
+      );
+      const receipt = await tx.wait();
+      logger.info('USFCI minted on Besu', {
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber
+      });
+      return receipt;
+    } catch (error) {
+      logger.error('Failed to mint USFCI on Besu', { error: error.message });
+      throw error;
+    }
+  }
+
+
   async recordOwnershipTransfer(loanId, newOwner, salePrice) {
     try {
       logger.info('Recording ownership transfer in MarketplaceBridge', {

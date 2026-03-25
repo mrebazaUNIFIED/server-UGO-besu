@@ -10,17 +10,22 @@ class UserRegistryService {
     this.abi = ABIs.UserRegistry;
   }
 
-  // ESCRITURA: usa siempre process.env.PRIVATE_KEY
   getContract() {
-    const provider = getWriteProvider('users'); // 👈
+    const provider = getWriteProvider('users');
     const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     return new ethers.Contract(this.contractAddress, this.abi, wallet);
   }
 
-  // LECTURA: Round Robin
   getContractReadOnly() {
     const provider = readLoadBalancer.getProvider();
     return new ethers.Contract(this.contractAddress, this.abi, provider);
+  }
+
+  // ✅ NUEVO: instancia USFCI firmada por el deployer para grantRole
+  getUsfciAdminContract() {
+    const provider = getWriteProvider('users');
+    const adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    return new ethers.Contract(CONTRACTS.USFCI, ABIs.USFCI, adminWallet);
   }
 
   async registerUser(userData) {
@@ -60,7 +65,6 @@ class UserRegistryService {
         userData.role,
         { gasLimit: 500000 }
       );
-      console.log(`Transacción enviada: ${tx.hash}, esperando confirmación...`);
       const receipt = await tx.wait();
       console.log(`✓ Usuario registrado en bloque ${receipt.blockNumber}`);
 
@@ -75,15 +79,28 @@ class UserRegistryService {
       // 4. Registrar wallet en USFCI
       const walletPrivateKey = generated ? wallet.privateKey : process.env.PRIVATE_KEY;
       console.log('Registrando wallet en USFCI...');
-      await usfciService.registerWallet(walletPrivateKey, userData.organization, userData.userId, userData.role || 'user');
+      await usfciService.registerWallet(
+        walletPrivateKey,
+        userData.organization,
+        userData.userId,
+        userData.role
+      );
       console.log('✓ Wallet registrada en USFCI');
 
       // 5. Auto-aprobar KYC
       console.log('Aprobando KYC en USFCI...');
-      await usfciService.updateComplianceStatus(process.env.PRIVATE_KEY, userData.walletAddress, 'approved', 'low');
+      await usfciService.updateComplianceStatus(
+        process.env.PRIVATE_KEY,
+        userData.walletAddress,
+        'approved',
+        'low'
+      );
       console.log('✓ KYC aprobado');
 
-      // 6. Guardar datos locales (Dev)
+      // ✅ 6. Otorgar roles on-chain (solo admin recibe roles especiales)
+      await this._grantBlockchainRoles(userData.walletAddress, userData.role);
+
+      // 7. Guardar datos locales (Dev)
       if (generated) this._saveUserLocally(userData, wallet);
 
       return {
@@ -104,6 +121,37 @@ class UserRegistryService {
       throw error;
     }
   }
+
+  // ✅ NUEVO MÉTODO
+  // - admin   → MINTER_ROLE + BURNER_ROLE + COMPLIANCE_ROLE
+  // - operator / user → sin roles especiales (solo pueden transferir,
+  //   el contrato no exige rol para transfer(), solo KYC aprobado)
+  async _grantBlockchainRoles(walletAddress, role) {
+    if (role !== 'admin') {
+      console.log(`  → Rol "${role}": sin roles on-chain necesarios (transfer no requiere rol)`);
+      return;
+    }
+
+    console.log(`Otorgando roles on-chain para admin ${walletAddress}...`);
+    const usfci = this.getUsfciAdminContract();
+
+    const [MINTER_ROLE, BURNER_ROLE, COMPLIANCE_ROLE] = await Promise.all([
+      usfci.MINTER_ROLE(),
+      usfci.BURNER_ROLE(),
+      usfci.COMPLIANCE_ROLE()
+    ]);
+
+    await (await usfci.grantRole(MINTER_ROLE, walletAddress, { gasLimit: 100000 })).wait();
+    console.log(`  ✓ MINTER_ROLE     → ${walletAddress}`);
+
+    await (await usfci.grantRole(BURNER_ROLE, walletAddress, { gasLimit: 100000 })).wait();
+    console.log(`  ✓ BURNER_ROLE     → ${walletAddress}`);
+
+    await (await usfci.grantRole(COMPLIANCE_ROLE, walletAddress, { gasLimit: 100000 })).wait();
+    console.log(`  ✓ COMPLIANCE_ROLE → ${walletAddress}`);
+  }
+
+  // ── Sin cambios debajo ───────────────────────────────────────────────────
 
   async updateUser(walletAddress, updateData) {
     try {
@@ -130,8 +178,6 @@ class UserRegistryService {
     const receipt = await tx.wait();
     return { success: true, txHash: receipt.hash, blockNumber: receipt.blockNumber };
   }
-
-  // --- LECTURA ---
 
   async getUser(walletAddress) {
     return this._mapUser(await this.getContractReadOnly().getUser(walletAddress));
@@ -175,11 +221,15 @@ class UserRegistryService {
   }
 
   _saveUserLocally(userData, wallet) {
-    const userDataDir = path.join(__dirname, '..', '..', 'user-data');
+    const userDataDir = path.join(__dirname, '..', 'data');
     if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir, { recursive: true });
     const usersFile = path.join(userDataDir, 'users.json');
     let users = fs.existsSync(usersFile) ? JSON.parse(fs.readFileSync(usersFile)) : {};
-    users[userData.userId] = { ...userData, privateKey: wallet.privateKey, mnemonic: wallet.mnemonic.phrase };
+    users[userData.userId] = {
+      ...userData,
+      privateKey: wallet.privateKey,
+      mnemonic: wallet.mnemonic.phrase
+    };
     fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
   }
 }

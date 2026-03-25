@@ -31,6 +31,10 @@ export const BESU_CONTRACTS = {
   loanRegistry: {
     address: process.env.BESU_LOAN_REGISTRY,            // sin _ADDRESS
     abi: loadABI('LoanRegistry.json')
+  },
+  usfci: {
+    address: process.env.BESU_USFCI_ADDRESS,
+    abi: loadABI('USFCI.json') // El ABI que tiene el evento TokensBurned
   }
 };
 

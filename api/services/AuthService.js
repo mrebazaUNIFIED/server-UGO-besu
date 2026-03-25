@@ -15,7 +15,7 @@ class AuthService {
     try {
       const data = await fs.readFile(this.usersFile, 'utf8');
       const usersData = JSON.parse(data);
-      
+
       // Convertir a instancias de User
       const users = {};
       for (const [key, userData] of Object.entries(usersData)) {
@@ -56,9 +56,9 @@ class AuthService {
 
   async login(address, password) {
     const users = await this.loadUsers();
-    
+
     // Buscar usuario por address (case-insensitive)
-    const user = Object.values(users).find(u => 
+    const user = Object.values(users).find(u =>
       u.address.toLowerCase() === address.toLowerCase()
     );
 
@@ -110,7 +110,7 @@ class AuthService {
 
   async getUserByAddress(address) {
     const users = await this.loadUsers();
-    return Object.values(users).find(u => 
+    return Object.values(users).find(u =>
       u.address.toLowerCase() === address.toLowerCase()
     );
   }
@@ -124,7 +124,7 @@ class AuthService {
   async getUserPrivateKey(userId) {
     const users = await this.loadUsers();
     const user = users[userId];
-    
+
     if (!user) {
       throw new Error('User not found');
     }
@@ -140,7 +140,7 @@ class AuthService {
   // Método para crear contraseña inicial
   async setInitialPassword(address, password) {
     const users = await this.loadUsers();
-    const userEntry = Object.entries(users).find(([_, u]) => 
+    const userEntry = Object.entries(users).find(([_, u]) =>
       u.address.toLowerCase() === address.toLowerCase()
     );
 

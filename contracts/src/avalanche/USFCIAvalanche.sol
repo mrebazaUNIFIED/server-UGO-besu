@@ -95,6 +95,13 @@ contract USFCI_Avalanche is
         uint256 timestamp
     );
 
+    event TokensBridgedToBesu(
+        address indexed sender,
+        address indexed targetBesu,
+        uint256 amount,
+        uint256 timestamp
+    );
+
     // ===== CONSTRUCTOR (deshabilitado para proxies UUPS) =====
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -331,6 +338,38 @@ contract USFCI_Avalanche is
             }
         }
         return result;
+    }
+
+    function bridgeToBesu(
+        address targetBesu,
+        uint256 amount
+    ) external whenNotPaused nonReentrant {
+        require(amount > 0, "USFCI: amount must be positive");
+        require(targetBesu != address(0), "USFCI: target is zero address");
+
+        // Verificamos balance disponible (respetando congelados por compliance)
+        _requireUnfrozenBalance(msg.sender, amount);
+
+        // 1. Quemamos en la red pública
+        _burn(msg.sender, amount);
+
+        // 2. Registramos para auditoría de reservas
+        _burnRecords.push(
+            BurnRecord({
+                wallet: msg.sender,
+                amount: amount,
+                reason: "Bridge back to Besu",
+                timestamp: block.timestamp
+            })
+        );
+
+        // 3. Emitimos el evento que el Relayer escuchará en la red pública
+        emit TokensBridgedToBesu(
+            msg.sender,
+            targetBesu,
+            amount,
+            block.timestamp
+        );
     }
 
     /// @notice Estadísticas generales del token

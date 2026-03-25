@@ -1,5 +1,7 @@
 const usfciService = require('../services/USFCIService');
+const usfciAvalancheService = require('../services/USFCIAvalancheService');
 const authService = require('../services/AuthService');
+
 
 // Función helper para convertir BigInt a string
 const serializeBigInt = (obj) => {
@@ -335,7 +337,106 @@ const getStatistics = async (req, res, next) => {
   }
 };
 
+
+// ==================== AVALANCHE ====================
+
+/**
+ * POST /api/usfci/avalanche/mint
+ * Mintea USFCI directamente en Avalanche C-Chain.
+ * Solo Sunwest (admin con MINTER_ROLE en el contrato Avalanche) puede usarlo.
+ */
+const mintAvalanche = async (req, res, next) => {
+  try {
+    const { recipient, amount, reserveProof } = req.body;
+
+    if (!recipient || !amount || !reserveProof) {
+      return res.status(400).json({
+        success: false,
+        error: 'recipient, amount y reserveProof son requeridos'
+      });
+    }
+
+    // Recuperar la PK de quien está autenticado (debe ser Sunwest con MINTER_ROLE en Avalanche)
+    const privateKey = await authService.getUserPrivateKey(req.user.userId);
+    const result = await usfciAvalancheService.mintTokens(privateKey, recipient, amount, reserveProof);
+    const serializedResult = serializeBigInt(result);
+
+    res.json({ success: true, data: serializedResult });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/usfci/avalanche/bridge-to-besu
+ * El usuario quema tokens en Avalanche → el Relayer mintea en Besu automáticamente.
+ */
+const bridgeToBesuFromAvalanche = async (req, res, next) => {
+  try {
+    const { targetBesu, amount } = req.body;
+
+    if (!targetBesu || !amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'targetBesu y amount son requeridos'
+      });
+    }
+
+    const privateKey = await authService.getUserPrivateKey(req.user.userId);
+    const result = await usfciAvalancheService.bridgeToBesu(privateKey, targetBesu, amount);
+    const serializedResult = serializeBigInt(result);
+
+    res.json({ success: true, data: serializedResult });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/usfci/avalanche/balance/:walletAddress
+ * Balance disponible de una wallet en Avalanche C-Chain.
+ */
+const getAvalancheBalance = async (req, res, next) => {
+  try {
+    const { walletAddress } = req.params;
+    const balance = await usfciAvalancheService.getBalance(walletAddress);
+    const available = await usfciAvalancheService.getAvailableBalance(walletAddress);
+    res.json({
+      success: true,
+      data: { walletAddress, balance, availableBalance: available, network: 'avalanche-fuji' }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/usfci/avalanche/statistics
+ * Estadísticas del token USFCI en Avalanche.
+ */
+const getAvalancheStatistics = async (req, res, next) => {
+  try {
+    const stats = await usfciAvalancheService.getStatistics();
+    res.json({ success: true, data: { ...stats, network: 'avalanche-fuji' } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/usfci/avalanche/history/mints
+ */
+const getAvalancheMintRecords = async (req, res, next) => {
+  try {
+    const records = await usfciAvalancheService.getAllMintRecords();
+    res.json({ success: true, data: records });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+
   initLedger,
   pause,
   unpause,
@@ -356,5 +457,11 @@ module.exports = {
   getTransactionHistory,
   getMyTransactions,
   getWalletCompleteHistory,
-  getStatistics
+  getStatistics,
+  // Avalanche
+  mintAvalanche,
+  bridgeToBesuFromAvalanche,
+  getAvalancheBalance,
+  getAvalancheStatistics,
+  getAvalancheMintRecords
 };

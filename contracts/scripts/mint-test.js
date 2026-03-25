@@ -6,7 +6,7 @@ async function main() {
 
   const usfci = await hre.ethers.getContractAt(
     "USFCI_Avalanche",
-    "0x924Ea78fB94818dCC2b96BD591de35577F84984d"
+    "0x00491756F7778d623c271733D0477609d6791A98"
   );
 
   // Verificar info del contrato

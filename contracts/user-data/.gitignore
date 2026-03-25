@@ -1,4 +1,0 @@
-# NO commitear private keys
-users.json
-*.json
-!deployment.json

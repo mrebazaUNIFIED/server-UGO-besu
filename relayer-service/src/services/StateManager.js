@@ -1,4 +1,11 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import logger from '../utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const STATE_FILE = path.join(__dirname, '../../data/relayer-state.json');
 
 /**
  * Manage relayer state in memory
@@ -33,6 +40,39 @@ class StateManager {
       salesRecorded: 0,
       paymentsDistributed: 0
     };
+
+    this.loadState();
+  }
+
+  // ──────────────────────────────────────────────
+  // State Persistence
+  // ──────────────────────────────────────────────
+  loadState() {
+    try {
+      if (fs.existsSync(STATE_FILE)) {
+        const data = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+        if (data.syncState) this.syncState = data.syncState;
+        if (data.processedEvents) this.processedEvents = new Set(data.processedEvents);
+        logger.info('State loaded successfully', { processedEventsCount: this.processedEvents.size });
+      } else {
+        const dir = path.dirname(STATE_FILE);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch (error) {
+      logger.error('Failed to load state', { error: error.message });
+    }
+  }
+
+  saveState() {
+    try {
+      const state = {
+        syncState: this.syncState,
+        processedEvents: Array.from(this.processedEvents)
+      };
+      fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+    } catch (error) {
+      logger.error('Failed to save state', { error: error.message });
+    }
   }
 
   // ──────────────────────────────────────────────
@@ -43,6 +83,7 @@ class StateManager {
       this.syncState[chain].lastBlock = blockNumber;
       this.syncState[chain].lastSync = new Date();
       logger.debug(`Sync state updated`, { chain, blockNumber });
+      this.saveState();
     }
   }
 
@@ -150,6 +191,8 @@ class StateManager {
         remaining: this.processedEvents.size
       });
     }
+
+    this.saveState();
   }
 
   // ──────────────────────────────────────────────
