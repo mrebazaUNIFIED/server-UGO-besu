@@ -7,10 +7,13 @@ class USFCIBridgeInHandler extends BaseHandler {
   constructor() { super('USFCIBridgeInHandler'); }
 
   async process(event) {
-    const { target, amount, transactionHash } = event;
-    const stateKey = `bridge_in_${transactionHash}`;
+    const { target, amount, transactionHash, logIndex } = event;
+    const eventId = `BridgeToBesu-${transactionHash}-${logIndex || 0}`;
 
-    if (stateManager.isEventProcessed(stateKey)) return { success: true };
+    if (stateManager.isEventProcessed(eventId)) {
+      logger.info('Skipping already processed Bridge IN event', { eventId });
+      return { success: true };
+    }
 
     try {
       logger.info(`🔙 Bridge IN: Restaurando ${amount} en Besu para: ${target}`);
@@ -19,7 +22,7 @@ class USFCIBridgeInHandler extends BaseHandler {
       // Importante: BesuService debe tener implementado mintTokens
       const receipt = await besuService.mintTokens(target, amount, proof);
 
-      stateManager.markEventProcessed(stateKey);
+      stateManager.markEventProcessed(eventId);
       logger.info(`✅ Bridge IN completado en Besu. Tx: ${receipt.hash}`);
       return { success: true };
     } catch (error) {

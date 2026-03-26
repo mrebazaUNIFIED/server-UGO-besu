@@ -57,8 +57,8 @@ async function processEvent(event) {
         handler = new PaymentReceivedHandler();
         break;
       case 'USFCI_TokensBurned':
-        handler = new USFCIBurnHandler();
-        break;
+        logger.info('USFCI_TokensBurned event received - no handler implemented yet');
+        return;
       case 'USFCI_BRIDGE_OUT':
         handler = new USFCIBridgeOutHandler();
         break;

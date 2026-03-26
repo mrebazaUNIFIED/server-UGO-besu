@@ -102,9 +102,16 @@ class AvalancheListener {
       const txHash = eventObj?.log?.transactionHash;
       if (!txHash) return;
 
+      logger.info('🔔 EVENTO DETECTADO (AVAX): TokensBridgedToBesu', {
+        sender,
+        targetBesu,
+        amount: amount.toString(),
+        txHash
+      });
+
       const eventId = `BridgeToBesu-${txHash}-${eventObj?.log?.index || 0}`;
       if (stateManager.isEventProcessed(eventId)) return;
-      stateManager.markEventProcessed(eventId);
+      // stateManager.markEventProcessed(eventId); // MOVED TO HANDLER
 
       await this._handleEvent('USFCI_BRIDGE_IN', {
         target: targetBesu,
@@ -304,7 +311,15 @@ class AvalancheListener {
       const { sender, targetBesu, amount } = event.args;
       const eventId = `BridgeToBesu-${event.transactionHash}-${event.logIndex}`;
       if (stateManager.isEventProcessed(eventId)) continue;
-      stateManager.markEventProcessed(eventId);
+
+      logger.info('🔔 EVENTO DETECTADO (POLL): TokensBridgedToBesu', {
+        sender,
+        targetBesu,
+        amount: amount.toString(),
+        txHash: event.transactionHash
+      });
+
+      // stateManager.markEventProcessed(eventId); // MOVED TO HANDLER
       await this._handleEvent('USFCI_BRIDGE_IN', {
         target: targetBesu,
         amount: amount.toString(),

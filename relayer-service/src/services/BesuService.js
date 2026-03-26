@@ -99,10 +99,18 @@ class BesuService {
       const network = await this.httpProvider.getNetwork();
       const balance = await this.httpProvider.getBalance(this.wallet.address);
 
+      // --- Role Verification ---
+      const MINTER_ROLE = ethers.id('MINTER_ROLE');
+      const hasMinterRole = await this.contracts.usfci.hasRole(MINTER_ROLE, this.wallet.address);
+      const isPaused = await this.contracts.usfci.paused();
+      // -------------------------
+
       logger.info('Besu service initialized', {
         chainId: network.chainId.toString(),
         relayerAddress: this.wallet.address,
-        balance: ethers.formatEther(balance)
+        balance: ethers.formatEther(balance),
+        hasMinterRole,
+        isPaused
       });
 
     } catch (error) {
@@ -289,9 +297,16 @@ class BesuService {
         amount: ethers.formatUnits(amount, 18),
         reserveProof
       });
+
+      // Validar si la wallet está registrada en Besu (Requerimiento del contrato)
+      const account = await this.contracts.usfci.accounts(recipient);
+      if (!account.exists) {
+        throw new Error(`Recipient wallet ${recipient} is not registered on Besu USFCI contract`);
+      }
+
       const tx = await this.contracts.usfci.mintTokens(
         recipient, amount, reserveProof,
-        { gasLimit: 200000 }
+        { gasLimit: 500000 }
       );
       const receipt = await tx.wait();
       logger.info('USFCI minted on Besu', {
@@ -300,7 +315,28 @@ class BesuService {
       });
       return receipt;
     } catch (error) {
-      logger.error('Failed to mint USFCI on Besu', { error: error.message });
+      // Intento de obtener el motivo real del revert
+      let reason = error.message;
+      try {
+        if (error.transaction) {
+          const revertData = await this.httpProvider.call({
+            to: error.transaction.to,
+            from: error.transaction.from,
+            data: error.transaction.data,
+            value: error.transaction.value,
+            blockTag: 'latest'
+          });
+          reason = `Revert reason decoded: ${revertData}`;
+        }
+      } catch (e) {
+        reason = `${error.message} (Call failed: ${e.message})`;
+      }
+
+      logger.error('Failed to mint USFCI on Besu', { 
+        error: reason,
+        data: error.data,
+        transaction: error.transaction
+      });
       throw error;
     }
   }

@@ -117,6 +117,25 @@ class USFCIService extends BaseContractService {
   }
 
   /**
+   * Enviar tokens de Besu a Avalanche (Bridge OUT)
+   */
+  async bridgeToAvalanche(privateKey, targetAvalanche, amount) {
+    const contract = this.getContract(privateKey);
+    const tx = await contract.bridgeToAvalanche(targetAvalanche, amount, {
+      gasLimit: 300000
+    });
+    const receipt = await tx.wait();
+
+    return {
+      success: true,
+      txHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      targetAvalanche,
+      amount: amount.toString()
+    };
+  }
+
+  /**
    * Actualizar estado de compliance (requiere COMPLIANCE_ROLE)
    */
   async updateComplianceStatus(privateKey, walletAddress, kycStatus, riskScore) {

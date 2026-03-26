@@ -94,11 +94,19 @@ class AvalancheService {
       const network = await this.httpProvider.getNetwork();
       const balance = await this.httpProvider.getBalance(this.wallet.address);
 
+      // --- Role Verification ---
+      const MINTER_ROLE = ethers.id('MINTER_ROLE');
+      const hasMinterRole = await this.contracts.usfci.hasRole(MINTER_ROLE, this.wallet.address);
+      const isPaused = await this.contracts.usfci.paused();
+      // -------------------------
+
       logger.info('Avalanche service initialized', {
         chainId: network.chainId.toString(),
         relayerAddress: this.wallet.address,
         balance: ethers.formatEther(balance),
-        usfciAddress: AVALANCHE_CONTRACTS.usfci.address   // ✅ NUEVO
+        usfciAddress: AVALANCHE_CONTRACTS.usfci.address,
+        hasMinterRole,
+        isPaused
       });
 
     } catch (error) {
@@ -156,7 +164,7 @@ class AvalancheService {
 
       const tx = await this.contracts.usfci.mintTokens(
         recipient, amount, reserveProof,
-        { gasLimit: 200000 }
+        { gasLimit: 500000 }
       );
 
       logger.info('USFCI mint tx sent', { txHash: tx.hash });
@@ -166,13 +174,35 @@ class AvalancheService {
         txHash: receipt.hash,
         blockNumber: receipt.blockNumber,
         amount: ethers.formatUnits(amount, 18),
-        recipient: distributorAddress
+        recipient
       });
 
       return receipt;
 
     } catch (error) {
-      logger.error('Failed to mint USFCI', { error: error.message, amount: amount.toString() });
+      // Intento de obtener el motivo real del revert
+      let reason = error.message;
+      try {
+        if (error.transaction) {
+          const revertData = await this.httpProvider.call({
+            to: error.transaction.to,
+            from: error.transaction.from,
+            data: error.transaction.data,
+            value: error.transaction.value,
+            blockTag: 'latest'
+          });
+          reason = `Revert reason decoded: ${revertData}`;
+        }
+      } catch (e) {
+        reason = `${error.message} (Call failed: ${e.message})`;
+      }
+
+      logger.error('Failed to mint USFCI', { 
+        error: reason, 
+        amount: amount.toString(),
+        data: error.data,
+        transaction: error.transaction
+      });
       throw error;
     }
   }

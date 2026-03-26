@@ -19,6 +19,7 @@ const {
   mintTokens,
   burnTokens,
   transfer,
+  bridgeToAvalanche,
 
   // Compliance
   updateComplianceStatus,
@@ -65,6 +66,7 @@ router.get('/admin/statistics', getStatistics);
 router.post('/tokens/mint', authorize('admin'), mintTokens);
 router.post('/tokens/burn', authorize('admin'), burnTokens);
 router.post('/tokens/transfer', transfer);
+router.post('/tokens/bridge-to-avalanche', bridgeToAvalanche);
 
 // ==========================================
 // HISTORIAL - Rutas globales

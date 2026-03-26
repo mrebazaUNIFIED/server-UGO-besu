@@ -38,7 +38,7 @@ const features = [
 
 export const Hero = () => {
   const [balance, setBalance] = useState<number>(
-    parseFloat(import.meta.env.VITE_APP_ORIGINALBALANCE ?? '0')
+    parseFloat('0')
   );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

@@ -7,10 +7,13 @@ class USFCIBridgeOutHandler extends BaseHandler {
   constructor() { super('USFCIBridgeOutHandler'); }
 
   async process(event) {
-    const { target, amount, transactionHash } = event;
-    const stateKey = `bridge_out_${transactionHash}`;
+    const { target, amount, transactionHash, logIndex } = event;
+    const eventId = `BridgeToAvalanche-${transactionHash}-${logIndex || 0}`;
 
-    if (stateManager.isEventProcessed(stateKey)) return { success: true };
+    if (stateManager.isEventProcessed(eventId)) {
+      logger.info('Skipping already processed Bridge OUT event', { eventId });
+      return { success: true };
+    }
 
     try {
       logger.info(`🌉 Bridge OUT: Enviando ${amount} a Avalanche wallet: ${target}`);
@@ -19,7 +22,7 @@ class USFCIBridgeOutHandler extends BaseHandler {
       const proof = `BESU_TX_${transactionHash}`;
       const receipt = await avalancheService.mintUSFCI(target, amount, proof);
 
-      stateManager.markEventProcessed(stateKey);
+      stateManager.markEventProcessed(eventId);
       logger.info(`✅ Bridge OUT completado. Avax Tx: ${receipt.hash}`);
       return { success: true };
     } catch (error) {

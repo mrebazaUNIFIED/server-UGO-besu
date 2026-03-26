@@ -198,6 +198,27 @@ const transfer = async (req, res, next) => {
   }
 };
 
+const bridgeToAvalanche = async (req, res, next) => {
+  try {
+    const { targetAvalanche, amount } = req.body;
+
+    if (!targetAvalanche || !amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'targetAvalanche and amount are required'
+      });
+    }
+
+    const privateKey = await authService.getUserPrivateKey(req.user.userId);
+    const result = await usfciService.bridgeToAvalanche(privateKey, targetAvalanche, amount);
+    const serializedResult = serializeBigInt(result);
+
+    res.json({ success: true, data: serializedResult });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 const updateComplianceStatus = async (req, res, next) => {
   try {
@@ -447,6 +468,7 @@ module.exports = {
   mintTokens,
   burnTokens,
   transfer,
+  bridgeToAvalanche,
   updateComplianceStatus,
   // Historial
   getAllMintRecords,
