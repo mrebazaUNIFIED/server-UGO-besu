@@ -89,6 +89,7 @@ export const updateComplianceStatus = async (address: string, data: { kycStatus:
 // Avalanche
 export const mintAvalanche = async (data: { recipient: string, amount: string, reserveProof: string }): Promise<GenericActionResponse> => (await api.post('/usfci/avalanche/mint', data)).data;
 export const bridgeToBesuFromAvalanche = async (data: { targetBesu: string, amount: string }): Promise<GenericActionResponse> => (await api.post('/usfci/avalanche/bridge-to-besu', data)).data;
+export const transferAvalanche = async (data: { recipient: string, amount: string }): Promise<GenericActionResponse> => (await api.post('/usfci/avalanche/transfer', data)).data;
 export const getAvalancheBalance = async (address: string): Promise<any> => (await api.get(`/usfci/avalanche/balance/${address}`)).data;
 export const getAvalancheStatistics = async (): Promise<AvalancheStatisticsResponse> => (await api.get('/usfci/avalanche/statistics')).data;
 export const getAvalancheMintRecords = async (): Promise<AvalancheMintRecordsResponse> => (await api.get('/usfci/avalanche/history/mints')).data;
@@ -283,6 +284,16 @@ export const useBridgeToBesuMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: bridgeToBesuFromAvalanche,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usfciKeys.all });
+    },
+  });
+};
+
+export const useTransferAvalancheMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: transferAvalanche,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: usfciKeys.all });
     },

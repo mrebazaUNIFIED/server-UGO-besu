@@ -414,6 +414,31 @@ const bridgeToBesuFromAvalanche = async (req, res, next) => {
 };
 
 /**
+ * POST /api/usfci/avalanche/transfer
+ * Transferencia estándar de USFCI en Avalanche C-Chain.
+ */
+const transferAvalanche = async (req, res, next) => {
+  try {
+    const { recipient, amount } = req.body;
+
+    if (!recipient || !amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'recipient y amount son requeridos'
+      });
+    }
+
+    const privateKey = await authService.getUserPrivateKey(req.user.userId);
+    const result = await usfciAvalancheService.transfer(privateKey, recipient, amount);
+    const serializedResult = serializeBigInt(result);
+
+    res.json({ success: true, data: serializedResult });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/usfci/avalanche/balance/:walletAddress
  * Balance disponible de una wallet en Avalanche C-Chain.
  */
@@ -511,5 +536,6 @@ module.exports = {
   getAvalancheStatistics,
   getAvalancheMintRecords,
   getAvalancheTransferRecords,
-  getAvalancheBurnRecords
+  getAvalancheBurnRecords,
+  transferAvalanche
 };

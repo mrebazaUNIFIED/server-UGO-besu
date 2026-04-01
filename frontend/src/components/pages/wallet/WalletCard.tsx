@@ -1,91 +1,69 @@
-import { RiWalletLine } from "react-icons/ri";
-import usfciIcon from "../../../assets/usfci.svg";
-import { useMyWalletAddress, useBalance } from "../../../hooks/useApi";
-import { fromBaseUnits, formatUSFCI, formatUSD, truncateAddress } from "../../../lib/usfciUtils";
+import { fromBaseUnits, formatUSFCI, formatUSD } from "../../../lib/usfciUtils";
+import { useAuth } from "../../../hooks/useAuth";
+import { useBalance, useAvalancheBalance } from "../../../services/apiUsfci";
 import { ButtonSend } from "./ButtonSend";
+import { Server, Cpu } from "lucide-react";
 
 export const WalletCard = () => {
-  const { data: walletAddress, isLoading: loadingWallet, error: walletError } = useMyWalletAddress();
-  const { data: balanceData, isLoading: loadingBalance, error: balanceError } = useBalance(walletAddress || '');
+    const { user, loading: authLoading } = useAuth();
+    const walletAddress = (user as any)?.walletAddress || (user as any)?.address || '';
 
-  const isLoading = loadingBalance || loadingWallet;
-  const error = balanceError || walletError;
+    const { data: besuBalanceData, isLoading: loadingBesu } = useBalance(walletAddress);
+    const { data: avaBalanceData, isLoading: loadingAva } = useAvalancheBalance(walletAddress);
 
-  if (isLoading) {
+    const isLoading = authLoading || loadingBesu || loadingAva;
+
+    if (isLoading) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-[200px]">
+                <div className="bg-gray-900 rounded-[2rem] p-6 animate-pulse" />
+                <div className="bg-gray-900 rounded-[2rem] p-6 animate-pulse" />
+            </div>
+        );
+    }
+
+    const besuBalance = fromBaseUnits(besuBalanceData?.data?.balance || '0');
+    const avaBalance = fromBaseUnits(avaBalanceData?.data?.balance || '0');
+
     return (
-      <div className="w-full max-w-md h-[250px]">
-        <div className="bg-gradient-to-br from-[var(--negro-light)] via-[var(--negro)] to-[var(--rojo-oscuro)] text-white rounded-3xl border border-white/20 p-4 animate-pulse h-full flex flex-col justify-between">
-          {/* Header skeleton */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <div>
-                <div className="h-5 w-32 bg-white/20 rounded mb-2"></div>
-                <div className="h-3 w-40 bg-white/10 rounded"></div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-white/20 rounded-full"></div>
-              <div className="w-5 h-5 bg-white/20 rounded"></div>
-            </div>
-          </div>
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Besu Card */}
+                <div className="relative overflow-hidden rounded-[2.5rem] p-8 shadow-2xl text-white bg-black border border-gray-800 group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full group-hover:bg-emerald-500/20 transition-all" />
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+                                <Server size={20} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/70">Besu Network</span>
+                        </div>
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Available Balance</p>
+                        <h2 className="text-4xl font-black mb-2">{formatUSFCI(besuBalance, 2)} <span className="text-sm font-light text-gray-500">USFCI</span></h2>
+                        <p className="text-gray-500 text-sm font-medium italic">≈ {formatUSD(besuBalance)} USD</p>
+                    </div>
+                </div>
 
-          {/* Balance skeleton */}
-          <div className="flex flex-col items-center text-center flex-1 justify-center">
-            <div className="h-4 w-28 bg-white/20 rounded mb-4"></div>
-            <div className="h-12 w-40 bg-white/30 rounded mb-3"></div>
-            <div className="flex items-center space-x-2 mt-2">
-              <div className="h-3 w-24 bg-white/10 rounded"></div>
-              <div className="w-1 h-1 bg-white/30 rounded-full"></div>
-              <div className="h-3 w-20 bg-white/10 rounded"></div>
+                {/* Avalanche Card */}
+                <div className="relative overflow-hidden rounded-[2.5rem] p-8 shadow-2xl text-white bg-black border border-gray-800 group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-3xl rounded-full group-hover:bg-rose-500/20 transition-all" />
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 bg-rose-500/10 rounded-lg text-rose-400">
+                                <Cpu size={20} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/70">Avalanche Network</span>
+                        </div>
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Available Balance</p>
+                        <h2 className="text-4xl font-black mb-2">{formatUSFCI(avaBalance, 2)} <span className="text-sm font-light text-gray-500">USFCI</span></h2>
+                        <p className="text-gray-500 text-sm font-medium italic">≈ {formatUSD(avaBalance)} USD</p>
+                    </div>
+                </div>
             </div>
-          </div>
+
+            <div className="flex justify-center md:justify-start pt-2">
+                <ButtonSend />
+            </div>
         </div>
-      </div>
     );
-  }
-
-  if (error || !balanceData) {
-    return (
-      <div className="w-full max-w-md py-10 text-center text-red-600">
-        Failed to load balance
-      </div>
-    );
-  }
-
-  const balanceInBaseUnits = balanceData.data?.balance || '0';
-  const balanceInUSFCI = fromBaseUnits(balanceInBaseUnits);
-  const formattedBalance = formatUSFCI(balanceInUSFCI, 2);
-  const formattedUSD = formatUSD(balanceInUSFCI);
-
-  return (
-    <div
-      className="relative rounded-[2.5rem] p-10 overflow-hidden shadow-2xl text-white"
-      style={{
-        background: "linear-gradient(135deg, #8E0B27 0%, #200208 100%)"
-      }}>
-      <div className="relative z-10">
-        <div className="flex justify-between mb-12">
-          <div>
-            <p className="text-red-200 text-xs uppercase font-bold tracking-widest mb-1 opacity-70"> Available Balance
-            </p>
-            <h2 className="text-6xl font-bold">{formattedBalance} ≈ {formattedUSD}<span
-              className="text-2xl font-light opacity-50 italic">USFCI</span></h2>
-            <p className="text-red-300/40 text-lg mt-2 italic font-mono uppercase tracking-tighter">Sunwest Bank
-              Backed Reserves</p>
-          </div>
-          <div
-            className="w-24 h-24 bg-white/10 rounded-3xl backdrop-blur-xl flex items-center justify-center border border-white/10">
-            <img src={usfciIcon} alt="USFCI" className="w-24 h-24" />
-          </div>
-        </div>
-
-        <div className="flex space-x-4">
-          <ButtonSend />
-
-        </div>
-      </div>
-      <div className="absolute -right-20 -top-20 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
-      <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
-    </div>
-  );
 };

@@ -19,6 +19,8 @@ const USFCI_AVALANCHE_ABI = [
   'function getAllBurnRecords() external view returns (tuple(address wallet, uint256 amount, string reason, uint256 timestamp)[])',
   'function getAllTransferRecords() external view returns (tuple(address sender, address recipient, uint256 amount, uint256 timestamp)[])',
   'function frozenBalance(address wallet) external view returns (uint256)',
+  // Transfer standard ERC20
+  'function transfer(address recipient, uint256 amount) external returns (bool)',
   // Eventos
   'event TokensMinted(address indexed recipient, uint256 amount, string reserveProof, uint256 timestamp)',
   'event TokensBridgedToBesu(address indexed sender, address indexed targetBesu, uint256 amount, uint256 timestamp)',
@@ -79,6 +81,21 @@ class USFCIAvalancheService {
       txHash: receipt.hash,
       network: 'avalanche-fuji',
       targetBesu,
+      amount: amount.toString()
+    };
+  }
+
+  async transfer(privateKey, recipient, amount) {
+    const contract = this._getContract(privateKey);
+    const tx = await contract.transfer(recipient, amount, {
+      gasLimit: 200000
+    });
+    const receipt = await tx.wait();
+    return {
+      success: true,
+      txHash: receipt.hash,
+      network: 'avalanche-fuji',
+      recipient,
       amount: amount.toString()
     };
   }

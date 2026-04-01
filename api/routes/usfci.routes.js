@@ -41,7 +41,8 @@ const {
   getAvalancheStatistics,
   getAvalancheMintRecords,
   getAvalancheTransferRecords,
-  getAvalancheBurnRecords
+  getAvalancheBurnRecords,
+  transferAvalanche
 } = require('../controllers/usfciController');
 
 
@@ -112,6 +113,9 @@ router.post('/avalanche/mint', authorize('admin'), mintAvalanche);
 // Cualquier usuario autenticado puede iniciar bridge Avalanche → Besu
 // (quema en Avalanche, el Relayer mintea en Besu automáticamente)
 router.post('/avalanche/bridge-to-besu', bridgeToBesuFromAvalanche);
+
+// Transferencia estándar en Avalanche
+router.post('/avalanche/transfer', transferAvalanche);
 
 // Consultas públicas de Avalanche (no requieren auth)
 router.get('/avalanche/balance/:walletAddress', getAvalancheBalance);
