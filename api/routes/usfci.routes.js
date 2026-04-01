@@ -39,7 +39,9 @@ const {
   bridgeToBesuFromAvalanche,
   getAvalancheBalance,
   getAvalancheStatistics,
-  getAvalancheMintRecords
+  getAvalancheMintRecords,
+  getAvalancheTransferRecords,
+  getAvalancheBurnRecords
 } = require('../controllers/usfciController');
 
 
@@ -115,5 +117,7 @@ router.post('/avalanche/bridge-to-besu', bridgeToBesuFromAvalanche);
 router.get('/avalanche/balance/:walletAddress', getAvalancheBalance);
 router.get('/avalanche/statistics', getAvalancheStatistics);
 router.get('/avalanche/history/mints', authorize('admin', 'operator'), getAvalancheMintRecords);
+router.get('/avalanche/history/burns', authorize('admin', 'operator'), getAvalancheBurnRecords);
+router.get('/avalanche/history/transfers', authorize('admin', 'operator'), getAvalancheTransferRecords);
 
 module.exports = router;

@@ -1,204 +1,206 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { RiMoneyDollarCircleLine } from "react-icons/ri";
 import usfciIcon from "../../../assets/usfci.svg";
 import { LoadingOverlay } from '@mantine/core';
-import { useState } from "react";
 import { toast } from "react-toastify";
-import { useMyWalletAddress, useStatistics, useBurnTokens } from "../../../hooks/useApi";
-import { toBaseUnits, fromBaseUnits, formatUSFCI } from "../../../lib/usfciUtils";
+import { 
+    useStatistics, 
+    useAvalancheStatistics, 
+    useBurnTokensMutation, 
+    useBridgeToBesuMutation,
+    useBalance,
+    useAvalancheBalance
+} from "../../../services/apiUsfci";
+import { useAuth } from "../../../hooks/useAuth";
+import { toBaseUnits, formatUSFCI, fromBaseUnits, formatFromBaseUnits } from "../../../lib/usfciUtils";
+import { Network } from './Convert';
+import { ArrowRight, Info, ShieldAlert, History } from 'lucide-react';
 
-interface BurnFormData {
-    amount: string;
-    burnReason: string;
+interface BurnTokenProps {
+    network: Network;
 }
 
-export const BurnToken = () => {
-    const [formData, setFormData] = useState<BurnFormData>({
-        amount: '',
-        burnReason: 'redemption'
-    });
+export const BurnToken: React.FC<BurnTokenProps> = ({ network }) => {
+    const [amount, setAmount] = useState('');
+    const [reason, setReason] = useState('redemption');
 
-    // React Query hooks
-    const { data: walletData, isLoading: isLoadingWallet } = useMyWalletAddress();
-    const { data: statistics, isLoading: isLoadingStats } = useStatistics();
-    const { mutate: burn, isPending: isBurning } = useBurnTokens();
+    // Autenticación real
+    const { user, loading: authLoading } = useAuth();
+    const walletAddress = (user as any)?.walletAddress || (user as any)?.address || '';
+    
+    const { data: besuBalanceData, isLoading: isLoadingBesuBalance } = useBalance(walletAddress);
+    const { data: avaBalanceData, isLoading: isLoadingAvaBalance } = useAvalancheBalance(walletAddress);
+    
+    const { data: besuStats, isLoading: isLoadingBesuStats } = useStatistics();
+    const { data: avaStats, isLoading: isLoadingAvaStats } = useAvalancheStatistics();
+    
+    const { mutate: burnBesu, isPending: isBurningBesu } = useBurnTokensMutation();
+    const { mutate: bridgeAva, isPending: isBridgingAva } = useBridgeToBesuMutation();
 
-    const isLoading = isLoadingWallet || isLoadingStats || isBurning;
+    const isProcessing = network === 'besu' ? isBurningBesu : isBridgingAva;
+    const isLoading = authLoading || isLoadingBesuBalance || isLoadingBesuStats || isLoadingAvaStats || isProcessing || isLoadingAvaBalance;
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+    // El balance disponible para redimir es el balance del usuario, no el supply total
+    const userBalanceRaw = network === 'besu' ? (besuBalanceData?.data?.balance ?? '0') : (avaBalanceData?.data?.balance ?? '0');
+    const maxAmount = parseFloat(fromBaseUnits(userBalanceRaw));
 
-    const handleBurn = async () => {
-        if (!walletData || !formData.amount) {
-            toast.error('Please fill in all required fields.');
+    const handleRedeem = () => {
+        if (!walletAddress || !amount) {
+            toast.error('Please enter an amount.');
             return;
         }
 
-        const amount = parseFloat(formData.amount);
-
-        if (amount <= 0) {
-            toast.error('Amount must be a positive number.');
+        if (parseFloat(amount) > maxAmount) {
+            toast.error('Amount exceeds available supply.');
             return;
         }
 
-        // ✅ Validar contra el total supply convertido
-        if (statistics?.data?.totalSupply) {
-            const totalSupplyInUSFCI = fromBaseUnits(statistics.data.totalSupply);
-            if (amount > parseFloat(totalSupplyInUSFCI)) {
-                toast.error(`Amount exceeds available tokens. Maximum: ${formatUSFCI(totalSupplyInUSFCI, 2)} USFCI`);
-                return;
-            }
-        }
-
-        try {
-            // ✅ Convertir el monto a unidades base
-            const amountInBaseUnits = toBaseUnits(formData.amount);
-            
-            console.log('Burning:', {
-                amountEntered: formData.amount,
-                amountInBaseUnits: amountInBaseUnits,
-                walletAddress: walletData,
-                reason: formData.burnReason
-            });
-
-            burn(
-                {
-                    walletAddress: walletData,
-                    amount: amountInBaseUnits, // ✅ Enviar en unidades base
-                    reason: formData.burnReason || 'redemption'
-                },
+        const amountInBaseUnits = toBaseUnits(amount);
+        
+        if (network === 'besu') {
+            burnBesu(
+                { walletAddress, amount: amountInBaseUnits, reason },
                 {
                     onSuccess: () => {
-                        toast.success(`Successfully burned ${formData.amount} USFCI!`);
-                        setFormData({ amount: '', burnReason: 'redemption' });
+                        toast.success(`Successfully redeemed ${amount} USFCI for USD!`);
+                        setAmount('');
                     },
                     onError: (error: any) => {
-                        toast.error(`Burn failed: ${error.response?.data?.error || error.message}`);
-                        console.error('Burn error:', error);
+                        toast.error(`Redemption failed: ${error.response?.data?.error || error.message}`);
                     }
                 }
             );
-        } catch (error) {
-            toast.error('Invalid amount format');
-            console.error('Conversion error:', error);
+        } else {
+            // Avalanche redemption is bridge to Besu (burns on Ava)
+            bridgeAva(
+                { targetBesu: walletAddress, amount: amountInBaseUnits },
+                {
+                    onSuccess: () => {
+                        toast.success(`Bridge transaction initiated! ${amount} USFCI burned on Avalanche.`);
+                        setAmount('');
+                    },
+                    onError: (error: any) => {
+                        toast.error(`Bridge failed: ${error.response?.data?.error || error.message}`);
+                    }
+                }
+            );
         }
     };
 
-    // ✅ Convertir totalSupply de unidades base a USFCI legible
-    const totalSupplyInUSFCI = statistics?.data?.totalSupply 
-        ? fromBaseUnits(statistics.data.totalSupply) 
-        : '0';
-    const formattedTotalSupply = formatUSFCI(totalSupplyInUSFCI, 2);
-
-    const equivalentUSD = parseFloat(formData.amount) > 0 
-        ? formatUSFCI(formData.amount, 2)
-        : '';
-
-    // Validar si el monto excede el total supply
-    const exceedsSupply = formData.amount && statistics?.data?.totalSupply
-        ? parseFloat(formData.amount) > parseFloat(totalSupplyInUSFCI)
-        : false;
-
     return (
-        <div className="w-full py-12 px-4 flex flex-col items-center space-y-5 relative">
-            <LoadingOverlay visible={isLoading} overlayProps={{ radius: 'sm', blur: 2 }} />
-
-            {/* Title */}
-            <div className="max-w-2xl text-center space-y-10">
-                <h2 className="text-2xl font-bold text-gray-800">Redeem $USFCI for USD</h2>
-                <p className="mt-3 text-gray-600 text-base">
-                    Convert your{" "}
-                    <span className="font-semibold">$USFCI</span> tokens back to US dollars (USD).
-                    Your tokens will be burned and USD will be released from reserves held at Sunwest Bank.
-                    Enjoy secure and transparent redemption.
-                </p>
-
-                <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 border border-red-200">
-                    <p className="text-sm text-gray-600 mb-2">Total Supply Available</p>
-                    <h2 className="text-3xl font-bold text-gray-800">
-                        {formattedTotalSupply} <span className="text-xl text-gray-600">USFCI</span>
-                    </h2>
-                    <p className="text-sm text-gray-500 mt-1">≈ ${formattedTotalSupply} USD</p>
-                </div>
-            </div>
-
-            {/* Conversion Card */}
-            <div className="flex items-center justify-center w-full max-w-3xl">
-                <div className="p-8 flex items-center gap-12 w-full">
-                    {/* Left Input */}
-                    <div className="flex flex-col items-center flex-1">
-                        <img src={usfciIcon} alt="$USFCI" className="w-16 h-16 mb-3" />
-                        <div className="flex items-center justify-between w-full border-b-2 border-red-200 pb-2">
-                            <input
-                                type="number"
-                                name="amount"
-                                value={formData.amount}
-                                onChange={handleInputChange}
-                                placeholder="0.00"
-                                step="0.01"
-                                min="0"
-                                className="w-full text-xl font-semibold text-center text-gray-800 focus:outline-none focus:ring-0 bg-transparent"
-                                disabled={isLoading}
-                            />
-                            <span className="text-sm text-gray-500 ml-2">USFCI</span>
+        <div className="relative">
+            <LoadingOverlay visible={isLoading} overlayProps={{ radius: 'xl', blur: 2 }} />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                {/* Information Side */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="p-8 rounded-3xl border bg-amber-50 border-amber-100">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <Info size={18} className="text-amber-600" />
+                            Redemption Policy
+                        </h3>
+                        <p className="text-gray-600 leading-relaxed text-sm">
+                            When you redeem <span className="font-bold">USFCI</span>, the tokens are permanently destroyed (burned). 
+                            Sunwest Bank then releases the equivalent USD to your registered account.
+                        </p>
+                        
+                        <div className="mt-8 space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
+                                    <ShieldAlert size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Irreversible</p>
+                                    <p className="text-sm font-semibold text-gray-800">Burned tokens cannot be recovered</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
+                                    <History size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Processing Time</p>
+                                    <p className="text-sm font-semibold text-gray-800">Instant Burn / 1-2 Bank Days USD</p>
+                                </div>
+                            </div>
                         </div>
-                        {exceedsSupply && (
-                            <p className="text-red-500 text-xs mt-2 font-semibold">
-                                ⚠️ Exceeds available tokens
-                            </p>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">Enter amount to burn</p>
                     </div>
 
-                    {/* Arrow */}
-                    <div className="text-gray-400 text-3xl font-bold">→</div>
+                    <div className="bg-gray-900 rounded-3xl p-8 text-white relative overflow-hidden group">
+                        <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity ${network === 'besu' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mb-2">Available to Redeem ({network})</p>
+                        <h4 className="text-4xl font-black">{formatFromBaseUnits(userBalanceRaw, 2)}</h4>
+                        <p className="text-gray-400 text-sm mt-1 tracking-wide">Your personal USFCI balance available for redemption.</p>
+                    </div>
+                </div>
 
-                    {/* Right Output */}
-                    <div className="flex flex-col items-center flex-1">
-                        <RiMoneyDollarCircleLine className="w-16 h-16 mb-3 text-red-600" />
-                        <div className="flex items-center justify-between w-full border-b-2 border-gray-200 pb-2">
-                            <span className="text-xl font-semibold text-gray-800 text-center w-full">
-                                {equivalentUSD || '0.00'}
-                            </span>
-                            <span className="text-sm text-gray-500 ml-2">USD</span>
+                {/* Conversion Card Side */}
+                <div className="lg:col-span-3">
+                    <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 md:p-10 shadow-[0_10px_40px_rgba(0,0,0,0.02)]">
+                        <div className="space-y-8">
+                            {/* Conversion Inputs */}
+                            <div className="space-y-4">
+                                <div className="group transition-all duration-300">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">Tokens to Burn (USFCI)</label>
+                                    <div className="flex items-center bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-gray-200 transition-all">
+                                        <img src={usfciIcon} alt="USFCI" className="w-8 h-8 mr-4" />
+                                        <input 
+                                            type="number"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            placeholder="0.00"
+                                            className="bg-transparent text-2xl font-bold text-gray-900 outline-none w-full"
+                                        />
+                                        <span className="font-black text-gray-300 mr-4">USFCI</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-center -my-2 relative z-10">
+                                    <div className="p-4 rounded-2xl bg-white shadow-xl border border-gray-50 text-amber-500">
+                                        <ArrowRight size={24} className="rotate-90 md:rotate-0" />
+                                    </div>
+                                </div>
+
+                                <div className="group">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">USD to Receive (Bank Deposit)</label>
+                                    <div className="flex items-center rounded-2xl p-4 border-2 bg-gray-50 border-gray-100">
+                                        <RiMoneyDollarCircleLine className="text-gray-400 mr-4" size={32} />
+                                        <div className="text-2xl font-bold text-gray-900 w-full">
+                                            {formatUSFCI(amount || '0', 2)}
+                                        </div>
+                                        <span className="font-black text-gray-300 mr-4">USD</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Reason */}
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-4 block">Redemption Reason</label>
+                                <textarea 
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    placeholder="Brief reason for redemption..."
+                                    rows={2}
+                                    className="w-full bg-gray-50 border-2 border-transparent focus:border-gray-200 rounded-2xl p-4 outline-none text-sm font-medium text-gray-700 resize-none transition-all"
+                                />
+                            </div>
+
+                            {/* Action Button */}
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={handleRedeem}
+                                disabled={!amount || isProcessing}
+                                className={`w-full py-5 rounded-2xl text-white font-black text-lg tracking-wide shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-all
+                                    ${network === 'besu' ? 'bg-gray-900 shadow-gray-200 hover:bg-black' : 'bg-rose-900 shadow-rose-200 hover:bg-rose-950'}`}
+                            >
+                                {isProcessing ? 'PROCESSING...' : `INITIATE ${network.toUpperCase()} REDEMPTION`}
+                            </motion.button>
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">1 USFCI = 1 USD</p>
                     </div>
                 </div>
             </div>
-
-            {/* Burn Reason Input */}
-            <div className="w-full max-w-3xl">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Burn Reason
-                </label>
-                <p className="text-xs text-gray-500 mb-2">
-                    Specify the reason for burning tokens (default: redemption)
-                </p>
-                <textarea
-                    name="burnReason"
-                    value={formData.burnReason}
-                    onChange={handleInputChange}
-                    placeholder="redemption, regulatory compliance, etc."
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent resize-none disabled:bg-gray-100"
-                    disabled={isLoading}
-                />
-            </div>
-
-            {/* Burn Button */}
-            <div className="flex items-center justify-center">
-                <button
-                    onClick={handleBurn}
-                    disabled={!walletData || isLoading || !formData.amount || exceedsSupply}
-                    className="bg-red-600 cursor-pointer text-white py-3 px-8 rounded-lg font-semibold hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
-                >
-                    {isBurning ? 'Burning...' : 'Burn & Redeem Tokens'}
-                </button>
-            </div>
-
-           
         </div>
     );
 };

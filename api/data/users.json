@@ -10,7 +10,7 @@
     "passwordHash": "$2b$10$S3eXQR1xoX6LJgAEYZ1QOeLQi6bRzCbhOMf9v5hhhUj5Sc4zOMgpa",
     "initialBalance": "0",
     "createdAt": "2026-03-25T19:01:28.935Z",
-    "lastLogin": "2026-03-26T15:12:59.636Z"
+    "lastLogin": "2026-04-01T15:42:26.541Z"
   },
   "581c7abb8fbd4cc1ac69b9e7d81c95ed": {
     "userId": "581c7abb8fbd4cc1ac69b9e7d81c95ed",
@@ -34,6 +34,17 @@
     "mnemonic": "giggle garlic goddess option pave across song you own dismiss post found",
     "initialBalance": "0",
     "createdAt": "2026-03-25T19:01:28.935Z",
+    "lastLogin": null
+  },
+  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
+    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
+    "name": "Kyle",
+    "organization": "FCI",
+    "role": "operator",
+    "privateKey": "0x06f929a6239cfdb98d83b1fe3c3941b5b1412f822fcfa1512d6e72f219673beb",
+    "mnemonic": "cattle spend blanket avoid loud fatal sorry menu quiz mango myself forum",
+    "initialBalance": "0",
+    "createdAt": "2026-03-26T22:41:22.439Z",
     "lastLogin": null
   }
 }

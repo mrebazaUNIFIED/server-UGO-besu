@@ -1,7 +1,3 @@
-// services/USFCIAvalancheService.js
-// Servicio para interactuar con el contrato USFCI en Avalanche C-Chain (Fuji Testnet)
-// Usado por Sunwest para mintear capital nuevo directamente en la red pública.
-
 const { ethers } = require('ethers');
 require('dotenv').config();
 
@@ -21,10 +17,12 @@ const USFCI_AVALANCHE_ABI = [
   'function getStatistics() external view returns (uint256 totalMints, uint256 totalBurns, uint256 currentSupply)',
   'function getAllMintRecords() external view returns (tuple(address recipient, uint256 amount, string reserveProof, uint256 timestamp, address minter)[])',
   'function getAllBurnRecords() external view returns (tuple(address wallet, uint256 amount, string reason, uint256 timestamp)[])',
+  'function getAllTransferRecords() external view returns (tuple(address sender, address recipient, uint256 amount, uint256 timestamp)[])',
   'function frozenBalance(address wallet) external view returns (uint256)',
   // Eventos
   'event TokensMinted(address indexed recipient, uint256 amount, string reserveProof, uint256 timestamp)',
   'event TokensBridgedToBesu(address indexed sender, address indexed targetBesu, uint256 amount, uint256 timestamp)',
+  'event Transfer(address indexed from, address indexed to, uint256 value)'
 ];
 
 class USFCIAvalancheService {
@@ -33,10 +31,11 @@ class USFCIAvalancheService {
       console.warn('⚠️  AVALANCHE_USFCI_ADDRESS no está configurado en .env');
     }
     this.readProvider = new ethers.JsonRpcProvider(AVALANCHE_RPC_URL);
+    this.blockCache = new Map();
   }
 
   /**
-   * Obtener contrato con signer (para escritura — requiere privateKey)
+   * Obtener contrato con signer (para escritura)
    */
   _getContract(privateKey) {
     const wallet = new ethers.Wallet(privateKey, this.readProvider);
@@ -51,18 +50,9 @@ class USFCIAvalancheService {
   }
 
   // ============================================================
-  // ESCRITURA — Requiere MINTER_ROLE en el contrato Avalanche
+  // ESCRITURA
   // ============================================================
 
-  /**
-   * Mintear USFCI directamente en Avalanche.
-   * Solo puede llamarlo una cuenta con MINTER_ROLE (ej: Sunwest).
-   *
-   * @param {string} privateKey    - PK de Sunwest (admin con MINTER_ROLE)
-   * @param {string} recipient     - Wallet destino en Avalanche C-Chain
-   * @param {string|BigInt} amount - Cantidad en wei (1 USFCI = 1e18)
-   * @param {string} reserveProof  - Referencia bancaria (ej: "SUNWEST-REF-2026-001")
-   */
   async mintTokens(privateKey, recipient, amount, reserveProof) {
     const contract = this._getContract(privateKey);
     const tx = await contract.mintTokens(recipient, amount, reserveProof, {
@@ -72,22 +62,12 @@ class USFCIAvalancheService {
     return {
       success: true,
       txHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString(),
       network: 'avalanche-fuji',
       recipient,
       amount: amount.toString()
     };
   }
 
-  /**
-   * Iniciar bridge desde Avalanche → Besu.
-   * El usuario quema sus tokens en Avalanche y el Relayer mintea en Besu automáticamente.
-   *
-   * @param {string} privateKey  - PK del usuario que inicia el bridge
-   * @param {string} targetBesu  - Dirección destino en la red Besu
-   * @param {string|BigInt} amount
-   */
   async bridgeToBesu(privateKey, targetBesu, amount) {
     const contract = this._getContract(privateKey);
     const tx = await contract.bridgeToBesu(targetBesu, amount, {
@@ -97,12 +77,9 @@ class USFCIAvalancheService {
     return {
       success: true,
       txHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString(),
       network: 'avalanche-fuji',
       targetBesu,
-      amount: amount.toString(),
-      message: 'Bridge iniciado. El Relayer procesará el mint en Besu automáticamente.'
+      amount: amount.toString()
     };
   }
 
@@ -111,54 +88,126 @@ class USFCIAvalancheService {
   // ============================================================
 
   async getBalance(walletAddress) {
-    const contract = this._getReadContract();
-    const balance = await contract.balanceOf(walletAddress);
-    return balance.toString();
+    try {
+      const contract = this._getReadContract();
+      const balance = await contract.balanceOf(walletAddress);
+      return balance.toString();
+    } catch (e) { return "0"; }
   }
 
   async getAvailableBalance(walletAddress) {
-    const contract = this._getReadContract();
-    const available = await contract.availableBalance(walletAddress);
-    return available.toString();
+    try {
+      const contract = this._getReadContract();
+      const available = await contract.availableBalance(walletAddress);
+      return available.toString();
+    } catch (e) { return "0"; }
   }
 
   async getTotalSupply() {
-    const contract = this._getReadContract();
-    const supply = await contract.totalSupply();
-    return supply.toString();
+    try {
+      const contract = this._getReadContract();
+      const supply = await contract.totalSupply();
+      return supply.toString();
+    } catch (e) { return "0"; }
   }
 
   async getStatistics() {
-    const contract = this._getReadContract();
-    const stats = await contract.getStatistics();
-    return {
-      totalMints: stats.totalMints.toString(),
-      totalBurns: stats.totalBurns.toString(),
-      currentSupply: stats.currentSupply.toString()
-    };
+    try {
+      const contract = this._getReadContract();
+      const stats = await contract.getStatistics();
+      return {
+        totalMints: stats.totalMints.toString(),
+        totalBurns: stats.totalBurns.toString(),
+        currentSupply: stats.currentSupply.toString()
+      };
+    } catch (e) {
+      return { totalMints: "0", totalBurns: "0", currentSupply: "0" };
+    }
   }
 
   async getAllMintRecords() {
-    const contract = this._getReadContract();
-    const records = await contract.getAllMintRecords();
-    return records.map(r => ({
-      recipient: r.recipient,
-      amount: r.amount.toString(),
-      reserveProof: r.reserveProof,
-      timestamp: new Date(Number(r.timestamp) * 1000),
-      minter: r.minter
-    }));
+    try {
+      const contract = this._getReadContract();
+      const records = await contract.getAllMintRecords();
+      return records.map(r => ({
+        recipient: r.recipient,
+        amount: r.amount.toString(),
+        reserveProof: r.reserveProof,
+        timestamp: new Date(Number(r.timestamp) * 1000),
+        minter: r.minter
+      }));
+    } catch (e) { return []; }
   }
 
   async getAllBurnRecords() {
+    try {
+      const contract = this._getReadContract();
+      const records = await contract.getAllBurnRecords();
+      return records.map(r => ({
+        wallet: r.wallet,
+        amount: r.amount.toString(),
+        reason: r.reason,
+        timestamp: new Date(Number(r.timestamp) * 1000)
+      }));
+    } catch (e) { return []; }
+  }
+
+  async getAllTransferRecords() {
     const contract = this._getReadContract();
-    const records = await contract.getAllBurnRecords();
-    return records.map(r => ({
-      wallet: r.wallet,
-      amount: r.amount.toString(),
-      reason: r.reason,
-      timestamp: new Date(Number(r.timestamp) * 1000)
-    }));
+    
+    // Intento 1: Función de vista getAllTransferRecords (Patrón Besu)
+    try {
+      const records = await contract.getAllTransferRecords();
+      if (records && records.length > 0) {
+        return records.map(r => ({
+          senderAddress: r.sender,
+          recipientAddress: r.recipient,
+          amount: r.amount.toString(),
+          timestamp: new Date(Number(r.timestamp) * 1000),
+          network: 'avalanche-fuji',
+          txHash: 'view-sync'
+        }));
+      }
+    } catch (e) {
+      // No existe la función de vista, procedemos con eventos
+    }
+
+    // Intento 2: Eventos ERC20 Standard con limitación de rango
+    try {
+      const filter = contract.filters.Transfer();
+      // Fuji a veces falla si el bloque inicial es 0. Intentamos los últimos 5000 bloques.
+      const latestBlock = await this.readProvider.getBlockNumber();
+      const startBlock = Math.max(0, latestBlock - 5000); 
+      
+      const events = await contract.queryFilter(filter, startBlock, 'latest');
+
+      return Promise.all(events.map(async (event) => {
+        let timestamp;
+        if (this.blockCache.has(event.blockNumber)) {
+          timestamp = this.blockCache.get(event.blockNumber);
+        } else {
+          try {
+            const block = await this.readProvider.getBlock(event.blockNumber);
+            timestamp = block.timestamp;
+            this.blockCache.set(event.blockNumber, timestamp);
+          } catch (be) {
+            timestamp = Math.floor(Date.now() / 1000); // Fallback to now
+          }
+        }
+
+        return {
+          senderAddress: event.args[0],
+          recipientAddress: event.args[1],
+          amount: event.args[2].toString(),
+          timestamp: new Date(timestamp * 1000),
+          network: 'avalanche-fuji',
+          txHash: event.transactionHash
+        };
+      }));
+    } catch (error) {
+      console.error('Error fetching Avalanche transfers:', error);
+      return []; // Devolver vacío en lugar de 500
+    }
   }
 }
 

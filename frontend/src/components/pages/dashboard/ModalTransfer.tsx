@@ -9,7 +9,7 @@ import type { TransactionRecord } from "../../../types";
 interface ModalTransferProps {
     opened: boolean;
     onClose: () => void;
-    transaction: TransactionRecord | null;
+    transaction: any | null;
 }
 
 interface DetailRowProps {
@@ -56,8 +56,8 @@ export const ModalTransfer = ({
     if (!transaction) return null;
 
     const formattedTimestamp = new Date(transaction.timestamp).toLocaleString();
-    // ✅ Usar formatFromBaseUnits que maneja la conversión y formato correctamente
     const formattedAmount = formatFromBaseUnits(transaction.amount, 2);
+    const network = transaction.network || 'besu';
 
     const AddressCard = ({
         title,
@@ -152,7 +152,7 @@ export const ModalTransfer = ({
                                             </div>
                                             <DetailRow
                                                 label="Type"
-                                                value={transaction.settlementType}
+                                                value={transaction.settlementType || 'N/A'}
                                                 isBadge
                                             />
                                         </div>
@@ -161,6 +161,7 @@ export const ModalTransfer = ({
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <DetailRow label="Date & Time" value={formattedTimestamp} />
+                                            <DetailRow label="Network" value={network.toUpperCase()} />
                                         </div>
                                     </div>
 
@@ -174,13 +175,13 @@ export const ModalTransfer = ({
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
                                         <AddressCard
                                             title="Sender"
-                                            mspId={transaction.senderMspId}
+                                            mspId={transaction.senderMspId || "Public Network"}
                                             address={transaction.senderAddress}
                                             icon={<MdArrowUpward size={20} />}
                                         />
                                         <AddressCard
                                             title="Recipient"
-                                            mspId={transaction.recipientMspId}
+                                            mspId={transaction.recipientMspId || "Public Network"}
                                             address={transaction.recipientAddress}
                                             icon={<MdArrowDownward size={20} />}
                                         />

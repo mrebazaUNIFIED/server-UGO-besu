@@ -456,6 +456,30 @@ const getAvalancheMintRecords = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/usfci/avalanche/history/transfers
+ */
+const getAvalancheTransferRecords = async (req, res, next) => {
+  try {
+    const records = await usfciAvalancheService.getAllTransferRecords();
+    res.json({ success: true, data: records });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/usfci/avalanche/history/burns
+ */
+const getAvalancheBurnRecords = async (req, res, next) => {
+  try {
+    const records = await usfciAvalancheService.getAllBurnRecords();
+    res.json({ success: true, data: records });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
 
   initLedger,
@@ -485,5 +509,7 @@ module.exports = {
   bridgeToBesuFromAvalanche,
   getAvalancheBalance,
   getAvalancheStatistics,
-  getAvalancheMintRecords
+  getAvalancheMintRecords,
+  getAvalancheTransferRecords,
+  getAvalancheBurnRecords
 };

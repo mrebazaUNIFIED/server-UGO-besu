@@ -11,6 +11,8 @@ const Home = () => {
             <div>
               <h2 className="text-5xl font-bold">Network <span className="text-(--rojo)">Status</span></h2>
               <p className="text-gray-500 text-xl">USFCI's real-time global monitoring.</p>
+
+
             </div>
             <div className="text-right">
               <p className="text-[18px] text-gray-500 uppercase font-bold tracking-widest">Maximum transaction amount</p>
