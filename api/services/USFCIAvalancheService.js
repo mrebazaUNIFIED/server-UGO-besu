@@ -56,48 +56,99 @@ class USFCIAvalancheService {
   // ============================================================
 
   async mintTokens(privateKey, recipient, amount, reserveProof) {
-    const contract = this._getContract(privateKey);
-    const tx = await contract.mintTokens(recipient, amount, reserveProof, {
-      gasLimit: 200000
-    });
-    const receipt = await tx.wait();
-    return {
-      success: true,
-      txHash: receipt.hash,
-      network: 'avalanche-fuji',
-      recipient,
-      amount: amount.toString()
-    };
+    try {
+      const contract = this._getContract(privateKey);
+      
+      // Intentar estimar gas para mayor precisión, con fallback de 500k
+      let gasLimit;
+      try {
+        gasLimit = await contract.mintTokens.estimateGas(recipient, amount, reserveProof);
+        // Agregar un margen del 30% por seguridad (storage expansion)
+        gasLimit = (gasLimit * 130n) / 100n;
+      } catch (e) {
+        console.warn('⚠️ No se pudo estimar gas, usando fallback de 500,000');
+        gasLimit = 500000n;
+      }
+
+      const tx = await contract.mintTokens(recipient, amount, reserveProof, {
+        gasLimit: gasLimit
+      });
+
+      const receipt = await tx.wait();
+      return {
+        success: true,
+        txHash: receipt.hash,
+        network: 'avalanche-fuji',
+        recipient,
+        amount: amount.toString(),
+        gasUsed: receipt.gasUsed.toString()
+      };
+    } catch (error) {
+      console.error('❌ Error in mintTokens (Avalanche):', error);
+      throw error;
+    }
   }
 
   async bridgeToBesu(privateKey, targetBesu, amount) {
-    const contract = this._getContract(privateKey);
-    const tx = await contract.bridgeToBesu(targetBesu, amount, {
-      gasLimit: 200000
-    });
-    const receipt = await tx.wait();
-    return {
-      success: true,
-      txHash: receipt.hash,
-      network: 'avalanche-fuji',
-      targetBesu,
-      amount: amount.toString()
-    };
+    try {
+      const contract = this._getContract(privateKey);
+      
+      let gasLimit;
+      try {
+        gasLimit = await contract.bridgeToBesu.estimateGas(targetBesu, amount);
+        gasLimit = (gasLimit * 130n) / 100n;
+      } catch (e) {
+        gasLimit = 400000n;
+      }
+
+      const tx = await contract.bridgeToBesu(targetBesu, amount, {
+        gasLimit: gasLimit
+      });
+
+      const receipt = await tx.wait();
+      return {
+        success: true,
+        txHash: receipt.hash,
+        network: 'avalanche-fuji',
+        targetBesu,
+        amount: amount.toString(),
+        gasUsed: receipt.gasUsed.toString()
+      };
+    } catch (error) {
+      console.error('❌ Error in bridgeToBesu (Avalanche):', error);
+      throw error;
+    }
   }
 
   async transfer(privateKey, recipient, amount) {
-    const contract = this._getContract(privateKey);
-    const tx = await contract.transfer(recipient, amount, {
-      gasLimit: 200000
-    });
-    const receipt = await tx.wait();
-    return {
-      success: true,
-      txHash: receipt.hash,
-      network: 'avalanche-fuji',
-      recipient,
-      amount: amount.toString()
-    };
+    try {
+      const contract = this._getContract(privateKey);
+      
+      let gasLimit;
+      try {
+        gasLimit = await contract.transfer.estimateGas(recipient, amount);
+        gasLimit = (gasLimit * 120n) / 100n; // Margen menor para transferencias
+      } catch (e) {
+        gasLimit = 150000n;
+      }
+
+      const tx = await contract.transfer(recipient, amount, {
+        gasLimit: gasLimit
+      });
+
+      const receipt = await tx.wait();
+      return {
+        success: true,
+        txHash: receipt.hash,
+        network: 'avalanche-fuji',
+        recipient,
+        amount: amount.toString(),
+        gasUsed: receipt.gasUsed.toString()
+      };
+    } catch (error) {
+      console.error('❌ Error in transfer (Avalanche):', error);
+      throw error;
+    }
   }
 
   // ============================================================

@@ -54,6 +54,9 @@ const getUser = async (req, res, next) => {
   try {
     const { walletAddress } = req.params;
     const user = await userService.getUser(walletAddress);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
     res.json({ success: true, data: serializeBigInt(user) });
   } catch (error) {
     console.error('❌ getUser:', error.message);
@@ -65,6 +68,9 @@ const getUserByUserId = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const user = await userService.getUserByUserId(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
     res.json({ success: true, data: serializeBigInt(user) });
   } catch (error) {
     console.error('❌ getUserByUserId:', error.message);

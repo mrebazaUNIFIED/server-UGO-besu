@@ -40,64 +40,77 @@ class UserRegistryService {
     }
 
     try {
-      // 1. Financiar si es necesario
-      if (userData.initialBalance) {
-        const provider = getWriteProvider('users');
-        const funderWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-        console.log(`Financiando ${userData.walletAddress} con ${userData.initialBalance} ETH...`);
-        const fundTx = await funderWallet.sendTransaction({
-          to: userData.walletAddress,
-          value: ethers.parseEther(userData.initialBalance.toString()),
-          gasLimit: 21000
-        });
-        await fundTx.wait();
-        console.log(`✓ Financiado con ${userData.initialBalance} ETH`);
+      const contract = this.getContract();
+      
+      // ✅ 0. Verificar si ya está registrado en UserRegistry para evitar revert
+      const isRegistered = await this.userRegistered(userData.walletAddress);
+      if (isRegistered) {
+        console.log(`⚠️ La wallet ${userData.walletAddress} ya está registrada en UserRegistry. Intentando continuar con el resto del flujo...`);
+      } else {
+        // 1. Financiar si es necesario (solo si se genera o si no tiene balance)
+        if (userData.initialBalance && userData.initialBalance !== "0") {
+          const provider = getWriteProvider('users');
+          const funderWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+          console.log(`Financiando ${userData.walletAddress} con ${userData.initialBalance} ETH...`);
+          const fundTx = await funderWallet.sendTransaction({
+            to: userData.walletAddress,
+            value: ethers.parseEther(userData.initialBalance.toString()),
+            gasLimit: 21000
+          });
+          await fundTx.wait();
+          console.log(`✓ Financiado con ${userData.initialBalance} ETH`);
+        }
+
+        // 2. Registrar en UserRegistry
+        console.log('Enviando registro a la Blockchain (UserRegistry)...');
+        const tx = await contract.registerUser(
+          userData.walletAddress,
+          userData.userId,
+          userData.name,
+          userData.organization,
+          userData.role,
+          { gasLimit: 500000 }
+        );
+        const receipt = await tx.wait();
+        console.log(`✓ Usuario registrado en bloque ${receipt.blockNumber}`);
       }
 
-      // 2. Registrar en UserRegistry
-      const contract = this.getContract();
-      console.log('Enviando registro a la Blockchain...');
-      const tx = await contract.registerUser(
-        userData.walletAddress,
-        userData.userId,
-        userData.name,
-        userData.organization,
-        userData.role,
-        { gasLimit: 500000 }
-      );
-      const receipt = await tx.wait();
-      console.log(`✓ Usuario registrado en bloque ${receipt.blockNumber}`);
-
-      // 3. Parsear evento
-      const event = receipt.logs.find(log => {
+      // 4. Registrar wallet en USFCI (solo si fue generada o si no está registrada)
+      // Si la wallet NO fue generada por el servidor, no tenemos su PK, así que usamos un fallback.
+      if (generated) {
+        console.log('Registrando wallet en USFCI...');
         try {
-          const parsed = contract.interface.parseLog(log);
-          return parsed && parsed.name === 'UserRegistered';
-        } catch (e) { return false; }
-      });
+          await usfciService.registerWallet(
+            wallet.privateKey,
+            userData.organization,
+            userData.userId,
+            userData.role
+          );
+          console.log('✓ Wallet registrada en USFCI');
+        } catch (e) {
+          if (e.message.includes('Wallet already registered')) {
+            console.log('⚠️ Wallet ya registrada en USFCI');
+          } else { throw e; }
+        }
+      } else {
+        console.log('⚠️ Wallet manual: omitiendo registerWallet en USFCI (se requiere firma del dueño).');
+      }
 
-      // 4. Registrar wallet en USFCI
-      const walletPrivateKey = generated ? wallet.privateKey : process.env.PRIVATE_KEY;
-      console.log('Registrando wallet en USFCI...');
-      await usfciService.registerWallet(
-        walletPrivateKey,
-        userData.organization,
-        userData.userId,
-        userData.role
-      );
-      console.log('✓ Wallet registrada en USFCI');
-
-      // 5. Auto-aprobar KYC
+      // 5. Auto-aprobar KYC (esto lo hace el admin, así que siempre se puede)
       console.log('Aprobando KYC en USFCI...');
-      await usfciService.updateComplianceStatus(
-        process.env.PRIVATE_KEY,
-        userData.walletAddress,
-        'approved',
-        'low'
-      );
-      console.log('✓ KYC aprobado');
+      try {
+        await usfciService.updateComplianceStatus(
+          process.env.PRIVATE_KEY,
+          userData.walletAddress,
+          'approved',
+          'low'
+        );
+        console.log('✓ KYC aprobado');
+      } catch (e) {
+        console.warn('⚠️ No se pudo actualizar compliance status:', e.message);
+      }
 
-      // ✅ 6. Otorgar roles on-chain (solo admin recibe roles especiales)
+      // ✅ 6. Otorgar roles on-chain
       await this._grantBlockchainRoles(userData.walletAddress, userData.role);
 
       // 7. Guardar datos locales (Dev)
@@ -107,12 +120,7 @@ class UserRegistryService {
         success: true,
         walletAddress: userData.walletAddress,
         userId: userData.userId,
-        txHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-        event: event ? contract.interface.parseLog(event).args : null,
         generatedWallet: generated,
-        privateKey: generated ? wallet.privateKey : undefined,
         kycStatus: 'approved'
       };
 
@@ -132,23 +140,30 @@ class UserRegistryService {
       return;
     }
 
-    console.log(`Otorgando roles on-chain para admin ${walletAddress}...`);
-    const usfci = this.getUsfciAdminContract();
+    try {
+      console.log(`Otorgando roles on-chain para admin ${walletAddress}...`);
+      const usfci = this.getUsfciAdminContract();
 
-    const [MINTER_ROLE, BURNER_ROLE, COMPLIANCE_ROLE] = await Promise.all([
-      usfci.MINTER_ROLE(),
-      usfci.BURNER_ROLE(),
-      usfci.COMPLIANCE_ROLE()
-    ]);
+      const [MINTER_ROLE, BURNER_ROLE, COMPLIANCE_ROLE] = await Promise.all([
+        usfci.MINTER_ROLE(),
+        usfci.BURNER_ROLE(),
+        usfci.COMPLIANCE_ROLE()
+      ]);
 
-    await (await usfci.grantRole(MINTER_ROLE, walletAddress, { gasLimit: 100000 })).wait();
-    console.log(`  ✓ MINTER_ROLE     → ${walletAddress}`);
+      const txMinter = await usfci.grantRole(MINTER_ROLE, walletAddress, { gasLimit: 100000 });
+      await txMinter.wait();
+      console.log(`  ✓ MINTER_ROLE     → ${walletAddress}`);
 
-    await (await usfci.grantRole(BURNER_ROLE, walletAddress, { gasLimit: 100000 })).wait();
-    console.log(`  ✓ BURNER_ROLE     → ${walletAddress}`);
+      const txBurner = await usfci.grantRole(BURNER_ROLE, walletAddress, { gasLimit: 100000 });
+      await txBurner.wait();
+      console.log(`  ✓ BURNER_ROLE     → ${walletAddress}`);
 
-    await (await usfci.grantRole(COMPLIANCE_ROLE, walletAddress, { gasLimit: 100000 })).wait();
-    console.log(`  ✓ COMPLIANCE_ROLE → ${walletAddress}`);
+      const txCompliance = await usfci.grantRole(COMPLIANCE_ROLE, walletAddress, { gasLimit: 100000 });
+      await txCompliance.wait();
+      console.log(`  ✓ COMPLIANCE_ROLE → ${walletAddress}`);
+    } catch (error) {
+      console.warn(`⚠️ Error otorgando roles (posiblemente ya los tiene): ${error.message}`);
+    }
   }
 
   // ── Sin cambios debajo ───────────────────────────────────────────────────
@@ -180,11 +195,23 @@ class UserRegistryService {
   }
 
   async getUser(walletAddress) {
-    return this._mapUser(await this.getContractReadOnly().getUser(walletAddress));
+    try {
+      const user = await this.getContractReadOnly().getUser(walletAddress);
+      return this._mapUser(user);
+    } catch (error) {
+      if (error.message.includes('User not found')) return null;
+      throw error;
+    }
   }
 
   async getUserByUserId(userId) {
-    return this._mapUser(await this.getContractReadOnly().getUserByUserId(userId));
+    try {
+      const user = await this.getContractReadOnly().getUserByUserId(userId);
+      return this._mapUser(user);
+    } catch (error) {
+      if (error.message.includes('User not found')) return null;
+      throw error;
+    }
   }
 
   async getUsersByOrganization(organization, start = 0, limit = 10) {

@@ -4,47 +4,25 @@
     "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "address": "0x00491756F7778d623c271733D0477609d6791A98",
-    "privateKey": "0x4cc4c4b35ba0a7bdcca5b4e3ebf32b5eee74fc5030aef0dcf7f7c6dd3301fa00",
-    "mnemonic": "satisfy announce twin recipe jacket injury merry elder stuff process puzzle onion",
-    "passwordHash": "$2b$10$S3eXQR1xoX6LJgAEYZ1QOeLQi6bRzCbhOMf9v5hhhUj5Sc4zOMgpa",
+    "address": "0xb91716D110B83afC2270274F69FaCA752300da49",
+    "privateKey": "0x1db79e3b3a752eae27d300a15365a015b530e6f39349b33ab6b668216ae49a99",
+    "mnemonic": "dismiss kick attitude baby museum walk secret error project velvet illness ecology",
+    "passwordHash": "$2b$10$aRyUnWe8OU9FgE8Bilvvy.nKU9XR5.tT/xe9emKfhHFkrLKWzhUfy",
     "initialBalance": "0",
-    "createdAt": "2026-03-25T19:01:28.935Z",
-    "lastLogin": "2026-04-01T16:42:24.686Z"
-  },
-  "581c7abb8fbd4cc1ac69b9e7d81c95ed": {
-    "userId": "581c7abb8fbd4cc1ac69b9e7d81c95ed",
-    "name": "FCI Corporate",
-    "organization": "FCI",
-    "role": "operator",
-    "address": "0xD391eD487C96eF0d098789b1FF5256ef49a31DC3",
-    "privateKey": "0x772583210f2aa6f58e5ae65ff469f4c4869ecde68e005179be660e15b6beaca6",
-    "mnemonic": "inquiry account bind panel organ ramp cabbage add tomato solution case melt",
-    "passwordHash": "$2b$10$smTkmSO/8ISW6mwGYL5vyubNKcrN2mzICW7tNX4aLFQHE3bP8SRte",
-    "initialBalance": "0",
-    "createdAt": "2026-03-25T19:01:28.935Z",
-    "lastLogin": null
+    "createdAt": "2026-04-06T20:40:23.918Z",
+    "lastLogin": "2026-04-06T21:02:47.893Z"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
-    "name": "Tim",
+    "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "privateKey": "0x525f80749b5618a6364d7aac3f7bdecab9e12c0693b5b849bedcb89dbc15085c",
-    "mnemonic": "giggle garlic goddess option pave across song you own dismiss post found",
+    "address": "0x85e74359D4682A7aeE3Ce77ba9Cf525638a8D38f",
+    "privateKey": "0x50f979c5e25bf1f96de50c398e170c56234ba415f3370a1757d243c56ef6b092",
+    "mnemonic": "gap canoe index dial nut example ready electric certain fat satisfy voyage",
+    "passwordHash": "$2b$10$LHgVYTR2TODHGNOUkAsXvObJQBWnsqHd1HTkgQcDkw.t7Hy3inBNi",
     "initialBalance": "0",
-    "createdAt": "2026-03-25T19:01:28.935Z",
-    "lastLogin": null
-  },
-  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
-    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
-    "name": "Kyle",
-    "organization": "FCI",
-    "role": "operator",
-    "privateKey": "0x06f929a6239cfdb98d83b1fe3c3941b5b1412f822fcfa1512d6e72f219673beb",
-    "mnemonic": "cattle spend blanket avoid loud fatal sorry menu quiz mango myself forum",
-    "initialBalance": "0",
-    "createdAt": "2026-03-26T22:41:22.439Z",
-    "lastLogin": null
+    "createdAt": "2026-04-06T20:40:23.918Z",
+    "lastLogin": "2026-04-06T21:05:01.137Z"
   }
 }
