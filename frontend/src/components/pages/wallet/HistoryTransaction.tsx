@@ -4,14 +4,20 @@ import { Pagination, Skeleton } from "@mantine/core";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { ModalTransactionDetail } from "./ModalTransactionDetail";
 import { RiEyeLine } from "react-icons/ri";
-import { useMyTransactions } from "../../../hooks/useApi";
-import { type TransactionRecord } from "../../../types";
+import { useAuth } from "../../../hooks/useAuth";
+import { useMyTransactions, useAvalancheWalletHistory } from "../../../services/apiUsfci";
+import { type TransactionRecord } from "../../../types/usfciTypes";
 import { formatMoney } from "../../../lib/utils";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 
 
 export const HistoryTransaction = () => {
-  const { data: response, isLoading, error, refetch } = useMyTransactions(); // 👈 usamos react-query
+  const { user } = useAuth();
+  const walletAddress = (user as any)?.walletAddress || (user as any)?.address || '';
+
+  const { data: besuRes, isLoading: loadingBesu, error: errorBesu } = useMyTransactions(walletAddress);
+  const { data: avaRes, isLoading: loadingAva, error: errorAva } = useAvalancheWalletHistory(walletAddress);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -21,31 +27,38 @@ export const HistoryTransaction = () => {
 
   const itemsPerPage = 5;
 
-  // Manejo de errores con toast (si error cambia)
+  // Manejo de errores con toast
   useEffect(() => {
-    if (error) {
-      toast.error(error.message || "Failed to fetch transactions");
+    if (errorBesu) {
+      toast.error("Failed to fetch Besu transactions");
     }
-  }, [error]);
+    if (errorAva) {
+      toast.error("Failed to fetch Avalanche transactions");
+    }
+  }, [errorBesu, errorAva]);
 
   // Procesamos los datos
-  const data = response?.data || [];
+  const besuData = (besuRes?.data || []).map(tx => ({ ...tx, network: 'besu' }));
+  const avaData = (avaRes?.data?.transactions || []).map(tx => ({ ...tx, network: 'avalanche' }));
+  const data = [...besuData, ...avaData];
   const validData =
     data.filter((item: TransactionRecord) => item && item.timestamp) || [];
 
   const sortedData = [...validData].sort(
-    (a: TransactionRecord, b: TransactionRecord) =>
+    (a: any, b: any) =>
       new Date(b.timestamp).getTime() -
       new Date(a.timestamp).getTime()
   );
 
-  const filteredData = sortedData.filter((item: TransactionRecord) => {
+  const filteredData = sortedData.filter((item: any) => {
     const searchLower = searchTerm.toLowerCase();
+    const networkName = item.network === 'besu' ? 'FCI Network' : 'Avalanche Network';
     return (
       item.recipientAddress.toLowerCase().includes(searchLower) ||
       (item.metadata &&
         item.metadata.toLowerCase().includes(searchLower)) ||
       item.amount.includes(searchTerm) ||
+      networkName.toLowerCase().includes(searchLower) ||
       new Date(item.timestamp)
         .toLocaleString()
         .toLowerCase()
@@ -68,13 +81,13 @@ export const HistoryTransaction = () => {
   }, [searchTerm]);
 
   // FUNCIÓN PARA ABRIR MODAL
-  const handleRowClick = (transaction: TransactionRecord) => {
+  const handleRowClick = (transaction: any) => {
     setSelectedTransaction(transaction);
     setModalOpened(true);
   };
 
   // LOADING
-  if (isLoading) {
+  if (loadingBesu || loadingAva) {
     return (
       <div className="w-full py-8 px-4">
         <div className="max-w-7xl mx-auto">
@@ -118,8 +131,6 @@ export const HistoryTransaction = () => {
     );
   }
 
-
-
   // RENDER PRINCIPAL
   return (
     <>
@@ -160,7 +171,7 @@ export const HistoryTransaction = () => {
           <div className="rounded-lg overflow-hidden">
             <div className="overflow-auto max-h-96">
               <div className="space-y-5">
-                {currentData.map((item: TransactionRecord, index: number) => {
+                {currentData.map((item: any, index: number) => {
                   const isSent = item.type === "sent";
                   const decimals = 18;
                   const formattedAmount = formatMoney(
@@ -208,21 +219,36 @@ export const HistoryTransaction = () => {
                             {new Date(item.timestamp).toLocaleString()}
                           </p>
 
-                          {/* Type */}
+                          {/* Network & Transaction Type Labels */}
+                          <div className="flex flex-wrap gap-1.5 mt-2 mb-2">
+                             <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded bg-gray-100 text-gray-500 border border-gray-200">
+                               {item.network === 'besu' ? 'FCI Network' : 'Avalanche Network'}
+                             </span>
+                             <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded bg-blue-50 text-blue-500 border border-blue-100">
+                               Transfer
+                             </span>
+                             <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded bg-purple-50 text-purple-500 border border-purple-100">
+                               Instant
+                             </span>
+                          </div>
+
+                          {/* Status Badge */}
                           <p
                             className={`
-                              w-24
-                              py-1.5
-                              text-xs
-                              font-semibold
-                              text-center
-                              rounded-full
-                              border
-                              transition-all duration-300
-                              ${isSent
-                                ? "bg-red-500/10 text-red-400 border-red-500/30"
-                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                              }
+                                w-24
+                                py-1
+                                text-[10px]
+                                font-extrabold
+                                text-center
+                                rounded-full
+                                border
+                                uppercase
+                                tracking-widest
+                                transition-all duration-300
+                                ${isSent
+                                  ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                }
                               `}
                           >
                             {isSent ? "Sent" : "Received"}

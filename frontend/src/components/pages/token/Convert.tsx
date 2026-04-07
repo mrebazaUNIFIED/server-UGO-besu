@@ -13,8 +13,6 @@ export const Convert: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabName>('mint');
     const [network, setNetwork] = useState<Network>('besu');
 
-    // Recuperar balance del usuario para cada red (ejemplo de integración con apiUsfci)
-    const { balance: besuBalance } = useWalletBalance('my-uid-placeholder'); // Esto debería venir de un context de usuario
 
     const networkClasses = (net: Network): string =>
         `flex items-center gap-2 px-6 py-2 rounded-full font-bold transition-all duration-300 border-2 cursor-pointer

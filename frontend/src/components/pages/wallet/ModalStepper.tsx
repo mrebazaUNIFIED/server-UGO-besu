@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Stepper, Button, Group, TextInput, NumberInput, Alert, Text, Title, Radio, Stack, Divider } from '@mantine/core';
+import { Modal, Button, Group, TextInput, NumberInput, Text, Title, Stack, Divider, Paper, UnstyledButton, Box, Badge } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { toast } from 'react-toastify';
 import {
@@ -11,9 +11,28 @@ import {
     useAvalancheBalance
 } from '../../../services/apiUsfci';
 import { toBaseUnits, fromBaseUnits, formatUSFCI } from '../../../lib/usfciUtils';
-import { RiSendPlane2Line, RiArrowLeftRightLine, RiExchangeFundsLine } from 'react-icons/ri';
+import {
+    RiSendPlane2Fill,
+    RiArrowLeftRightLine,
+    RiExchangeFundsLine,
+    RiBankFill,
+    RiShieldCheckFill,
+    RiWallet3Fill,
+    RiInformationFill,
+    RiArrowRightLine,
+    RiCheckboxCircleFill,
+    RiShieldFlashFill
+} from 'react-icons/ri';
 import { useAuth } from '../../../hooks/useAuth';
-import { Server, Cpu, ArrowRight } from 'lucide-react';
+
+const AvalancheLogo = ({ size = 28 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" fillRule="evenodd">
+            <circle fill="#E84142" fillRule="nonzero" cx="16" cy="16" r="16" />
+            <path d="M11.518 22.75H8.49c-.636 0-.95 0-1.142-.123A.77.77 0 017 22.025c-.012-.226.145-.503.46-1.055l7.472-13.193c.318-.56.48-.84.682-.944a.77.77 0 01.698 0c.203.104.364.384.682.944l1.536 2.686.008.014c.343.6.517.906.593 1.226a2.26 2.26 0 010 1.066c-.076.323-.249.63-.597 1.24l-3.926 6.95-.01.017c-.346.606-.52.913-.764 1.145a2.284 2.284 0 01-.93.54c-.319.089-.675.089-1.387.089zm7.643 0h4.336c.64 0 .962 0 1.154-.126a.768.768 0 00.348-.607c.011-.219-.142-.484-.443-1.005l-.032-.054-2.172-3.722-.025-.042c-.305-.517-.46-.778-.657-.879a.762.762 0 00-.693 0c-.203.104-.363.377-.678.925l-2.165 3.722-.007.013c-.317.548-.476.821-.464 1.046a.777.777 0 00.348.606c.188.123.51.123 1.15.123z" fill="#FFF" />
+        </g>
+    </svg>
+);
 
 interface ModalStepperProps {
     open: boolean;
@@ -115,258 +134,363 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
         onClose();
     };
 
-    const getNetworkIcon = (net: Network) => net === 'besu' ? <Server size={14} /> : <Cpu size={14} />;
+    // Custom UI Components
+    const ProgressFlow = () => (
+        <Group gap="xs" justify="center" mb={40}>
+            {[0, 1, 2, 3].map((step) => (
+                <Box
+                    key={step}
+                    w={active === step ? 48 : 32}
+                    h={6}
+                    style={{
+                        backgroundColor: active >= step ? '#ba181b' : '#f1f3f5',
+                        borderRadius: 10,
+                        transition: 'all 0.4s ease',
+                        opacity: active >= step ? 1 : 0.3
+                    }}
+                />
+            ))}
+        </Group>
+    );
+
+    const SelectionCard = ({ net, isSelected, onClick, label, sublabel, icon: Icon }: any) => (
+        <UnstyledButton
+            onClick={onClick}
+            style={{
+                padding: 'var(--mantine-spacing-xl)',
+                borderRadius: '2rem',
+                flex: 1,
+                backgroundColor: isSelected ? 'white' : '#f8f9fa',
+                border: `2px solid ${isSelected ? '#ba181b' : 'transparent'}`,
+                boxShadow: isSelected ? '0 15px 30px -10px rgba(186, 24, 27, 0.1)' : 'none',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden'
+            }}
+            className={isSelected ? 'scale-[1.02]' : 'hover:bg-gray-100'}
+        >
+            <Stack align="center" gap="sm">
+                <Box
+                    style={{
+                        backgroundColor: isSelected ? '#ba181b' : '#f1f3f5',
+                        padding: 'var(--mantine-spacing-md)',
+                        borderRadius: 'var(--mantine-radius-xl)',
+                        color: isSelected ? 'white' : '#9ca3af',
+                        transition: 'all 0.3s'
+                    }}
+                >
+                    <Icon size={28} />
+                </Box>
+                <div className="text-center">
+                    <Text fw={900} size="sm" className="uppercase tracking-widest leading-none mb-1">
+                        {label}
+                    </Text>
+                    <Text size="10px" fw={700} c="dimmed" className="uppercase tracking-tighter">
+                        {sublabel}
+                    </Text>
+                </div>
+            </Stack>
+        </UnstyledButton>
+    );
 
     return (
         <Modal
             opened={open}
             onClose={closeModal}
-            title={
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-red-50 text-red-600 rounded-xl">
-                        <RiSendPlane2Line size={24} />
-                    </div>
-                    <div>
-                        <Title order={3} className="text-gray-900 font-black tracking-tight uppercase text-lg">Send USFCI</Title>
-                        <Text size="xs" c="dimmed" fw={700} className="tracking-widest uppercase">Cross-Network Transfer</Text>
-                    </div>
-                </div>
-            }
             size="lg"
-            radius="1.5rem"
+            radius="3rem"
             centered
-            padding="xl"
-            overlayProps={{ blur: 10, opacity: 0.2 }}
+            padding={0}
+            withCloseButton={false}
+            overlayProps={{
+                blur: 50,
+                opacity: 0.6,
+                color: '#000000ff',
+            }}
+            styles={{
+                content: {
+                    border: '1px solid rgba(0,0,0,0.05)',
+                    boxShadow: '0 30px 60px -12px rgba(0,0,0,0.25)',
+                    backgroundColor: '#fff'
+                }
+            }}
         >
-            <Stepper active={active} onStepClick={setActive} size="sm" color="red" allowNextStepsSelect={false}>
-                {/* Step 0: Network & Action */}
-                <Stepper.Step label="Source" description="Network & Action">
-                    <Stack gap="xl" mt="xl">
-                        <div>
-                            <Text size="xs" fw={800} c="dimmed" mb="md" className="uppercase tracking-[0.2em]">1. Select Source Network</Text>
-                            <Group grow>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setSourceNetwork('besu')}
-                                    leftSection={<Server size={18} />}
-                                    radius="xl"
-                                    size="md"
-                                    styles={{
-                                        root: {
-                                            borderWidth: '2px',
-                                            borderColor: '#059669',
-                                            backgroundColor: sourceNetwork === 'besu' ? '#059669' : 'transparent',
-                                            color: sourceNetwork === 'besu' ? 'white' : '#059669',
-                                            transition: 'all 0.15s ease',
-                                            '&:hover': {
-                                                backgroundColor: sourceNetwork === 'besu' ? '#047857' : '#ecfdf5',
-                                            },
-                                        },
-                                    }}
-                                >
-                                    Besu
-                                </Button>
+            {/* Modal Header */}
+            <Box p={40} pb={20}>
+                <Group justify="space-between" align="center">
+                    <Stack gap={0}>
+                        <Title order={2} className="text-gray-900 font-extrabold uppercase tracking-tighter text-2xl">
+                            Institutional <span className="text-[#ba181b]">Portal</span>
+                        </Title>
+                        <Text size="xs" c="dimmed" fw={800} className="tracking-[0.2em] uppercase">Private Asset Portal • FCI Network</Text>
+                    </Stack>
+                    <UnstyledButton onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-full transition-colors font-bold text-gray-300">
+                        ✕
+                    </UnstyledButton>
+                </Group>
+            </Box>
 
-                                <Button
-                                    variant="outline"
+            <Box p={40} pt={0}>
+                <ProgressFlow />
+
+                {active === 0 && (
+                    <Stack gap="xl">
+                        <div>
+                            <Text size="xs" fw={900} c="dimmed" mb="lg" className="uppercase tracking-widest text-center">1. Select Source Network</Text>
+                            <Group gap="lg">
+                                <SelectionCard
+                                    net="besu"
+                                    label="FCI Network"
+                                    sublabel="USFCI"
+                                    icon={RiBankFill}
+                                    isSelected={sourceNetwork === 'besu'}
+                                    onClick={() => setSourceNetwork('besu')}
+                                />
+                                <SelectionCard
+                                    net="avalanche"
+                                    label="Avalanche Network"
+                                    sublabel="USFCI"
+                                    icon={AvalancheLogo}
+                                    isSelected={sourceNetwork === 'avalanche'}
                                     onClick={() => setSourceNetwork('avalanche')}
-                                    leftSection={<Cpu size={18} />}
-                                    radius="xl"
-                                    size="md"
-                                    styles={{
-                                        root: {
-                                            borderWidth: '2px',
-                                            borderColor: '#e11d48',
-                                            backgroundColor: sourceNetwork === 'avalanche' ? '#e11d48' : 'transparent',
-                                            color: sourceNetwork === 'avalanche' ? 'white' : '#e11d48',
-                                            transition: 'all 0.15s ease',
-                                            '&:hover': {
-                                                backgroundColor: sourceNetwork === 'avalanche' ? '#be123c' : '#fff1f2',
-                                            },
-                                        },
-                                    }}
-                                >
-                                    Avalanche
-                                </Button>
+                                />
                             </Group>
                         </div>
 
-                        <Divider variant="dashed" />
+                        <Divider label={<Text size="8px" fw={900} className="uppercase tracking-[0.3em]">Transaction Model</Text>} labelPosition="center" />
 
-                        <div>
-                            <Text size="xs" fw={800} c="dimmed" mb="md" className="uppercase tracking-[0.2em]">2. Select Action Type</Text>
-                            <Stack gap="xs">
-                                <Button
-                                    justify="space-between"
-                                    fullWidth
-                                    variant={actionType === 'transfer' ? 'filled' : 'outline'}
-                                    color="dark"
-                                    onClick={() => setActionType('transfer')}
-                                    rightSection={<RiExchangeFundsLine size={20} />}
-                                    radius="xl" size="lg"
-                                >
-                                    Transfer (Same Network)
-                                </Button>
-                                <Button
-                                    justify="space-between"
-                                    fullWidth
-                                    variant={actionType === 'bridge' ? 'filled' : 'outline'}
-                                    color="dark"
-                                    onClick={() => setActionType('bridge')}
-                                    rightSection={<RiArrowLeftRightLine size={20} />}
-                                    radius="xl" size="lg"
-                                >
-                                    Bridge (Cross-Network)
-                                </Button>
+                        <Group grow gap="md">
+                            <UnstyledButton
+                                onClick={() => setActionType('transfer')}
+                                style={{
+                                    padding: 'var(--mantine-spacing-xl)',
+                                    borderRadius: '2rem',
+                                    border: `2px solid ${actionType === 'transfer' ? '#161A1D' : '#f1f3f5'}`,
+                                    backgroundColor: actionType === 'transfer' ? '#161A1D' : 'white',
+                                    color: actionType === 'transfer' ? 'white' : '#161A1D',
+                                    transition: 'all 0.2s',
+                                    flex: 1
+                                }}
+                            >
+                                <Stack align="center" gap="xs">
+                                    <RiExchangeFundsLine size={24} />
+                                    <Text fw={900} size="sm" className="uppercase tracking-widest">Internal</Text>
+                                </Stack>
+                            </UnstyledButton>
+
+                            <UnstyledButton
+                                onClick={() => setActionType('bridge')}
+                                style={{
+                                    padding: 'var(--mantine-spacing-xl)',
+                                    borderRadius: '2rem',
+                                    border: `2px solid ${actionType === 'bridge' ? '#161A1D' : '#f1f3f5'}`,
+                                    backgroundColor: actionType === 'bridge' ? '#161A1D' : 'white',
+                                    color: actionType === 'bridge' ? 'white' : '#161A1D',
+                                    transition: 'all 0.2s',
+                                    flex: 1
+                                }}
+                            >
+                                <Stack align="center" gap="xs">
+                                    <RiArrowLeftRightLine size={24} />
+                                    <Text fw={900} size="sm" className="uppercase tracking-widest">Cross-Bridge</Text>
+                                </Stack>
+                            </UnstyledButton>
+                        </Group>
+                    </Stack>
+                )}
+
+                {active === 1 && (
+                    <Stack gap="xl">
+                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">2. Financial Distribution</Text>
+
+                        <Paper p={40} radius="2.5rem" style={{ border: '1px solid rgba(0,0,0,0.03)', backgroundColor: '#f8f9fa' }}>
+                            <Stack gap={0} align="center">
+                                <Text size="4rem" fw={1000} className="text-[#ba181b] leading-none mb-4">$</Text>
+                                <NumberInput
+                                    {...form.getInputProps('amount')}
+                                    placeholder="0.00"
+                                    min={0}
+                                    size="xl"
+                                    variant="unstyled"
+                                    styles={{
+                                        input: {
+                                            textAlign: 'center',
+                                            fontSize: '3.5rem',
+                                            fontWeight: 900,
+                                            color: '#161A1D'
+                                        }
+                                    }}
+                                />
+                                <Text fw={900} c="dimmed" size="sm" className="tracking-[0.3em] uppercase mt-2">USFCI Asset Units</Text>
                             </Stack>
-                        </div>
-                    </Stack>
-                </Stepper.Step>
+                        </Paper>
 
-                {/* Step 1: Amount */}
-                <Stepper.Step label="Amount" description="Enter value">
-                    <Stack mt="xl" gap="md">
-                        <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex items-center justify-between">
-                            <div>
-                                <Text size="xs" fw={700} c="dimmed" className="uppercase tracking-widest">Selected Source</Text>
-                                <Group gap="xs" mt={4}>
-                                    <div className={`p-1.5 rounded-md ${sourceNetwork === 'besu' ? 'bg-emerald-500' : 'bg-rose-500'} text-white`}>
-                                        {getNetworkIcon(sourceNetwork)}
-                                    </div>
-                                    <Text fw={900} className="capitalize">{sourceNetwork}</Text>
-                                </Group>
-                            </div>
-                            <div className="text-right">
-                                <Text size="xs" fw={700} c="dimmed" className="uppercase tracking-widest">Action</Text>
-                                <Text fw={900} className="capitalize">{actionType}</Text>
-                            </div>
-                        </div>
-                        <NumberInput
-                            {...form.getInputProps('amount')}
-                            label="Transfer Amount"
-                            placeholder="0.00"
-                            min={0}
-                            step={0.01}
-                            decimalScale={2}
-                            size="xl"
-                            radius="xl"
-                            variant="filled"
-                            leftSection={<Text fw={900}>$</Text>}
-                            rightSection={<Text size="xs" fw={900} mr="md" c="dimmed">USFCI</Text>}
-                            rightSectionWidth={70}
-                        />
+                        <Paper p="md" radius="xl" style={{ border: '1px solid #fee2e2', backgroundColor: '#fff5f5' }}>
+                            <Group gap="sm" justify="center">
+                                <RiInformationFill className="text-[#ba181b]" />
+                                <Text size="xs" fw={800} className="text-[#ba181b] uppercase tracking-wider">
+                                    Transaction will be processed on the {sourceNetwork === 'besu' ? 'FCI Network' : 'Avalanche Network'}
+                                </Text>
+                            </Group>
+                        </Paper>
                     </Stack>
-                </Stepper.Step>
+                )}
 
-                {/* Step 2: Recipient */}
-                <Stepper.Step label="Recipient" description="Target address">
-                    <Stack mt="xl" gap="md">
+                {active === 2 && (
+                    <Stack gap="xl">
+                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">3. Recipient Address</Text>
+
                         <TextInput
                             {...form.getInputProps('recipient')}
-                            label="Recipient Wallet Address"
+                            label={<Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest mb-2">Recipient 0x Address</Text>}
                             placeholder="0x..."
                             size="lg"
                             radius="xl"
                             variant="filled"
                             disabled={actionType === 'bridge'}
-                            description={actionType === 'bridge' ? "Bridging is pre-set to your own wallet on the target network." : "Enter the destination 0x address."}
+                            leftSection={<RiWallet3Fill size={20} className="text-[#ba181b]" />}
+                            styles={{
+                                input: {
+                                    fontSize: '1.2rem',
+                                    fontWeight: 700,
+                                    fontFamily: 'monospace',
+                                    paddingLeft: '50px !important'
+                                }
+                            }}
                         />
-                        {actionType === 'bridge' && (
-                            <Alert color="blue" radius="xl" variant="light">
-                                Your tokens will be moved from <b>{sourceNetwork}</b> to your same address on <b>{sourceNetwork === 'besu' ? 'Avalanche' : 'Besu'}</b>.
-                            </Alert>
+
+                        {actionType === 'bridge' ? (
+                            <Paper withBorder p="xl" radius="2.5rem" style={{ borderStyle: 'dashed', borderColor: '#ba181b', backgroundColor: '#f8f9fa' }}>
+                                <Stack align="center" gap="sm">
+                                    <RiShieldCheckFill size={40} className="text-[#ba181b]" />
+                                    <Text fw={900} size="sm" className="uppercase tracking-widest text-center">Auto-routing to Your Wallet</Text>
+                                    <Text size="xs" c="dimmed" fw={600} className="text-center uppercase tracking-tighter">
+                                        Funds will be sent directly to your connected wallet address.
+                                    </Text>
+                                </Stack>
+                            </Paper>
+                        ) : (
+                            <Text size="xs" c="dimmed" fw={600} className="text-center uppercase tracking-tighter">
+                                Ensure destination address is cleared for institutional routing.
+                            </Text>
                         )}
                     </Stack>
-                </Stepper.Step>
+                )}
 
-                {/* Step 3: Review */}
-                <Stepper.Step label="Confirm" description="Verify details">
-                    <Stack mt="xl" gap="lg" className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-5">
-                            <RiSendPlane2Line size={120} />
-                        </div>
+                {active === 3 && (
+                    <Stack gap="xl">
+                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">4. Review & Confirm</Text>
 
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col items-center">
-                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg ${sourceNetwork === 'besu' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                                    {getNetworkIcon(sourceNetwork)}
-                                </div>
-                                <Text size="xs" fw={900} mt="xs" className="uppercase tracking-tighter capitalize">{sourceNetwork}</Text>
-                            </div>
+                        <Paper radius="3rem" p={40} bg="#161A1D" style={{ color: 'white', position: 'relative', overflow: 'hidden' }}>
+                            <Stack gap="xl" align="center">
+                                <Group gap={60} align="center">
+                                    <Stack align="center" gap={4}>
+                                        <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                                            {sourceNetwork === 'besu' ? <RiBankFill size={24} /> : <AvalancheLogo size={24} />}
+                                        </div>
+                                        <Text size="8px" fw={900} className=" uppercase tracking-widest ">{sourceNetwork === 'besu' ? 'FCI Network' : 'Avalanche Network'}</Text>
+                                    </Stack>
 
-                            <div className="flex flex-col items-center text-gray-300">
-                                <ArrowRight size={32} />
-                                <Text size="10px" fw={900} className="uppercase tracking-[0.3em]">{actionType}</Text>
-                            </div>
+                                    <RiArrowRightLine size={30} className="text-[#ba181b]" />
 
-                            <div className="flex flex-col items-center">
-                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg ${actionType === 'transfer'
-                                    ? (sourceNetwork === 'besu' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white')
-                                    : (sourceNetwork === 'besu' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white')
-                                    }`}>
-                                    {actionType === 'transfer' ? getNetworkIcon(sourceNetwork) : getNetworkIcon(sourceNetwork === 'besu' ? 'avalanche' : 'besu')}
-                                </div>
-                                <Text size="xs" fw={900} mt="xs" className="uppercase tracking-tighter capitalize">
-                                    {actionType === 'transfer' ? sourceNetwork : (sourceNetwork === 'besu' ? 'avalanche' : 'besu')}
-                                </Text>
-                            </div>
-                        </div>
+                                    <Stack align="center" gap={4}>
+                                        <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                                            {actionType === 'transfer'
+                                                ? (sourceNetwork === 'besu' ? <RiBankFill size={24} /> : <AvalancheLogo size={24} />)
+                                                : (sourceNetwork === 'besu' ? <AvalancheLogo size={24} /> : <RiBankFill size={24} />)
+                                            }
+                                        </div>
+                                        <Text size="8px" fw={900} className="uppercase tracking-widest ">
+                                            {actionType === 'transfer'
+                                                ? (sourceNetwork === 'besu' ? 'FCI Network' : 'Avalanche Network')
+                                                : (sourceNetwork === 'besu' ? 'Avalanche Network' : 'FCI Network')
+                                            }
+                                        </Text>
+                                    </Stack>
+                                </Group>
 
-                        <Divider />
+                                <Divider className="w-full opacity-10" />
 
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-end">
-                                <Text size="sm" c="dimmed" fw={700}>AMOUNT TO SEND</Text>
-                                <Text size="xl" fw={900}>{formatUSFCI(form.values.amount, 2)} USFCI</Text>
-                            </div>
-                            <div className="flex justify-between items-start">
-                                <Text size="sm" c="dimmed" fw={700}>RECIPIENT</Text>
-                                <Text size="xs" fw={700} className="font-mono bg-white px-3 py-1 rounded-lg border border-gray-100 shadow-sm">
-                                    {form.values.recipient.slice(0, 10)}...{form.values.recipient.slice(-10)}
-                                </Text>
-                            </div>
-                        </div>
+                                <Group justify="space-between" align="center" w="100%">
+                                    <Stack gap={0}>
+                                        <Text size="xs" fw={900} className="uppercase tracking-[0.2em] opacity-40">Authorized Disbursement</Text>
+                                        <Text size="2.5rem" fw={1000}>{formatUSFCI(form.values.amount, 2)} <span className="text-sm opacity-50 font-bold">USFCI</span></Text>
+                                    </Stack>
+                                    <RiShieldCheckFill size={48} className="text-green-500" />
+                                </Group>
+
+                                <Box w="100%" p="md" bg="white/5" style={{ borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <Stack gap={4}>
+                                        <Text size="8px" fw={900} className="uppercase tracking-widest opacity-40">FCI Private Network Target</Text>
+                                        <Text size="xs" fw={800} className="font-mono tracking-tighter">
+                                            {form.values.recipient.slice(0, 20)}...{form.values.recipient.slice(-14)}
+                                        </Text>
+                                    </Stack>
+                                </Box>
+                            </Stack>
+                        </Paper>
                     </Stack>
-                </Stepper.Step>
+                )}
 
-                <Stepper.Completed>
-                    <Stack align="center" py="xl" gap="xs">
-                        <div className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-green-200 mb-4 animate-bounce">
-                            <RiSendPlane2Line size={40} />
-                        </div>
-                        <Title order={2} className="font-black tracking-tight">Transaction Sent!</Title>
-                        <Text c="dimmed" fw={600} size="sm">Your USFCI tokens are on the way.</Text>
-                        <Button variant="light" color="green" radius="xl" mt="xl" size="md" onClick={closeModal} fullWidth>
-                            Done
-                        </Button>
-                    </Stack>
-                </Stepper.Completed>
-            </Stepper>
-
-            {active < 4 && (
-                <Group justify="center" mt="xl">
-                    <Button variant="light" color="gray" onClick={prevStep} disabled={active === 0} radius="xl" size="md" px="xl">
-                        Back
-                    </Button>
-                    {active === 3 ? (
+                {active === 4 && (
+                    <Stack align="center" py={40} gap="xl">
+                        <Box style={{ position: 'relative' }}>
+                            <RiCheckboxCircleFill size={100} className="text-[#ba181b]" />
+                        </Box>
+                        <Stack gap={4} align="center">
+                            <Title order={2} className="uppercase font-black tracking-tighter text-3xl">Authorized</Title>
+                            <Text fw={800} c="dimmed" size="xs" className="uppercase tracking-[0.4em]">Transaction Propagating</Text>
+                        </Stack>
+                        <Text size="xs" c="dimmed" fw={700} className="text-center px-10 uppercase tracking-tighter leading-relaxed">
+                            Signatures verified. Your asset disbursement has been successfully transmitted through the institutional gateway.
+                        </Text>
                         <Button
+                            variant="filled"
                             color="dark"
-                            radius="xl"
-                            size="md"
-                            px="xl"
-                            onClick={handleSubmit}
-                            loading={isProcessing}
-                            leftSection={<RiSendPlane2Line size={18} />}
+                            radius="2rem"
+                            size="lg"
+                            px={60}
+                            onClick={closeModal}
                         >
-                            Confirm & Send
+                            Return to Portal
                         </Button>
-                    ) : (
-                        <Button color="dark" radius="xl" size="md" px="xl" onClick={nextStep}>
-                            Next Step
+                    </Stack>
+                )}
+
+                {active < 4 && (
+                    <Group grow mt={50} gap="lg">
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            onClick={prevStep}
+                            disabled={active === 0}
+                            radius="2rem"
+                            size="lg"
+                            fw={900}
+                            className="uppercase tracking-widest"
+                        >
+                            Back
                         </Button>
-                    )}
-                </Group>
-            )}
+                        <Button
+                            onClick={active === 3 ? handleSubmit : nextStep}
+                            loading={isProcessing}
+                            radius="2rem"
+                            size="lg"
+                            color="dark"
+                            fw={1000}
+                            className="uppercase tracking-[0.3em] shadow-xl transition-all"
+                            styles={{
+                                root: {
+                                    backgroundColor: active === 3 ? '#ba181b' : '#161A1D',
+                                    border: 'none'
+                                }
+                            }}
+                        >
+                            {active === 3 ? 'Send Transfer' : 'Continue'}
+                        </Button>
+                    </Group>
+                )}
+            </Box>
         </Modal>
     );
 };

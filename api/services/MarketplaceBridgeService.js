@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
 const BaseContractService = require('./BaseContractService');
+const usfciAvalancheService = require('./USFCIAvalancheService');
 
 class MarketplaceBridgeService extends BaseContractService {
   constructor() {
@@ -93,16 +94,8 @@ class MarketplaceBridgeService extends BaseContractService {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // ⭐ ACTUALIZADO: approveLoanForSale (sin modifiedInterestRate)
+  // ⭐ ACTUALIZADO: approveLoanForSale (con limit validation)
   // ═══════════════════════════════════════════════════════════════
-  /**
-   * Aprobar loan para venta/tokenización
-   * 
-   * CAMBIOS:
-   * - Ya NO recibe modifiedInterestRate (removido de ApprovalData)
-   * - Usa private key del .env en lugar de recibirla como parámetro
-   * - El evento solo emite: loanId, lenderAddress, askingPrice, timestamp
-   */
   async approveLoanForSale(lenderUid, loanUid, askingPriceUSD) {
     if (!lenderUid || !loanUid) {
       throw new Error('LenderUid and LoanUid are required');
@@ -123,15 +116,27 @@ class MarketplaceBridgeService extends BaseContractService {
       throw new Error('Loan is already locked');
     }
 
+    // 🛡️ SEGURIDAD: Validar que el precio no exceda el total supply en Avalanche
+    const avalancheStats = await usfciAvalancheService.getStatistics();
+    const currentSupplyBaseUnits = BigInt(avalancheStats.currentSupply);
+    const priceInCents = this.usdToCents(askingPriceUSD);
+
+    // Convertir precio (cents) a USFCI base units (18 decimals)
+    // 1 cent = 10^16 base units
+    const priceInBaseUnits = BigInt(priceInCents) * BigInt(10n ** 16n);
+
+    if (priceInBaseUnits > currentSupplyBaseUnits) {
+      const supplyFormatted = (Number(currentSupplyBaseUnits / BigInt(10n ** 14n)) / 10000).toFixed(2);
+      throw new Error(`Application denied: The loan price ($${askingPriceUSD}) exceeds the maximum USFCI limit available at Avalanche ($${supplyFormatted}).Please try again later.`);
+    }
+
     const loanId = loan.ID;
     const contract = this.getContract(this.privateKey);
-    const priceInCents = this.usdToCents(askingPriceUSD);
 
     // ⭐ NUEVA FIRMA: Solo loanId y askingPrice
     const tx = await contract.approveLoanForSale(
       loanId,
       BigInt(priceInCents)
-      // ❌ modifiedInterestRate REMOVIDO
     );
 
     const receipt = await tx.wait();
@@ -155,7 +160,6 @@ class MarketplaceBridgeService extends BaseContractService {
         lenderAddress: approvedEvent.args[1],
         askingPrice: approvedEvent.args[2].toString(),
         timestamp: approvedEvent.args[3].toString()
-        // ❌ modifiedInterestRate ya no existe en el evento
       };
     }
 
@@ -166,8 +170,7 @@ class MarketplaceBridgeService extends BaseContractService {
       loanUid: loanUid,
       askingPriceUSD: this.centsToUSD(priceInCents),
       askingPriceCents: priceInCents.toString(),
-      // ℹ️ modifiedInterestRate ahora se obtiene del LoanRegistry.NoteRate
-      noteRate: loan.NoteRate, // Este es el que se usa ahora
+      noteRate: loan.NoteRate,
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString(),
@@ -175,9 +178,6 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // ⭐ ACTUALIZADO: registerApprovalTxHash (sin privateKey param)
-  // ═══════════════════════════════════════════════════════════════
   async registerApprovalTxHash(lenderUid, loanUid, txHash) {
     if (!this.privateKey) {
       throw new Error('PRIVATE_KEY not configured in .env');
@@ -203,9 +203,6 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // READ-ONLY: No requieren cambios
-  // ═══════════════════════════════════════════════════════════════
   async getLoanIdByTxHash(txHash) {
     const contract = this.getContractReadOnly();
     const txHashBytes32 = txHash.startsWith('0x') ? txHash : '0x' + txHash;
@@ -243,7 +240,6 @@ class MarketplaceBridgeService extends BaseContractService {
       loanUid: loanUid,
       isApproved: approval.isApproved,
       askingPrice: this.centsToUSD(approval.askingPrice),
-      // ❌ modifiedInterestRate ya no existe en ApprovalData
       lenderAddress: approval.lenderAddress,
       approvalTimestamp: new Date(Number(approval.approvalTimestamp) * 1000),
       isMinted: approval.isMinted,
@@ -252,9 +248,6 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // ⭐ ACTUALIZADO: cancelSaleListing (sin privateKey param)
-  // ═══════════════════════════════════════════════════════════════
   async cancelSaleListing(lenderUid, loanUid) {
     if (!lenderUid || !loanUid) {
       throw new Error('LenderUid and LoanUid are required');
@@ -404,9 +397,6 @@ class MarketplaceBridgeService extends BaseContractService {
     return tokenId.toString();
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // ⭐ ACTUALIZADO: Resto de funciones sin privateKey param
-  // ═══════════════════════════════════════════════════════════════
   async setAvalancheTokenId(lenderUid, loanUid, tokenId) {
     if (!this.privateKey) {
       throw new Error('PRIVATE_KEY not configured in .env');
@@ -509,9 +499,6 @@ class MarketplaceBridgeService extends BaseContractService {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // BURN FUNCTIONS
-  // ═══════════════════════════════════════════════════════════════
   async requestBurnAndCancel(lenderUid, loanUid) {
     if (!lenderUid || !loanUid) {
       throw new Error('LenderUid and LoanUid are required');
@@ -618,9 +605,6 @@ class MarketplaceBridgeService extends BaseContractService {
     return tokenId.toString();
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // AUXILIARY FUNCTIONS
-  // ═══════════════════════════════════════════════════════════════
   async getApprovedLoansByLender(lenderAddress) {
     const contract = this.getContractReadOnly();
 

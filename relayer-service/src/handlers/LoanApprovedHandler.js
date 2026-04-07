@@ -111,6 +111,21 @@ class LoanApprovedHandler extends BaseHandler {
         location
       });
 
+      // 🛡️ SEGURIDAD (Relayer-Level): Validar supply en Avalanche antes de proceder
+      const currentSupply = await avalancheService.getTotalSupply();
+      
+      // askingPrice está en cents (e.g. 10000 = $100)
+      // USFCI en Avalanche tiene 18 decimals
+      // 1 cent = 10^16 base units
+      const priceInBaseUnits = BigInt(askingPrice) * BigInt(10 ** 16);
+
+      if (priceInBaseUnits > currentSupply) {
+        const supplyFormatted = ethers.formatUnits(currentSupply, 18);
+        const errorMsg = `Límite de Avalanche excedido: El precio del préstamo ($${(Number(askingPrice)/100).toFixed(2)}) supera el suministro de USFCI en Avalanche ($${supplyFormatted}). Abortando proceso de relayer.`;
+        logger.error(errorMsg, { loanId, currentSupply: currentSupply.toString(), askingPrice: askingPrice.toString() });
+        return { success: false, reason: 'Insufficient Avalanche Supply', error: errorMsg };
+      }
+
       const bridgeReceiver = avalancheService.getContract('bridgeReceiver');
 
       // PASO 4: Marcar como APPROVED en Avalanche

@@ -66,7 +66,7 @@ export interface TransferRecord {
   amount: string;
   metadata: string;
   timestamp: string;
-  settlementType: number;
+  settlementType: string;
 }
 
 export interface TransactionRecord extends TransferRecord {

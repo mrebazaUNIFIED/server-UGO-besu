@@ -505,6 +505,19 @@ const getAvalancheBurnRecords = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/usfci/avalanche/wallet/:walletAddress/history
+ */
+const getAvalancheWalletHistory = async (req, res, next) => {
+  try {
+    const { walletAddress } = req.params;
+    const history = await usfciAvalancheService.getWalletCompleteHistory(walletAddress);
+    res.json({ success: true, data: history });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
 
   initLedger,
@@ -537,5 +550,6 @@ module.exports = {
   getAvalancheMintRecords,
   getAvalancheTransferRecords,
   getAvalancheBurnRecords,
+  getAvalancheWalletHistory,
   transferAvalanche
 };

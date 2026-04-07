@@ -16,6 +16,7 @@ interface TransactionRecord {
     settlementType: string;
     timestamp: string;
     type?: 'sent' | 'received';
+    network?: string;
 }
 
 interface ModalTransactionDetailProps {
@@ -43,7 +44,7 @@ const DetailRow = ({
     badgeColor = "red",
     className = "",
 }: DetailRowProps) => {
-    const badgeColors = {
+    const badgeColors: Record<string, string> = {
         red: "bg-red-100 text-red-600 border-red-300",
         green: "bg-green-100 text-green-600 border-green-300",
         blue: "bg-blue-100 text-blue-600 border-blue-300"
@@ -55,7 +56,7 @@ const DetailRow = ({
                 {label}
             </p>
             {isBadge ? (
-                <span className={`inline-block mt-1 text-sm px-3 py-1 rounded-md border shadow-sm ${badgeColors[badgeColor]}`}>
+                <span className={`inline-block mt-1 text-sm px-3 py-1 rounded-md border shadow-sm ${badgeColors[badgeColor] || badgeColors.blue}`}>
                     {value}
                 </span>
             ) : (
@@ -216,19 +217,25 @@ export const ModalTransactionDetail = ({
                                                 </p>
                                             </div>
                                             <DetailRow
-                                                label="Type"
-                                                value={transaction.settlementType}
+                                                label="Network"
+                                                value={transaction.network === 'besu' ? 'FCI Network' : 'Avalanche Network'}
                                                 isBadge
-                                                badgeColor={isSent ? "red" : "green"}
+                                                badgeColor="blue"
                                             />
                                         </div>
 
                                         <div className="h-px bg-gray-200 my-4"></div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <DetailRow
+                                                label="Type"
+                                                value="Transfer"
+                                                isBadge
+                                                badgeColor="green"
+                                            />
                                             <DetailRow
                                                 label="Settlement"
-                                                value={transaction.settlementType}
+                                                value="Instant"
                                                 isBadge
                                                 badgeColor="blue"
                                             />

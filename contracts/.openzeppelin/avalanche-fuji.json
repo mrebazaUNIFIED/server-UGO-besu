@@ -2,15 +2,15 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x63eb85C72B8e6381CB1619dD2eaA0cDd600ac544",
-      "txHash": "0xadb80084a60c4b82d86a0034c189266a162e8d710f8dae33e241fb96092e406b",
+      "address": "0x15C9C1769bb82b1359553A805F7555619d47964b",
+      "txHash": "0x16bdb6008eda899a4ec770b49a3368ef885abd50ae1c887435887dade4c6f970",
       "kind": "uups"
     }
   ],
   "impls": {
-    "1e2506c51fc6cd6d5e54b603d68303740d6f38d0e09a65667a494b938fe18d82": {
-      "address": "0xF7027A7189fe476FD0D0551f7C150186Fd3D9253",
-      "txHash": "0xe00b2e40a692a76252332845a1fce00d9bc861124d4211025cf097057d5e3068",
+    "eae181397ca113bb2ad8b644d966d169e119d997b0a3d51637aa6a779ede5a50": {
+      "address": "0x8dfE4933Cd9584d7d0c023bAE39c453dec975cCd",
+      "txHash": "0xe1eb11d0f39b2cf6adb98a029502c0b3df31492b036a26b8f780fc037d6734e7",
       "layout": {
         "solcVersion": "0.8.24",
         "storage": [
@@ -20,7 +20,7 @@
             "slot": "0",
             "type": "t_mapping(t_address,t_uint256)",
             "contract": "USFCI_Avalanche",
-            "src": "src/avalanche/USFCIAvalanche.sol:63"
+            "src": "src/avalanche/USFCIAvalanche.sol:71"
           },
           {
             "label": "_mintRecords",
@@ -28,7 +28,7 @@
             "slot": "1",
             "type": "t_array(t_struct(MintRecord)22971_storage)dyn_storage",
             "contract": "USFCI_Avalanche",
-            "src": "src/avalanche/USFCIAvalanche.sol:66"
+            "src": "src/avalanche/USFCIAvalanche.sol:74"
           },
           {
             "label": "_burnRecords",
@@ -36,15 +36,23 @@
             "slot": "2",
             "type": "t_array(t_struct(BurnRecord)22981_storage)dyn_storage",
             "contract": "USFCI_Avalanche",
-            "src": "src/avalanche/USFCIAvalanche.sol:69"
+            "src": "src/avalanche/USFCIAvalanche.sol:77"
+          },
+          {
+            "label": "_transferRecords",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_struct(TransferRecord)22991_storage)dyn_storage",
+            "contract": "USFCI_Avalanche",
+            "src": "src/avalanche/USFCIAvalanche.sol:80"
           },
           {
             "label": "reserveBank",
             "offset": 0,
-            "slot": "3",
+            "slot": "4",
             "type": "t_string_storage",
             "contract": "USFCI_Avalanche",
-            "src": "src/avalanche/USFCIAvalanche.sol:72"
+            "src": "src/avalanche/USFCIAvalanche.sol:83"
           }
         ],
         "types": {
@@ -204,6 +212,10 @@
             "label": "struct USFCI_Avalanche.MintRecord[]",
             "numberOfBytes": "32"
           },
+          "t_array(t_struct(TransferRecord)22991_storage)dyn_storage": {
+            "label": "struct USFCI_Avalanche.TransferRecord[]",
+            "numberOfBytes": "32"
+          },
           "t_struct(BurnRecord)22981_storage": {
             "label": "struct USFCI_Avalanche.BurnRecord",
             "members": [
@@ -269,6 +281,36 @@
               }
             ],
             "numberOfBytes": "160"
+          },
+          "t_struct(TransferRecord)22991_storage": {
+            "label": "struct USFCI_Avalanche.TransferRecord",
+            "members": [
+              {
+                "label": "sender",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "recipient",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
           }
         },
         "namespaces": {

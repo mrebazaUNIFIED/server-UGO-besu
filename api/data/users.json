@@ -1,28 +1,39 @@
 {
-  "a1b2c3d4-e5f6-4789-1011-121314151617": {
-    "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
+  "a1b2c3d4-e5f6-4789-1011-12131415161722": {
+    "userId": "a1b2c3d4-e5f6-4789-1011-12131415161722",
     "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "address": "0xb91716D110B83afC2270274F69FaCA752300da49",
-    "privateKey": "0x1db79e3b3a752eae27d300a15365a015b530e6f39349b33ab6b668216ae49a99",
-    "mnemonic": "dismiss kick attitude baby museum walk secret error project velvet illness ecology",
-    "passwordHash": "$2b$10$aRyUnWe8OU9FgE8Bilvvy.nKU9XR5.tT/xe9emKfhHFkrLKWzhUfy",
+    "address": "0xF935bDa1460D19BA7158274a01E1A0E40d9E7EcC",
+    "privateKey": "0xbacf25cb1a42dbca3397745eb208b9b03d4e50bbcd974aa5ea18b28f3cc64427",
+    "mnemonic": "wash cancel move mad strike coach tube zero this north mother faith",
+    "passwordHash": "$2b$10$ddnj3A3yE0hoax237fH21uHOpxiNIIQhEjkWMWrQ3oR4qlUs4OUIi",
     "initialBalance": "0",
-    "createdAt": "2026-04-06T20:40:23.918Z",
-    "lastLogin": "2026-04-06T21:02:47.893Z"
+    "createdAt": "2026-04-07T14:37:25.149Z",
+    "lastLogin": "2026-04-07T20:29:41.496Z"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
     "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "address": "0x85e74359D4682A7aeE3Ce77ba9Cf525638a8D38f",
-    "privateKey": "0x50f979c5e25bf1f96de50c398e170c56234ba415f3370a1757d243c56ef6b092",
-    "mnemonic": "gap canoe index dial nut example ready electric certain fat satisfy voyage",
-    "passwordHash": "$2b$10$LHgVYTR2TODHGNOUkAsXvObJQBWnsqHd1HTkgQcDkw.t7Hy3inBNi",
+    "address": "0x16b87497c7cD7431368616b02e186FCe4512b1E7",
+    "privateKey": "0xe6676cae7d2f1000700a38c578b1c49112403e3c93e124743a2a75363913dd48",
+    "mnemonic": "boat siren sadness apple strategy purity eye outer axis cruel couple special",
+    "passwordHash": "$2b$10$LdSoedL7o1HUB3U23JIZROoJPKMD5FueWivseYfOV/O4oWm78BORK",
     "initialBalance": "0",
-    "createdAt": "2026-04-06T20:40:23.918Z",
-    "lastLogin": "2026-04-06T21:05:01.137Z"
+    "createdAt": "2026-04-07T14:37:25.149Z",
+    "lastLogin": null
+  },
+  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
+    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
+    "name": "Kyle",
+    "organization": "FCI",
+    "role": "operator",
+    "privateKey": "0xd4db7e2bb2366cea6d6f587cd719acfd8043507af1c9b71c2c54ab951cead679",
+    "mnemonic": "general appear appear remove jealous sense often empower forget lonely eye spike",
+    "initialBalance": "0",
+    "createdAt": "2026-04-07T17:20:33.930Z",
+    "lastLogin": null
   }
 }

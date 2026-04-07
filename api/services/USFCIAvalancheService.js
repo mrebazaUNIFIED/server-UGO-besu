@@ -1,4 +1,5 @@
 const { ethers } = require('ethers');
+const UserRegistryService = require('./UserRegistryService');
 require('dotenv').config();
 
 const AVALANCHE_RPC_URL = process.env.AVALANCHE_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc';
@@ -16,8 +17,8 @@ const USFCI_AVALANCHE_ABI = [
   'function totalSupply() external view returns (uint256)',
   'function getStatistics() external view returns (uint256 totalMints, uint256 totalBurns, uint256 currentSupply)',
   'function getAllMintRecords() external view returns (tuple(address recipient, uint256 amount, string reserveProof, uint256 timestamp, address minter)[])',
-  'function getAllBurnRecords() external view returns (tuple(address wallet, uint256 amount, string reason, uint256 timestamp)[])',
   'function getAllTransferRecords() external view returns (tuple(address sender, address recipient, uint256 amount, uint256 timestamp)[])',
+  'function getTransferHistory(address wallet) external view returns (tuple(address sender, address recipient, uint256 amount, uint256 timestamp)[])',
   'function frozenBalance(address wallet) external view returns (uint256)',
   // Transfer standard ERC20
   'function transfer(address recipient, uint256 amount) external returns (bool)',
@@ -34,6 +35,7 @@ class USFCIAvalancheService {
     }
     this.readProvider = new ethers.JsonRpcProvider(AVALANCHE_RPC_URL);
     this.blockCache = new Map();
+    this.userCache = new Map(); // Cache para nombres de usuarios
   }
 
   /**
@@ -221,60 +223,141 @@ class USFCIAvalancheService {
   }
 
   async getAllTransferRecords() {
-    const contract = this._getReadContract();
-    
-    // Intento 1: Función de vista getAllTransferRecords (Patrón Besu)
     try {
+      const contract = this._getReadContract();
       const records = await contract.getAllTransferRecords();
-      if (records && records.length > 0) {
-        return records.map(r => ({
+      
+      // Enriquecer con nombres/organizaciones desde Besu UserRegistry
+      return await Promise.all(records.map(async (r) => {
+        const senderInfo = await this._resolveUserInfo(r.sender);
+        const recipientInfo = await this._resolveUserInfo(r.recipient);
+
+        return {
           senderAddress: r.sender,
+          senderName: senderInfo.name,
+          senderMspId: senderInfo.organization, // Sincronizado con nombres de Besu
           recipientAddress: r.recipient,
+          recipientName: recipientInfo.name,
+          recipientMspId: recipientInfo.organization,
           amount: r.amount.toString(),
           timestamp: new Date(Number(r.timestamp) * 1000),
           network: 'avalanche-fuji',
           txHash: 'view-sync'
-        }));
-      }
-    } catch (e) {
-      // No existe la función de vista, procedemos con eventos
-    }
-
-    // Intento 2: Eventos ERC20 Standard con limitación de rango
-    try {
-      const filter = contract.filters.Transfer();
-      // Fuji a veces falla si el bloque inicial es 0. Intentamos los últimos 5000 bloques.
-      const latestBlock = await this.readProvider.getBlockNumber();
-      const startBlock = Math.max(0, latestBlock - 5000); 
-      
-      const events = await contract.queryFilter(filter, startBlock, 'latest');
-
-      return Promise.all(events.map(async (event) => {
-        let timestamp;
-        if (this.blockCache.has(event.blockNumber)) {
-          timestamp = this.blockCache.get(event.blockNumber);
-        } else {
-          try {
-            const block = await this.readProvider.getBlock(event.blockNumber);
-            timestamp = block.timestamp;
-            this.blockCache.set(event.blockNumber, timestamp);
-          } catch (be) {
-            timestamp = Math.floor(Date.now() / 1000); // Fallback to now
-          }
-        }
-
-        return {
-          senderAddress: event.args[0],
-          recipientAddress: event.args[1],
-          amount: event.args[2].toString(),
-          timestamp: new Date(timestamp * 1000),
-          network: 'avalanche-fuji',
-          txHash: event.transactionHash
         };
       }));
-    } catch (error) {
-      console.error('Error fetching Avalanche transfers:', error);
-      return []; // Devolver vacío en lugar de 500
+    } catch (e) {
+      console.error('Error fetching Avalanche transfers:', e.message);
+      return [];
+    }
+  }
+
+  /**
+   * Historial unificado para Avalanche (Sincronizado con patrón Besu)
+   */
+  async getWalletCompleteHistory(walletAddress) {
+    try {
+      const [mints, burns, transactions] = await Promise.all([
+        this.getMintHistory(walletAddress),
+        this.getBurnHistory(walletAddress),
+        this.getTransactionHistory(walletAddress)
+      ]);
+
+      return {
+        mints,
+        burns,
+        transactions,
+        summary: {
+          totalMints: mints.length,
+          totalBurns: burns.length,
+          totalTransactions: transactions.length
+        }
+      };
+    } catch (e) {
+      console.error('Error in getWalletCompleteHistory (Avalanche):', e.message);
+      return { mints: [], burns: [], transactions: [], summary: { totalMints: 0, totalBurns: 0, totalTransactions: 0 } };
+    }
+  }
+
+  /**
+   * Obtener historial por wallet (Sincronizado con nuevo contrato)
+   */
+  async getTransactionHistory(walletAddress) {
+    try {
+      const contract = this._getReadContract();
+      const records = await contract.getTransferHistory(walletAddress);
+      
+      return await Promise.all(records.map(async (r) => {
+        const senderInfo = await this._resolveUserInfo(r.sender);
+        const recipientInfo = await this._resolveUserInfo(r.recipient);
+
+        return {
+          senderAddress: r.sender,
+          senderName: senderInfo.name,
+          senderMspId: senderInfo.organization,
+          recipientAddress: r.recipient,
+          recipientName: recipientInfo.name,
+          recipientMspId: recipientInfo.organization,
+          amount: r.amount.toString(),
+          timestamp: new Date(Number(r.timestamp) * 1000),
+          network: 'avalanche-fuji',
+          type: r.sender.toLowerCase() === walletAddress.toLowerCase() ? 'sent' : 'received'
+        };
+      }));
+    } catch (e) {
+      console.warn('⚠️ getTransactionHistory fallback:', e.message);
+      return [];
+    }
+  }
+
+  /**
+   * Obtener historial de minteo de una wallet específica
+   */
+  async getMintHistory(walletAddress) {
+    try {
+      const contract = this._getReadContract();
+      const records = await contract.getMintHistory(walletAddress);
+      return records.map(r => ({
+        recipient: r.recipient,
+        amount: r.amount.toString(),
+        reserveProof: r.reserveProof,
+        timestamp: new Date(Number(r.timestamp) * 1000),
+        minter: r.minter,
+        network: 'avalanche-fuji'
+      }));
+    } catch (e) { return []; }
+  }
+
+  /**
+   * Obtener historial de quemado de una wallet específica
+   */
+  async getBurnHistory(walletAddress) {
+    try {
+      const contract = this._getReadContract();
+      const records = await contract.getBurnHistory(walletAddress);
+      return records.map(r => ({
+        wallet: r.wallet,
+        amount: r.amount.toString(),
+        reason: r.reason,
+        timestamp: new Date(Number(r.timestamp) * 1000),
+        network: 'avalanche-fuji'
+      }));
+    } catch (e) { return []; }
+  }
+
+  /**
+   * Helper para resolver nombres de usuario (con caché)
+   */
+  async _resolveUserInfo(address) {
+    if (this.userCache.has(address)) return this.userCache.get(address);
+
+    try {
+      // Consultamos al UserRegistryService (que lee de Besu)
+      const user = await UserRegistryService.getUser(address);
+      const info = user ? { name: user.name, organization: user.organization } : { name: 'External Wallet', organization: 'Unknown' };
+      this.userCache.set(address, info);
+      return info;
+    } catch (e) {
+      return { name: 'Unknown', organization: 'Unknown' };
     }
   }
 }

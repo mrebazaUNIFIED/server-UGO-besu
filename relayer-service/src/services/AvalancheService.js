@@ -207,6 +207,16 @@ class AvalancheService {
     }
   }
 
+  async getTotalSupply() {
+    try {
+      const supply = await this.contracts.usfci.totalSupply();
+      return supply;
+    } catch (error) {
+      logger.error('Failed to get USFCI total supply', { error: error.message });
+      return 0n;
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // Métodos existentes (sin cambios)
   // ══════════════════════════════════════════════════════════════════════════

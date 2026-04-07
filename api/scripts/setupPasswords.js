@@ -8,8 +8,8 @@ const setupPasswords = async () => {
 
   // Define las contraseñas para cada wallet
   const passwords = {
-    '0xb91716D110B83afC2270274F69FaCA752300da49': 'Nuevapassword',
-    '0x85e74359D4682A7aeE3Ce77ba9Cf525638a8D38f': 'Nuevapassword'
+    '0xF935bDa1460D19BA7158274a01E1A0E40d9E7EcC': 'Nuevapassword',
+    '0x16b87497c7cD7431368616b02e186FCe4512b1E7': 'Nuevapassword'
   };
 
   try {

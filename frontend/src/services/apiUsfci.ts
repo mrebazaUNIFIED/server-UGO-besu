@@ -52,6 +52,7 @@ export const usfciKeys = {
   avalancheTransfers: () => [...usfciKeys.all, 'avalanche', 'history', 'transfers'] as const,
   avalancheBurns: () => [...usfciKeys.all, 'avalanche', 'history', 'burns'] as const,
   avalancheBalance: (walletAddress: string) => [...usfciKeys.all, 'avalanche', 'balance', walletAddress] as const,
+  avalancheWalletHistory: (walletAddress: string) => [...usfciKeys.all, 'avalanche', 'wallet-history', walletAddress] as const,
   allTransfers: () => [...usfciKeys.all, 'history', 'transfers'] as const,
 };
 
@@ -95,6 +96,7 @@ export const getAvalancheStatistics = async (): Promise<AvalancheStatisticsRespo
 export const getAvalancheMintRecords = async (): Promise<AvalancheMintRecordsResponse> => (await api.get('/usfci/avalanche/history/mints')).data;
 export const getAvalancheTransferRecords = async (): Promise<AvalancheTransferRecordsResponse> => (await api.get('/usfci/avalanche/history/transfers')).data;
 export const getAvalancheBurnRecords = async (): Promise<AvalancheBurnRecordsResponse> => (await api.get('/usfci/avalanche/history/burns')).data;
+export const getAvalancheWalletHistory = async (address: string): Promise<WalletHistoryResponse> => (await api.get(`/usfci/avalanche/wallet/${address}/history`)).data;
 
 // Hooks
 export const useWalletBalance = (uid: string) => {
@@ -227,6 +229,13 @@ export const useAvalancheTransferRecords = (isAdmin: boolean) => useQuery({
   enabled: isAdmin,
   staleTime: 1000 * 60 * 5,
   refetchOnWindowFocus: false,
+});
+
+export const useAvalancheWalletHistory = (address: string) => useQuery({
+  queryKey: usfciKeys.avalancheWalletHistory(address),
+  queryFn: () => getAvalancheWalletHistory(address),
+  enabled: !!address,
+  staleTime: 1000 * 60 * 2
 });
 
 // Mutation Hooks

@@ -58,6 +58,14 @@ contract USFCI_Avalanche is
         uint256 timestamp;
     }
 
+    /// @notice Registro de cada transferencia estándar
+    struct TransferRecord {
+        address sender;
+        address recipient;
+        uint256 amount;
+        uint256 timestamp;
+    }
+
     /// @notice Wallets con balance congelado por compliance
     /// @dev No impide recibir tokens, solo bloquea transferencias salientes
     mapping(address => uint256) public frozenBalance;
@@ -67,6 +75,9 @@ contract USFCI_Avalanche is
 
     /// @notice Historial completo de burns para auditoría de reservas
     BurnRecord[] private _burnRecords;
+
+    /// @notice Historial completo de transferencias para auditoría y UX
+    TransferRecord[] private _transferRecords;
 
     /// @notice Información del banco de respaldo
     string public reserveBank;
@@ -322,6 +333,45 @@ contract USFCI_Avalanche is
         return _burnRecords;
     }
 
+    /// @notice Todos los registros de transferencias estándar
+    function getAllTransferRecords()
+        external
+        view
+        returns (TransferRecord[] memory)
+    {
+        return _transferRecords;
+    }
+
+    /**
+     * @notice Historial de transferencias de una wallet específica
+     * @param wallet La dirección a consultar
+     */
+    function getTransferHistory(
+        address wallet
+    ) external view returns (TransferRecord[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < _transferRecords.length; i++) {
+            if (
+                _transferRecords[i].sender == wallet ||
+                _transferRecords[i].recipient == wallet
+            ) {
+                count++;
+            }
+        }
+        TransferRecord[] memory result = new TransferRecord[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < _transferRecords.length; i++) {
+            if (
+                _transferRecords[i].sender == wallet ||
+                _transferRecords[i].recipient == wallet
+            ) {
+                result[index] = _transferRecords[i];
+                index++;
+            }
+        }
+        return result;
+    }
+
     /// @notice Historial de mints de una wallet específica
     function getMintHistory(
         address wallet
@@ -400,5 +450,29 @@ contract USFCI_Avalanche is
             available >= amount,
             "USFCI: transfer amount exceeds unfrozen balance"
         );
+    }
+
+    /**
+     * @dev Sobrecarga interna para registrar historial de transferencias.
+     *      Se ejecuta en cada mint, burn y transfer.
+     */
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal virtual override {
+        super._update(from, to, value);
+
+        // Si es una transferencia estándar (no mint, no burn)
+        if (from != address(0) && to != address(0)) {
+            _transferRecords.push(
+                TransferRecord({
+                    sender: from,
+                    recipient: to,
+                    amount: value,
+                    timestamp: block.timestamp
+                })
+            );
+        }
     }
 }

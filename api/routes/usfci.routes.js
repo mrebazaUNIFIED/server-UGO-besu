@@ -42,6 +42,7 @@ const {
   getAvalancheMintRecords,
   getAvalancheTransferRecords,
   getAvalancheBurnRecords,
+  getAvalancheWalletHistory,
   transferAvalanche
 } = require('../controllers/usfciController');
 
@@ -50,6 +51,7 @@ const router = express.Router();
 
 
 router.get('/wallet/:walletAddress/balance', getBalance);
+router.get('/avalanche/statistics', getAvalancheStatistics);
 
 //  rutas que requieren autenticación
 router.use(authenticate);
@@ -119,9 +121,9 @@ router.post('/avalanche/transfer', transferAvalanche);
 
 // Consultas públicas de Avalanche (no requieren auth)
 router.get('/avalanche/balance/:walletAddress', getAvalancheBalance);
-router.get('/avalanche/statistics', getAvalancheStatistics);
 router.get('/avalanche/history/mints', authorize('admin', 'operator'), getAvalancheMintRecords);
 router.get('/avalanche/history/burns', authorize('admin', 'operator'), getAvalancheBurnRecords);
 router.get('/avalanche/history/transfers', authorize('admin', 'operator'), getAvalancheTransferRecords);
+router.get('/avalanche/wallet/:walletAddress/history', authorize('admin', 'operator'), getAvalancheWalletHistory);
 
 module.exports = router;
