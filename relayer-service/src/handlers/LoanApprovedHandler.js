@@ -25,6 +25,7 @@ class LoanApprovedHandler extends BaseHandler {
     this.logStart(event);
 
     let tx; // Declaramos tx al inicio para que esté disponible en todo el scope
+    let isMinted = false; // 🛡️ Flag de consistencia
 
     try {
       const {
@@ -111,19 +112,33 @@ class LoanApprovedHandler extends BaseHandler {
         location
       });
 
-      // 🛡️ SEGURIDAD (Relayer-Level): Validar supply en Avalanche antes de proceder
+      // 🛡️ SEGURIDAD (Relayer-Level): Validar supply GLOBAL en Avalanche antes de proceder
       const currentSupply = await avalancheService.getTotalSupply();
+      const existingVolume = await besuService.getTotalTokenizedVolume();
       
       // askingPrice está en cents (e.g. 10000 = $100)
       // USFCI en Avalanche tiene 18 decimals
       // 1 cent = 10^16 base units
-      const priceInBaseUnits = BigInt(askingPrice) * BigInt(10 ** 16);
+      const priceInBaseUnits = BigInt(askingPrice) * BigInt(10n ** 16n);
+      const projectedTotalVolume = existingVolume + priceInBaseUnits;
 
-      if (priceInBaseUnits > currentSupply) {
+      if (projectedTotalVolume > currentSupply) {
         const supplyFormatted = ethers.formatUnits(currentSupply, 18);
-        const errorMsg = `Límite de Avalanche excedido: El precio del préstamo ($${(Number(askingPrice)/100).toFixed(2)}) supera el suministro de USFCI en Avalanche ($${supplyFormatted}). Abortando proceso de relayer.`;
-        logger.error(errorMsg, { loanId, currentSupply: currentSupply.toString(), askingPrice: askingPrice.toString() });
-        return { success: false, reason: 'Insufficient Avalanche Supply', error: errorMsg };
+        const existingFormatted = ethers.formatUnits(existingVolume, 18);
+        const remainingFormatted = currentSupply > existingVolume 
+          ? ethers.formatUnits(currentSupply - existingVolume, 18)
+          : "0.00";
+
+        const errorMsg = `Límite de Avalanche excedido: El volumen total ($${existingFormatted}) + este préstamo ($${(Number(askingPrice)/100).toFixed(2)}) superaría el suministro de Avalanche ($${supplyFormatted}). Capacidad restante: $${remainingFormatted}.`;
+        
+        logger.error(errorMsg, { 
+          loanId, 
+          currentSupply: currentSupply.toString(), 
+          existingVolume: existingVolume.toString(),
+          askingPrice: askingPrice.toString() 
+        });
+        
+        return { success: false, reason: 'Insufficient Avalanche Capacity', error: errorMsg };
       }
 
       const bridgeReceiver = avalancheService.getContract('bridgeReceiver');
@@ -249,6 +264,8 @@ class LoanApprovedHandler extends BaseHandler {
         throw waitError;
       }
 
+      isMinted = true; // ✅ MINT EXITOSO
+
       // PASO 7: Extraer tokenId del evento LoanMinted
       let tokenId;
       for (const log of receipt.logs) {
@@ -339,6 +356,24 @@ class LoanApprovedHandler extends BaseHandler {
       };
 
     } catch (error) {
+      // 🛡️ CONSISTENCIA: Si el error ocurre ANTES del mint (o falló el mint), desbloqueamos en Besu
+      if (!isMinted) {
+        logger.warn('Error detectado antes de completar el mint. Iniciando rollback en Besu...', { loanId: event?.loanId });
+        try {
+          const marketplaceBridge = besuService.getContract('marketplaceBridge');
+          const rollbackTx = await marketplaceBridge.cancelSaleListing(event.loanId, { gasLimit: 300000 });
+          await rollbackTx.wait();
+          logger.info('Rollback exitoso: Préstamo desbloqueado en Besu', { loanId: event.loanId, rollbackTx: rollbackTx.hash });
+        } catch (rollbackError) {
+          logger.error('Error CRÍTICO: No se pudo realizar el rollback en Besu', {
+            loanId: event.loanId,
+            error: rollbackError.message
+          });
+        }
+      } else {
+        logger.warn('El error ocurrió DESPUÉS del mint. No se realizará rollback para evitar inconsistencias de NFTs huérfanos.', { loanId: event.loanId });
+      }
+
       // Manejo seguro de errores
       const txInfo = tx ? {
         txHash: tx.hash,
@@ -359,6 +394,7 @@ class LoanApprovedHandler extends BaseHandler {
       });
 
       // Intentar decodificar el revert si hay datos
+      const bridgeReceiver = avalancheService.getContract('bridgeReceiver');
       if ((error.data || error.error?.data) && bridgeReceiver?.interface) {
         try {
           const revertData = error.data || error.error?.data;

@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const BaseContractService = require('./BaseContractService');
 const usfciAvalancheService = require('./USFCIAvalancheService');
+const cache = require('../config/cache');
 
 class MarketplaceBridgeService extends BaseContractService {
   constructor() {
@@ -53,6 +54,66 @@ class MarketplaceBridgeService extends BaseContractService {
     if (bps == null) return "0.00";
     const percent = Number(bps) / 100;
     return percent.toFixed(2);
+  }
+
+  /**
+   * ⭐ HELPER: Invalida múltiples capas de caché para asegurar consistencia
+   */
+  _invalidateCaches(loanId, lenderUid) {
+    if (!loanId) return;
+
+    console.log(`[cache] Invaliding caches for loanId: ${loanId}, lenderUid: ${lenderUid || 'all'}`);
+
+    // 1. Invalida el loan individual
+    cache.invalidate(`loan:${loanId}`);
+
+    // 2. Invalida la lista del lender si se conoce
+    if (lenderUid) {
+      cache.invalidate(`lender:loans:${lenderUid}`);
+    }
+
+    // 3. Invalida TODAS las respuestas de portafolio de GraphQL (ya que no sabemos qué token usó el usuario)
+    // Pero podemos usar flushAll del cache.graphql para ser más agresivos y seguros
+    cache.graphql.flushAll();
+    console.log(`[cache] GraphQL portfolio cache flushed`);
+
+    // 4. Invalida las listas globales de loans
+    // Buscamos todas las llaves que empiecen con allloans:
+    const allKeys = cache.loans.keys();
+    const allLoansKeys = allKeys.filter(k => k.startsWith('allloans:'));
+    allLoansKeys.forEach(k => cache.loans.del(k));
+
+    if (allLoansKeys.length > 0) {
+      console.log(`[cache] Deleted ${allLoansKeys.length} global list cache keys`);
+    }
+  }
+
+  /**
+   * ⭐ HELPER: Calcula el volumen total de préstamos ya tokenizados en Besu
+   */
+  async _getTotalTokenizedVolume() {
+    try {
+      const loanIds = await this.getTokenizedLoans();
+      if (!loanIds || loanIds.length === 0) return BigInt(0);
+
+      let totalCents = BigInt(0);
+      for (const loanId of loanIds) {
+        try {
+          const loan = await this.loanRegistryService.readLoan(loanId);
+          const balanceCents = this.usdToCents(loan.CurrentBalance);
+          totalCents += BigInt(balanceCents);
+        } catch (err) {
+          console.warn(`Could not read balance for tokenized loan ${loanId}:`, err.message);
+        }
+      }
+
+      // Convertir a base units (18 decimals)
+      // 1 cent = 10^16 base units
+      return totalCents * BigInt(10n ** 16n);
+    } catch (error) {
+      console.error('Error calculating total tokenized volume:', error);
+      return BigInt(0);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -116,18 +177,28 @@ class MarketplaceBridgeService extends BaseContractService {
       throw new Error('Loan is already locked');
     }
 
-    // 🛡️ SEGURIDAD: Validar que el precio no exceda el total supply en Avalanche
+    // 🛡️ SEGURIDAD: Validar que el volumen total (existente + nuevo) no exceda el total supply en Avalanche
     const avalancheStats = await usfciAvalancheService.getStatistics();
     const currentSupplyBaseUnits = BigInt(avalancheStats.currentSupply);
+    
+    // Calcular volumen ya tokenizado
+    const existingVolumeBaseUnits = await this._getTotalTokenizedVolume();
     const priceInCents = this.usdToCents(askingPriceUSD);
+    const newPriceInBaseUnits = BigInt(priceInCents) * BigInt(10n ** 16n);
 
-    // Convertir precio (cents) a USFCI base units (18 decimals)
-    // 1 cent = 10^16 base units
-    const priceInBaseUnits = BigInt(priceInCents) * BigInt(10n ** 16n);
+    const projectedTotalVolume = existingVolumeBaseUnits + newPriceInBaseUnits;
 
-    if (priceInBaseUnits > currentSupplyBaseUnits) {
-      const supplyFormatted = (Number(currentSupplyBaseUnits / BigInt(10n ** 14n)) / 10000).toFixed(2);
-      throw new Error(`Application denied: The loan price ($${askingPriceUSD}) exceeds the maximum USFCI limit available at Avalanche ($${supplyFormatted}).Please try again later.`);
+    if (projectedTotalVolume > currentSupplyBaseUnits) {
+      const remainingCapacityBaseUnits = currentSupplyBaseUnits > existingVolumeBaseUnits 
+        ? currentSupplyBaseUnits - existingVolumeBaseUnits 
+        : BigInt(0);
+      
+      // Formateo para el error (usando 10^14 para manejar 2 decimales en el rounding)
+      const supplyFormatted = (Number(currentSupplyBaseUnits / BigInt(10n ** 14n)) / 100).toFixed(2);
+      const existingFormatted = (Number(existingVolumeBaseUnits / BigInt(10n ** 14n)) / 100).toFixed(2);
+      const remainingFormatted = (Number(remainingCapacityBaseUnits / BigInt(10n ** 14n)) / 100).toFixed(2);
+
+      throw new Error(`Application denied: Insufficient USFCI liquidity on Avalanche. Total tokenized volume ($${existingFormatted}) + this loan ($${askingPriceUSD}) would exceed the maximum USFCI supply ($${supplyFormatted}). Remaining capacity: $${remainingFormatted}.`);
     }
 
     const loanId = loan.ID;
@@ -163,7 +234,7 @@ class MarketplaceBridgeService extends BaseContractService {
       };
     }
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -176,6 +247,11 @@ class MarketplaceBridgeService extends BaseContractService {
       gasUsed: receipt.gasUsed.toString(),
       eventData: eventData
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async registerApprovalTxHash(lenderUid, loanUid, txHash) {
@@ -188,10 +264,11 @@ class MarketplaceBridgeService extends BaseContractService {
 
     const txHashBytes32 = txHash.startsWith('0x') ? txHash : `0x${txHash}`;
 
+    // Corregido: llamado al contrato
     const tx = await contract.registerApprovalTxHash(loanId, txHashBytes32);
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -201,6 +278,11 @@ class MarketplaceBridgeService extends BaseContractService {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async getLoanIdByTxHash(txHash) {
@@ -263,17 +345,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.cancelSaleListing(loanId);
     const receipt = await tx.wait();
 
-    const logs = receipt.logs.map(log => {
-      try {
-        return contract.interface.parseLog(log);
-      } catch (e) {
-        return null;
-      }
-    }).filter(log => log !== null);
-
-    const cancelledEvent = logs.find(log => log.name === 'LoanApprovalCancelled');
-
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -282,6 +354,11 @@ class MarketplaceBridgeService extends BaseContractService {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async getApprovalData(lenderUid, loanUid) {
@@ -408,7 +485,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.setAvalancheTokenId(loanId, tokenId);
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -418,6 +495,11 @@ class MarketplaceBridgeService extends BaseContractService {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async recordOwnershipTransfer(lenderUid, loanUid, newOwnerAddress, salePriceUSD) {
@@ -437,7 +519,7 @@ class MarketplaceBridgeService extends BaseContractService {
     );
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -449,6 +531,11 @@ class MarketplaceBridgeService extends BaseContractService {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async recordPayment(lenderUid, loanUid, amountUSD) {
@@ -464,7 +551,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.recordPayment(loanId, BigInt(amountInCents));
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -475,6 +562,11 @@ class MarketplaceBridgeService extends BaseContractService {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async markLoanAsPaidOff(lenderUid, loanUid) {
@@ -488,7 +580,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.markLoanAsPaidOff(loanId);
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -497,6 +589,11 @@ class MarketplaceBridgeService extends BaseContractService {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString()
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async requestBurnAndCancel(lenderUid, loanUid) {
@@ -555,7 +652,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.confirmBurnAndCancel(loanId);
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -565,6 +662,11 @@ class MarketplaceBridgeService extends BaseContractService {
       gasUsed: receipt.gasUsed.toString(),
       message: 'NFT burn confirmed and loan unlocked successfully.'
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async canCancel(lenderUid, loanUid) {
@@ -735,7 +837,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.emergencyUnlock(loanId);
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -743,6 +845,11 @@ class MarketplaceBridgeService extends BaseContractService {
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async forceUnlockPaidOffLoan(lenderUid, loanUid) {
@@ -756,7 +863,7 @@ class MarketplaceBridgeService extends BaseContractService {
     const tx = await contract.forceUnlockPaidOffLoan(loanId);
     const receipt = await tx.wait();
 
-    return {
+    const result = {
       success: true,
       loanId: loanId,
       lenderUid: lenderUid,
@@ -764,6 +871,11 @@ class MarketplaceBridgeService extends BaseContractService {
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber
     };
+
+    // ✅ INVALIDAR CACHÉ
+    this._invalidateCaches(loanId, lenderUid);
+
+    return result;
   }
 
   async getRelayerAddress() {

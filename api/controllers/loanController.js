@@ -38,6 +38,26 @@ function resolveWait(query) {
 }
 
 class LoanController {
+  /**
+   * ⭐ HELPER: Invalida las listas globales y portafolios para asegurar consistencia
+   */
+  _invalidateGlobalCache() {
+    console.log(`[cache] Invaliding global loan lists and GraphQL portfolios`);
+
+    // 1. Invalida TODAS las listas globales (allloans:*)
+    const allKeys = cache.loans.keys();
+    const allLoansKeys = allKeys.filter(k => k.startsWith('allloans:'));
+    allLoansKeys.forEach(k => cache.loans.del(k));
+
+    if (allLoansKeys.length > 0) {
+      console.log(`[cache] Deleted ${allLoansKeys.length} global list cache keys`);
+    }
+
+    // 2. Invalida TODAS las respuestas de portafolio de GraphQL
+    cache.graphql.flushAll();
+    console.log(`[cache] GraphQL portfolio cache flushed`);
+  }
+
 
   async createLoan(req, res, next) {
     try {
@@ -66,8 +86,9 @@ class LoanController {
         }
         const result = await loanService.createLoan(privateKey, loanData, { wait });
 
-        // ✅ Invalidar cache del lender al crear un loan nuevo
+        // ✅ Invalidar cache al crear un loan nuevo
         cache.loans.del(`lender:loans:${loanData.LenderUid}`);
+        this._invalidateGlobalCache();
 
         return res.status(201).json({ success: true, message: 'Loan created successfully', operation: 'CREATE', data: result });
       }
@@ -88,19 +109,21 @@ class LoanController {
         }
         const result = await loanService.updateLoanPartial(privateKey, loanId, partialUpdateFields, { wait });
 
-        // ✅ Invalidar cache del lender y del loan individual al actualizar
+        // ✅ Invalidar caches al actualizar
         cache.loans.del(`lender:loans:${loanData.LenderUid}`);
         cache.loans.del(`loan:${loanId}`);
+        this._invalidateGlobalCache();
 
-        return res.json({ success: true, message: 'Loan updated partially', operation: 'PARTIAL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanData.LoanUid, updatedFields: Object.keys(partialUpdateFields), data: result });
+        return res.json({ success: true, message: 'Loan updated partially', operation: 'PARTIAL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanUid || loanData.LoanUid, updatedFields: Object.keys(partialUpdateFields), data: result });
       }
 
       console.log(`📝 Detected FULL update: ${providedFields.length} fields provided`);
       const result = await loanService.createLoan(privateKey, loanData, { wait });
 
-      // ✅ Invalidar cache del lender al hacer full update
+      // ✅ Invalidar caches al hacer full update
       cache.loans.del(`lender:loans:${loanData.LenderUid}`);
       cache.loans.del(`loan:${loanId}`);
+      this._invalidateGlobalCache();
 
       return res.json({ success: true, message: 'Loan updated completely', operation: 'FULL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanData.LoanUid, data: result });
 
@@ -123,8 +146,9 @@ class LoanController {
       if (!fields || Object.keys(fields).length === 0) return res.status(400).json({ error: 'No fields to update provided' });
       const result = await loanService.updateLoanPartial(privateKey, loanId, fields, { wait });
 
-      // ✅ Invalidar cache del loan individual
+      // ✅ Invalidar caches
       cache.loans.del(`loan:${loanId}`);
+      this._invalidateGlobalCache();
 
       res.json({ success: true, message: 'Loan updated partially', loanId, updatedFields: Object.keys(fields), data: result });
     } catch (error) {
@@ -145,8 +169,9 @@ class LoanController {
       if (newBalance === undefined && !newStatus && !newPaidToDate) return res.status(400).json({ error: 'Provide at least one field to update: newBalance, newStatus, or newPaidToDate' });
       const result = await loanService.updateLockedLoan(privateKey, loanId, newBalance, newStatus, newPaidToDate);
 
-      // ✅ Invalidar cache del loan bloqueado
+      // ✅ Invalidar caches
       cache.loans.del(`loan:${loanId}`);
+      this._invalidateGlobalCache();
 
       res.json({ success: true, message: 'Locked loan updated successfully', loanId, data: result });
     } catch (error) {
@@ -255,8 +280,9 @@ class LoanController {
       if (isTokenized) return res.status(400).json({ error: 'Cannot delete tokenized loan. Unlock it first.' });
       const result = await loanService.deleteLoan(privateKey, loanId);
 
-      // ✅ Invalidar cache al eliminar
+      // ✅ Invalidar caches al eliminar
       cache.loans.del(`loan:${loanId}`);
+      this._invalidateGlobalCache();
 
       res.json({ success: true, message: 'Loan deleted successfully', loanId, data: result });
     } catch (error) {

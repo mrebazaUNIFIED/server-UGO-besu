@@ -288,6 +288,34 @@ class BesuService {
   }
 
   /**
+   * Get total tokenized volume from Besu
+   */
+  async getTotalTokenizedVolume() {
+    try {
+      const loanIds = await this.contracts.marketplaceBridge.getTokenizedLoans();
+      if (!loanIds || !loanIds.length) return BigInt(0);
+
+      let totalCents = BigInt(0);
+      for (const loanId of loanIds) {
+        try {
+          const loanData = await this.contracts.loanRegistry.readLoan(loanId);
+          if (loanData && loanData.CurrentBalance) {
+            totalCents += BigInt(loanData.CurrentBalance);
+          }
+        } catch (err) {
+          logger.warn(`Failed to read balance for loan ${loanId} in total volume calculation`, { error: err.message });
+        }
+      }
+
+      // 1 cent = 10^16 base units (18 decimals)
+      return totalCents * BigInt(10n ** 16n);
+    } catch (error) {
+      logger.error('Failed to calculate total tokenized volume', { error: error.message });
+      return BigInt(0);
+    }
+  }
+
+  /**
    * Record ownership transfer in MarketplaceBridge
    */
   async mintTokens(recipient, amount, reserveProof) {

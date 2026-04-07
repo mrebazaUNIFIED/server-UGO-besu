@@ -1,12 +1,12 @@
 {
   "syncState": {
     "besu": {
-      "lastBlock": 5039,
-      "lastSync": "2026-04-07T20:42:44.539Z"
+      "lastBlock": 5535,
+      "lastSync": "2026-04-07T21:24:03.350Z"
     },
     "avalanche": {
-      "lastBlock": 53770375,
-      "lastSync": "2026-04-07T20:42:44.862Z"
+      "lastBlock": 53771574,
+      "lastSync": "2026-04-07T21:24:03.910Z"
     }
   },
   "processedEvents": [
