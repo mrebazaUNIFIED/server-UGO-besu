@@ -143,12 +143,22 @@ class LoanRegistryService extends BaseContractService {
     if (!loanId) return '';
     let idStr = loanId;
 
-    // Si es un objeto de ethers (Result), intentamos extraer el valor o convertirlo a hex
+    // Si es un objeto (Result de ethers, Indexed object, Array, o String object)
     if (typeof idStr === 'object' && idStr !== null) {
       try {
-        idStr = ethers.hexlify(idStr);
+        // Soporte específico para objetos Indexed de ethers v6
+        if (idStr._isIndexed && idStr.hash) {
+          idStr = idStr.hash;
+        } 
+        // En ethers v6, los resultados de eventos pueden ser objetos Result (arrays con propiedades)
+        else if (Array.isArray(idStr) && idStr.length > 0) {
+          idStr = idStr[0];
+        } else {
+          idStr = ethers.hexlify(idStr);
+        }
       } catch (_) {
-        idStr = idStr.toString();
+        // Fallback al toString si no es un tipo reconocible
+        idStr = String(idStr);
       }
     }
 
@@ -156,8 +166,14 @@ class LoanRegistryService extends BaseContractService {
       idStr = String(idStr);
     }
 
+    // Verificación final para evitar que se propague el error visual
     if (idStr === '[object Object]') {
-      console.warn('⚠️  Warning: loanId normalized to [object Object]. Check input source.');
+      console.warn('⚠️  Critical Warning: loanId normalization failed. Source was:', typeof loanId, loanId);
+      // Como último recurso, si es un objeto plano, intentamos ver si tiene LoanUid
+      if (loanId && typeof loanId === 'object' && loanId.LoanUid) {
+        return this.normalizeLoanId(loanId.LoanUid); // Recursión controlada
+      }
+      return 'unknown_id_' + Date.now();
     }
 
     if (idStr.startsWith('0x')) return idStr.substring(2);
