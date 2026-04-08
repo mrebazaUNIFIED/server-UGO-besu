@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const RPCLoadBalancer = require('./rpcLoadBalancer');
 const RPCFailover = require('./rpcFailover');
+const globalTxQueue = require('./txQueue');
 require('dotenv').config();
 
 const chainId = parseInt(process.env.CHAIN_ID) || 12345;
@@ -79,6 +80,7 @@ module.exports = {
   writeLoadBalancer,  // backward compat
   writeNodes,
   getWriteProvider,
+  globalTxQueue,
   CONTRACTS,
   ABIs,
 };

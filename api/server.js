@@ -147,6 +147,19 @@ const server = app.listen(PORT, () => {
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
 
+// --- Global Exception Handling (Prevents crashes on socket hang ups) ---
+process.on('uncaughtException', (error) => {
+  console.error('\n💀 FATAL: Uncaught Exception:');
+  console.error(error);
+  // No salimos del proceso para permitir que el auto-heal de PM2 
+  // o la resiliencia de la API lo manejen si es posible.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n⚠️  Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+});
+
 // --- Apagado ---
 const shutdown = () => {
   console.log('\n🛑 Shutting down...');

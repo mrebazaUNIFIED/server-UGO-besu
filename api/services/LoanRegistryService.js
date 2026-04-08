@@ -19,7 +19,19 @@ function cleanupTxStore() {
 
 // ===== HELPER: Extraer revert reason real de ethers v6 =====
 function extractErrorReason(err) {
+  // Manejo de errores específicos de Besu/RPC
+  if (err?.error?.message) {
+    if (err.error.message.includes('Known transaction')) return 'Known transaction (already in pool)';
+    return err.error.message;
+  }
+  
+  if (err?.code === 'ECONNRESET' || err?.message?.includes('socket hang up')) {
+    return 'Network Error: Connection Reset by Peer (Besu node busy?)';
+  }
+
   if (err?.reason) return err.reason;
+  
+  // Decodificación de errores de contrato (Revert)
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x')) {
     try {
       if (err.data.startsWith('0x08c379a0')) {
@@ -32,6 +44,7 @@ function extractErrorReason(err) {
     } catch (_) { }
     return err.data;
   }
+  
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x4e487b71')) {
     try {
       const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
@@ -41,6 +54,10 @@ function extractErrorReason(err) {
       return `Panic(${decoded[0].toString()})`;
     } catch (_) { }
   }
+
+  // Fallback para errores de ethers v6
+  if (err?.shortMessage) return err.shortMessage;
+  
   return err?.message || String(err);
 }
 
@@ -113,17 +130,36 @@ class LoanRegistryService extends BaseContractService {
       if (bytes32.startsWith('0x')) return bytes32.toLowerCase();
       return bytes32;
     }
-    try { return ethers.hexlify(bytes32).toLowerCase(); }
-    catch (e) { console.warn('Error converting bytes32 to hex:', e.message); return ''; }
+    try {
+      // Manejar objetos Result de ethers v6 o arrays de bytes
+      return ethers.hexlify(bytes32).toLowerCase();
+    } catch (e) {
+      console.warn('Error converting bytes32 to hex:', e.message);
+      return String(bytes32);
+    }
   }
 
   normalizeLoanId(loanId) {
     if (!loanId) return '';
     let idStr = loanId;
-    if (typeof idStr !== 'string') {
-      if (typeof idStr === 'object' || typeof idStr === 'bigint') idStr = idStr.toString();
-      else idStr = String(idStr);
+
+    // Si es un objeto de ethers (Result), intentamos extraer el valor o convertirlo a hex
+    if (typeof idStr === 'object' && idStr !== null) {
+      try {
+        idStr = ethers.hexlify(idStr);
+      } catch (_) {
+        idStr = idStr.toString();
+      }
     }
+
+    if (typeof idStr !== 'string') {
+      idStr = String(idStr);
+    }
+
+    if (idStr === '[object Object]') {
+      console.warn('⚠️  Warning: loanId normalized to [object Object]. Check input source.');
+    }
+
     if (idStr.startsWith('0x')) return idStr.substring(2);
     return idStr;
   }

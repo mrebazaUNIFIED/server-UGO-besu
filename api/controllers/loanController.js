@@ -34,10 +34,21 @@ function getPrivateKey() {
 }
 
 function resolveWait(query) {
-  return query.wait !== 'false';
+  // Ahora el valor por defecto es FALSE. Solo será TRUE si se envía ?wait=true
+  return query.wait === 'true';
 }
 
 class LoanController {
+  constructor() {
+    // Bind ALL methods to 'this' to prevent issues when used as Express middleware
+    const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(this));
+    methods.forEach(method => {
+      if (method !== 'constructor' && typeof this[method] === 'function') {
+        this[method] = this[method].bind(this);
+      }
+    });
+  }
+
   /**
    * ⭐ HELPER: Invalida las listas globales y portafolios para asegurar consistencia
    */
