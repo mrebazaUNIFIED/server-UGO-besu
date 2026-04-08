@@ -186,6 +186,32 @@ class LoanRegistryService extends BaseContractService {
     return txStore.get(txHash.toLowerCase()) || null;
   }
 
+  /**
+   * Returns a summary of the current transactions in memory.
+   */
+  getTxSummary() {
+    cleanupTxStore();
+    const summary = {
+      total: txStore.size,
+      pending: 0,
+      confirmed: 0,
+      failed: 0,
+      byOperation: {}
+    };
+
+    for (const tx of txStore.values()) {
+      const status = (tx.status || 'UNKNOWN').toLowerCase();
+      if (status === 'pending') summary.pending++;
+      else if (status === 'confirmed') summary.confirmed++;
+      else if (status === 'failed') summary.failed++;
+
+      const op = tx.operation || 'other';
+      summary.byOperation[op] = (summary.byOperation[op] || 0) + 1;
+    }
+
+    return summary;
+  }
+
   _setTx(txHash, patch) {
     const key = (txHash || '').toLowerCase();
     const prev = txStore.get(key) || {};

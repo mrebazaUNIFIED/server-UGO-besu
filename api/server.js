@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const { readLoadBalancer, writeLoadBalancer, writeNodes } = require('./config/blockchain');
 const cache = require('./config/cache');
+const loanService = require('./services/LoanRegistryService');
 require('dotenv').config();
 
 const app = express();
@@ -77,7 +78,8 @@ app.get('/rpc-status', (req, res) => {
           load: readTotal > 0 ? ((s.requestCount / readTotal) * 100).toFixed(1) + '%' : '0%'
         }))
       },
-      write: writeByDomain
+      write: writeByDomain,
+      transactions: loanService.getTxSummary()
     });
   } catch (error) {
     console.error('❌ Error in /rpc-status:', error);
