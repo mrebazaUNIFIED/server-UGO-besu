@@ -20,7 +20,8 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     struct ApprovalData {
         bool isApproved;
         uint256 askingPrice;
-        address lenderAddress;
+        address lenderAddress;       // FCI / Seller address (receives funds in Avalanche)
+        address originalLenderAddress; // Original Lender / Sub-owner address (audit trail)
         uint256 approvalTimestamp;
         bool isMinted;
         bool isCancelled;
@@ -34,7 +35,7 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     mapping(string => bytes32) public loanIdToTxHash;
 
     // ===== EVENTOS =====
-    event LoanApprovedForSale(string indexed loanId, address indexed lenderAddress, uint256 askingPrice, uint256 timestamp);
+    event LoanApprovedForSale(string indexed loanId, address indexed lenderAddress, address originalLenderAddress, uint256 askingPrice, uint256 timestamp);
     event LoanApprovalCancelled(string indexed loanId, address indexed lenderAddress, uint256 timestamp);
     event AvalancheTokenIdSet(string indexed loanId, uint256 tokenId, uint256 timestamp);
     event EmergencyUnlockNeedsSync(string indexed loanId, uint256 indexed tokenId, uint256 timestamp);
@@ -74,12 +75,19 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     }
 
     // ===== FUNCIÓN PRINCIPAL: APROBAR PARA VENTA =====
-    function approveLoanForSale(string memory loanId, uint256 askingPrice) public returns (bool) {
+    function approveLoanForSale(
+        string memory loanId, 
+        uint256 askingPrice, 
+        address sellerAddress, 
+        address originalLenderAddress
+    ) public onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
         require(!loanRegistry.isLoanLocked(loanId), "Loan already tokenized");
         require(!loanApprovals[loanId].isApproved, "Already approved");
         require(!loanApprovals[loanId].isCancelled, "Was cancelled, use new approval");
         require(askingPrice > 0, "Invalid price");
+        require(sellerAddress != address(0), "Invalid seller address");
+        require(originalLenderAddress != address(0), "Invalid lender address");
 
         LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
         require(loan.CurrentBalance > 0, "Loan balance must be > 0");
@@ -90,13 +98,14 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
         loanApprovals[loanId] = ApprovalData({
             isApproved: true,
             askingPrice: askingPrice,
-            lenderAddress: msg.sender,
+            lenderAddress: sellerAddress,
+            originalLenderAddress: originalLenderAddress,
             approvalTimestamp: block.timestamp,
             isMinted: false,
             isCancelled: false
         });
 
-        emit LoanApprovedForSale(loanId, msg.sender, askingPrice, block.timestamp);
+        emit LoanApprovedForSale(loanId, sellerAddress, originalLenderAddress, askingPrice, block.timestamp);
         return true;
     }
 

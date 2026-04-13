@@ -1,0 +1,56 @@
+# Promtail Configuration - API y Relayer Logs
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ─── Logs de API ───────────────────────────────────────────────────────
+  - job_name: besu-api
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: besu-api
+          __path__: /var/log/besu-api/*.log
+    pipeline_stages:
+      # Parse JSON log lines
+      - json:
+          expressions:
+            level: level
+            message: message
+            timestamp: timestamp
+            error: error
+      # Extract level as a label
+      - labels:
+          level:
+      # Use message as output
+      - output:
+          source: message
+
+  # ─── Logs de Relayer ───────────────────────────────────────────────────
+  - job_name: relayer
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer-service
+          __path__: /var/log/relayer/*.log
+    pipeline_stages:
+      # Parse JSON log lines
+      - json:
+          expressions:
+            level: level
+            message: message
+            timestamp: timestamp
+      # Extract level as a label
+      - labels:
+          level:
+      # Use message as output
+      - output:
+          source: message

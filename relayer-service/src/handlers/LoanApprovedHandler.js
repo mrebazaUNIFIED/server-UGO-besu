@@ -31,6 +31,7 @@ class LoanApprovedHandler extends BaseHandler {
       const {
         loanId,
         lenderAddress,
+        originalLenderAddress,
         askingPrice,
         transactionHash
       } = event;
@@ -41,7 +42,8 @@ class LoanApprovedHandler extends BaseHandler {
 
       logger.info('Procesando aprobación de préstamo', {
         loanId,
-        lender: lenderAddress,
+        seller: lenderAddress,
+        originalLender: originalLenderAddress,
         price: askingPrice?.toString(),
         approvalTxHash: transactionHash
       });
@@ -491,6 +493,7 @@ class LoanApprovedHandler extends BaseHandler {
 
     if (!event.loanId) throw new Error('Missing loan ID');
     if (!event.lenderAddress) throw new Error('Missing lender address');
+    if (!event.originalLenderAddress) throw new Error('Missing original lender address');
     if (!event.askingPrice) throw new Error('Missing asking price');
 
     return true;

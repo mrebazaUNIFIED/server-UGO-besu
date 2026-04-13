@@ -2,15 +2,15 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x15C9C1769bb82b1359553A805F7555619d47964b",
-      "txHash": "0x16bdb6008eda899a4ec770b49a3368ef885abd50ae1c887435887dade4c6f970",
+      "address": "0xecA47C1FF233d43cbA79811D57653E9Db2aF6c73",
+      "txHash": "0x3fdd9a8ae5c201f691784f24481bbbb1df832daa634f2d36740333aced84c333",
       "kind": "uups"
     }
   ],
   "impls": {
     "eae181397ca113bb2ad8b644d966d169e119d997b0a3d51637aa6a779ede5a50": {
-      "address": "0x8dfE4933Cd9584d7d0c023bAE39c453dec975cCd",
-      "txHash": "0xe1eb11d0f39b2cf6adb98a029502c0b3df31492b036a26b8f780fc037d6734e7",
+      "address": "0x79A1070721a76fc8491A9A180f593BFceF054b26",
+      "txHash": "0x5c4fcd8cd3e84322a1ef75c700f880f20325f10172fbed0d75df7654f748a5e7",
       "layout": {
         "solcVersion": "0.8.24",
         "storage": [
@@ -26,7 +26,7 @@
             "label": "_mintRecords",
             "offset": 0,
             "slot": "1",
-            "type": "t_array(t_struct(MintRecord)22971_storage)dyn_storage",
+            "type": "t_array(t_struct(MintRecord)23001_storage)dyn_storage",
             "contract": "USFCI_Avalanche",
             "src": "src/avalanche/USFCIAvalanche.sol:74"
           },
@@ -34,7 +34,7 @@
             "label": "_burnRecords",
             "offset": 0,
             "slot": "2",
-            "type": "t_array(t_struct(BurnRecord)22981_storage)dyn_storage",
+            "type": "t_array(t_struct(BurnRecord)23011_storage)dyn_storage",
             "contract": "USFCI_Avalanche",
             "src": "src/avalanche/USFCIAvalanche.sol:77"
           },
@@ -42,7 +42,7 @@
             "label": "_transferRecords",
             "offset": 0,
             "slot": "3",
-            "type": "t_array(t_struct(TransferRecord)22991_storage)dyn_storage",
+            "type": "t_array(t_struct(TransferRecord)23021_storage)dyn_storage",
             "contract": "USFCI_Avalanche",
             "src": "src/avalanche/USFCIAvalanche.sol:80"
           },
@@ -204,19 +204,19 @@
             "label": "uint64",
             "numberOfBytes": "8"
           },
-          "t_array(t_struct(BurnRecord)22981_storage)dyn_storage": {
+          "t_array(t_struct(BurnRecord)23011_storage)dyn_storage": {
             "label": "struct USFCI_Avalanche.BurnRecord[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(MintRecord)22971_storage)dyn_storage": {
+          "t_array(t_struct(MintRecord)23001_storage)dyn_storage": {
             "label": "struct USFCI_Avalanche.MintRecord[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(TransferRecord)22991_storage)dyn_storage": {
+          "t_array(t_struct(TransferRecord)23021_storage)dyn_storage": {
             "label": "struct USFCI_Avalanche.TransferRecord[]",
             "numberOfBytes": "32"
           },
-          "t_struct(BurnRecord)22981_storage": {
+          "t_struct(BurnRecord)23011_storage": {
             "label": "struct USFCI_Avalanche.BurnRecord",
             "members": [
               {
@@ -246,7 +246,7 @@
             ],
             "numberOfBytes": "128"
           },
-          "t_struct(MintRecord)22971_storage": {
+          "t_struct(MintRecord)23001_storage": {
             "label": "struct USFCI_Avalanche.MintRecord",
             "members": [
               {
@@ -282,7 +282,7 @@
             ],
             "numberOfBytes": "160"
           },
-          "t_struct(TransferRecord)22991_storage": {
+          "t_struct(TransferRecord)23021_storage": {
             "label": "struct USFCI_Avalanche.TransferRecord",
             "members": [
               {

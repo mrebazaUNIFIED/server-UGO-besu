@@ -43,8 +43,10 @@ type Network = 'besu' | 'avalanche';
 type ActionType = 'transfer' | 'bridge';
 
 export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
-    const [active, setActive] = useState(0);
     const { user } = useAuth();
+    const isFCI = (user as any)?.organization === 'FCI';
+    
+    const [active, setActive] = useState(0);
     const walletAddress = (user as any)?.walletAddress || (user as any)?.address || '';
 
     // Selected options
@@ -87,6 +89,13 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
         }
     }, [actionType, walletAddress]);
 
+    // Reset step when opening modal based on organization
+    useEffect(() => {
+        if (open) {
+            setActive(isFCI ? 0 : 1);
+        }
+    }, [open, isFCI]);
+
     const isProcessing = transferBesu.isPending || transferAva.isPending || bridgeToAva.isPending || bridgeToBesu.isPending;
 
     const nextStep = () => {
@@ -101,7 +110,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
         setActive((current) => current + 1);
     };
 
-    const prevStep = () => setActive((current) => (current > 0 ? current - 1 : current));
+    const prevStep = () => setActive((current) => (current > (isFCI ? 0 : 1) ? current - 1 : current));
 
     const handleSubmit = async () => {
         const amountBase = toBaseUnits(form.values.amount);
@@ -129,29 +138,32 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
     };
 
     const closeModal = () => {
-        setActive(0);
+        setActive(isFCI ? 0 : 1);
         form.reset();
         onClose();
     };
 
     // Custom UI Components
-    const ProgressFlow = () => (
-        <Group gap="xs" justify="center" mb={40}>
-            {[0, 1, 2, 3].map((step) => (
-                <Box
-                    key={step}
-                    w={active === step ? 48 : 32}
-                    h={6}
-                    style={{
-                        backgroundColor: active >= step ? '#ba181b' : '#f1f3f5',
-                        borderRadius: 10,
-                        transition: 'all 0.4s ease',
-                        opacity: active >= step ? 1 : 0.3
-                    }}
-                />
-            ))}
-        </Group>
-    );
+    const ProgressFlow = () => {
+        const steps = isFCI ? [0, 1, 2, 3] : [1, 2, 3];
+        return (
+            <Group gap="xs" justify="center" mb={40}>
+                {steps.map((step) => (
+                    <Box
+                        key={step}
+                        w={active === step ? 48 : 32}
+                        h={6}
+                        style={{
+                            backgroundColor: active >= step ? '#ba181b' : '#f1f3f5',
+                            borderRadius: 10,
+                            transition: 'all 0.4s ease',
+                            opacity: active >= step ? 1 : 0.3
+                        }}
+                    />
+                ))}
+            </Group>
+        );
+    };
 
     const SelectionCard = ({ net, isSelected, onClick, label, sublabel, icon: Icon }: any) => (
         <UnstyledButton
@@ -222,7 +234,9 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
                         <Title order={2} className="text-gray-900 font-extrabold uppercase tracking-tighter text-2xl">
                             Institutional <span className="text-[#ba181b]">Portal</span>
                         </Title>
-                        <Text size="xs" c="dimmed" fw={800} className="tracking-[0.2em] uppercase">Private Asset Portal • FCI Network</Text>
+                        <Text size="xs" c="dimmed" fw={800} className="tracking-[0.2em] uppercase">
+                            Private Asset Portal • {isFCI ? 'FCI Network' : 'Besu Network'}
+                        </Text>
                     </Stack>
                     <UnstyledButton onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-full transition-colors font-bold text-gray-300">
                         ✕
@@ -301,7 +315,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
 
                 {active === 1 && (
                     <Stack gap="xl">
-                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">2. Financial Distribution</Text>
+                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">{isFCI ? '2' : '1'}. Financial Distribution</Text>
 
                         <Paper p={40} radius="2.5rem" style={{ border: '1px solid rgba(0,0,0,0.03)', backgroundColor: '#f8f9fa' }}>
                             <Stack gap={0} align="center">
@@ -329,7 +343,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
                             <Group gap="sm" justify="center">
                                 <RiInformationFill className="text-[#ba181b]" />
                                 <Text size="xs" fw={800} className="text-[#ba181b] uppercase tracking-wider">
-                                    Transaction will be processed on the {sourceNetwork === 'besu' ? 'FCI Network' : 'Avalanche Network'}
+                                    Transaction will be processed on the {sourceNetwork === 'besu' ? (isFCI ? 'FCI Network' : 'Besu Network') : 'Avalanche Network'}
                                 </Text>
                             </Group>
                         </Paper>
@@ -338,7 +352,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
 
                 {active === 2 && (
                     <Stack gap="xl">
-                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">3. Recipient Address</Text>
+                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">{isFCI ? '3' : '2'}. Recipient Address</Text>
 
                         <TextInput
                             {...form.getInputProps('recipient')}
@@ -379,7 +393,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
 
                 {active === 3 && (
                     <Stack gap="xl">
-                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">4. Review & Confirm</Text>
+                        <Text size="xs" fw={900} c="dimmed" className="uppercase tracking-widest text-center">{isFCI ? '4' : '3'}. Review & Confirm</Text>
 
                         <Paper radius="3rem" p={40} bg="#161A1D" style={{ color: 'white', position: 'relative', overflow: 'hidden' }}>
                             <Stack gap="xl" align="center">
@@ -388,7 +402,9 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
                                         <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
                                             {sourceNetwork === 'besu' ? <RiBankFill size={24} /> : <AvalancheLogo size={24} />}
                                         </div>
-                                        <Text size="8px" fw={900} className=" uppercase tracking-widest ">{sourceNetwork === 'besu' ? 'FCI Network' : 'Avalanche Network'}</Text>
+                                        <Text size="8px" fw={900} className=" uppercase tracking-widest ">
+                                            {sourceNetwork === 'besu' ? (isFCI ? 'FCI Network' : 'Besu Network') : 'Avalanche Network'}
+                                        </Text>
                                     </Stack>
 
                                     <RiArrowRightLine size={30} className="text-[#ba181b]" />
@@ -402,8 +418,8 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
                                         </div>
                                         <Text size="8px" fw={900} className="uppercase tracking-widest ">
                                             {actionType === 'transfer'
-                                                ? (sourceNetwork === 'besu' ? 'FCI Network' : 'Avalanche Network')
-                                                : (sourceNetwork === 'besu' ? 'Avalanche Network' : 'FCI Network')
+                                                ? (sourceNetwork === 'besu' ? (isFCI ? 'FCI Network' : 'Besu Network') : 'Avalanche Network')
+                                                : (sourceNetwork === 'besu' ? 'Avalanche Network' : (isFCI ? 'FCI Network' : 'Besu Network'))
                                             }
                                         </Text>
                                     </Stack>
@@ -421,7 +437,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
 
                                 <Box w="100%" p="md" bg="white/5" style={{ borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     <Stack gap={4}>
-                                        <Text size="8px" fw={900} className="uppercase tracking-widest opacity-40">FCI Private Network Target</Text>
+                                        <Text size="8px" fw={900} className="uppercase tracking-widest opacity-40">{isFCI ? 'FCI' : 'Besu'} Private Network Target</Text>
                                         <Text size="xs" fw={800} className="font-mono tracking-tighter">
                                             {form.values.recipient.slice(0, 20)}...{form.values.recipient.slice(-14)}
                                         </Text>
@@ -463,7 +479,7 @@ export const ModalStepper = ({ open, onClose }: ModalStepperProps) => {
                             variant="subtle"
                             color="gray"
                             onClick={prevStep}
-                            disabled={active === 0}
+                            disabled={active === (isFCI ? 0 : 1)}
                             radius="2rem"
                             size="lg"
                             fw={900}

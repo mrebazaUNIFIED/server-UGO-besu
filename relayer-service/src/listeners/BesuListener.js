@@ -37,9 +37,10 @@ class BesuListener {
       this.contract.on('LoanApprovedForSale', async (
         loanIdHash,
         lenderAddress,
+        originalLenderAddress,
         askingPrice,
         timestamp,
-        eventObj  // ← Renombrado
+        eventObj
       ) => {
         try {
           // Decodificar la transacción para obtener el loanId original
@@ -49,6 +50,7 @@ class BesuListener {
             loanId,
             loanIdHash,
             lenderAddress,
+            originalLenderAddress,
             askingPrice: askingPrice.toString(),
             timestamp: timestamp.toString(),
             transactionHash: eventObj?.log?.transactionHash || eventObj?.transactionHash,

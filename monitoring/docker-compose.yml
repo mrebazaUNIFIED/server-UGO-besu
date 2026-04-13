@@ -1,0 +1,88 @@
+services:
+  # ─── PROMETHEUS: Recopila métricas de Besu + API ──────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: besu-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  # ─── GRAFANA: Dashboards visuales ─────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: besu-grafana
+    restart: unless-stopped
+    volumes:
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ─── LOKI: Agregación de logs ─────────────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: besu-loki
+    restart: unless-stopped
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ./loki/rules:/loki/rules
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring
+
+  # ─── PROMTAIL: Envía logs de API y Relayer a Loki ─────────────────────
+  promtail:
+    image: grafana/promtail:latest
+    container_name: besu-promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ../api/logs:/var/log/besu-api:ro
+      - ../relayer-service/logs:/var/log/relayer:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:

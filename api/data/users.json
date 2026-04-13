@@ -1,39 +1,32 @@
 {
-  "a1b2c3d4-e5f6-4789-1011-12131415161722": {
-    "userId": "a1b2c3d4-e5f6-4789-1011-12131415161722",
+  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
+    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
+    "name": "Kyle",
+    "organization": "FCI",
+    "role": "operator",
+    "initialBalance": "0",
+    "walletAddress": "0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567",
+    "privateKey": "0xa54ce1bf223c85c8524e50d4c540c4c387bd32414738548908e2162cd57b3131",
+    "mnemonic": "reflect favorite door fault garment crop live vague dish cinnamon cancel laugh"
+  },
+  "a1b2c3d4-e5f6-4789-1011-121314151617": {
+    "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
     "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "address": "0xF935bDa1460D19BA7158274a01E1A0E40d9E7EcC",
-    "privateKey": "0xbacf25cb1a42dbca3397745eb208b9b03d4e50bbcd974aa5ea18b28f3cc64427",
-    "mnemonic": "wash cancel move mad strike coach tube zero this north mother faith",
-    "passwordHash": "$2b$10$ddnj3A3yE0hoax237fH21uHOpxiNIIQhEjkWMWrQ3oR4qlUs4OUIi",
     "initialBalance": "0",
-    "createdAt": "2026-04-07T14:37:25.149Z",
-    "lastLogin": "2026-04-07T20:29:41.496Z"
+    "walletAddress": "0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128",
+    "privateKey": "0xaf93dca2f6d3a263352349c4ef291c13e959b0b85e908d535d54abede40cf1cd",
+    "mnemonic": "observe rifle wreck patient any pigeon saddle stage knee world hidden emotion"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
     "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "address": "0x16b87497c7cD7431368616b02e186FCe4512b1E7",
-    "privateKey": "0xe6676cae7d2f1000700a38c578b1c49112403e3c93e124743a2a75363913dd48",
-    "mnemonic": "boat siren sadness apple strategy purity eye outer axis cruel couple special",
-    "passwordHash": "$2b$10$LdSoedL7o1HUB3U23JIZROoJPKMD5FueWivseYfOV/O4oWm78BORK",
     "initialBalance": "0",
-    "createdAt": "2026-04-07T14:37:25.149Z",
-    "lastLogin": null
-  },
-  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
-    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
-    "name": "Kyle",
-    "organization": "FCI",
-    "role": "operator",
-    "privateKey": "0xd4db7e2bb2366cea6d6f587cd719acfd8043507af1c9b71c2c54ab951cead679",
-    "mnemonic": "general appear appear remove jealous sense often empower forget lonely eye spike",
-    "initialBalance": "0",
-    "createdAt": "2026-04-07T17:20:33.930Z",
-    "lastLogin": null
+    "walletAddress": "0x43A36BBe1770adAB0406Ad81Dc594bABF1fD0fAB",
+    "privateKey": "0x2c2234ff8e75e827ab41c73980dc18ecc036ac4cf57b4ea00404ed2bba82609e",
+    "mnemonic": "easy ramp confirm entry indicate hospital usual tag alert above palace first"
   }
 }

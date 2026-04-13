@@ -1,12 +1,12 @@
 {
   "syncState": {
     "besu": {
-      "lastBlock": 7370,
-      "lastSync": "2026-04-08T17:26:05.209Z"
+      "lastBlock": 1271,
+      "lastSync": "2026-04-13T21:57:21.999Z"
     },
     "avalanche": {
-      "lastBlock": 53813646,
-      "lastSync": "2026-04-08T17:25:56.908Z"
+      "lastBlock": 54061622,
+      "lastSync": "2026-04-13T21:57:22.310Z"
     }
   },
   "processedEvents": [
@@ -21,6 +21,7 @@
     "BridgeToAvalanche-0x3b8a3f8d5fd7b2feae11eb52aa0bc690e3fc03cf974c0365aad1e87318d76f11-1",
     "BridgeToAvalanche-0xc7772e0d44adf738a53c56d64a93b811800877f08899e30db7df314814b087b5-1",
     "BridgeToAvalanche-0x1d3cd19b864bc630cf36fb82539300d5ec26feb75ae919d2d2cc23d6f852a6a4-1",
-    "BridgeToAvalanche-0x570a408a7dc846aeb00a8d5507ab7ec0b19caae68270842fb10362e0f7a3fe95-1"
+    "BridgeToAvalanche-0x570a408a7dc846aeb00a8d5507ab7ec0b19caae68270842fb10362e0f7a3fe95-1",
+    "BridgeToAvalanche-0x6da52ca2913de9f2f6e17d3ef376c2405404315fb98a269bf612be98ddd2c6e4-1"
   ]
 }

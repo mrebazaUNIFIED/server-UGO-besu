@@ -12,7 +12,7 @@ p2p-port=30309
 max-peers=25
 
 # Bootnodes
-bootnodes=["enode://bd741f3b1c333601690cfaaf5b19c552c2681f0a2e4210def0214937b59a550a26612fd0a4c8bdb769cfef5fedcedf3187128158738fc5d1d04060c7ac4b9f18@127.0.0.1:30303"]
+bootnodes=["enode://b97dffd916edf99b5c48e4340806f7a8699ef019595bfafd442041aa5804851dd6933a63f120cf0bebcbb1239f4b57c0a203a618095836e672a6871ebe879550@127.0.0.1:30303"]
 
 # Discovery
 discovery-enabled=true
@@ -51,3 +51,8 @@ network-id=12345
 # Gas price
 min-gas-price=0
 
+
+# ----- SOPORTE PARA MIGRACIONES MASIVAS (TXPOOL) -----
+tx-pool="Layered"
+tx-pool-layer-max-capacity=100000
+tx-pool-max-future-by-sender=50000

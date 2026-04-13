@@ -2,12 +2,64 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const fs = require('fs');
+const path = require('path');
 const { readLoadBalancer, writeLoadBalancer, writeNodes } = require('./config/blockchain');
 const cache = require('./config/cache');
 const loanService = require('./services/LoanRegistryService');
+const { metricsMiddleware, generatePrometheusMetrics, getMetricsJSON } = require('./middleware/metrics');
 require('dotenv').config();
 
 const app = express();
+
+// ─── File Logging Setup ──────────────────────────────────────────────────
+const logFile = process.env.LOG_FILE;
+if (logFile) {
+  const logDir = path.dirname(logFile);
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+  // Redirigir console.log, console.warn, console.error al archivo
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const originalError = console.error;
+
+  console.log = (...args) => {
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    logStream.write(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      message: msg
+    }) + '\n');
+    originalLog.apply(console, args);
+  };
+
+  console.warn = (...args) => {
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    logStream.write(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'warn',
+      message: msg
+    }) + '\n');
+    originalWarn.apply(console, args);
+  };
+
+  console.error = (...args) => {
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    logStream.write(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      message: msg,
+      error: args.find(a => a instanceof Error)?.stack
+    }) + '\n');
+    originalError.apply(console, args);
+  };
+
+  console.log(`📝 Logs being written in JSON format to: ${logFile}`);
+}
+
 
 // --- Middleware ---
 app.use(helmet());
@@ -15,6 +67,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+app.use(metricsMiddleware); // ← Métricas de Prometheus
 
 app.use((req, res, next) => {
   console.log(`\n🔵 ${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -104,6 +157,22 @@ app.get('/cache-status', (req, res) => {
   }
 });
 
+// --- Prometheus Metrics ──────────────────────────────────────────────────
+app.get('/metrics', (req, res) => {
+  res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  res.send(generatePrometheusMetrics());
+});
+
+// --- Monitoring Dashboard (JSON para web UI) ─────────────────────────────
+app.get('/monitoring', (req, res) => {
+  try {
+    res.json(getMetricsJSON());
+  } catch (error) {
+    console.error('❌ /monitoring:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- Rutas ---
 app.use('/auth', require('./routes/auth.routes'));
 app.use('/loans', require('./routes/loan.routes'));
@@ -133,12 +202,15 @@ const server = app.listen(PORT, () => {
   console.log(`\n${'='.repeat(50)}`);
   console.log(`🚀 BESU API GATEWAY RUNNING`);
   console.log(`${'='.repeat(50)}`);
-  console.log(`📍 Port:    ${PORT}`);
-  console.log(`📖 Read:    ${readLoadBalancer.rpcUrls.length} nodes`);
-  console.log(`✍️  Write:   ${Object.keys(writeNodes).join(', ')}`);
-  console.log(`❤️  Health:  http://localhost:${PORT}/health`);
-  console.log(`📊 Status:  http://localhost:${PORT}/rpc-status`);
-  console.log(`🗄️  Cache:   http://localhost:${PORT}/cache-status`);
+  console.log(`📍 Port:        ${PORT}`);
+  console.log(`📖 Read:        ${readLoadBalancer.rpcUrls.length} nodes`);
+  console.log(`✍️  Write:       ${Object.keys(writeNodes).join(', ')}`);
+  console.log(`❤️  Health:      http://localhost:${PORT}/health`);
+  console.log(`📊 Status:      http://localhost:${PORT}/rpc-status`);
+  console.log(`🗄️  Cache:       http://localhost:${PORT}/cache-status`);
+  console.log(`📈 Metrics:     http://localhost:${PORT}/metrics`);
+  console.log(`🖥️  Monitoring:  http://localhost:${PORT}/monitoring`);
+  console.log(`📊 Grafana:     http://localhost:3000 (admin/admin)`);
   console.log(`${'='.repeat(50)}\n`);
 
   // ✅ Health checks para read y todos los write domains

@@ -1,5 +1,6 @@
 const marketplaceBridgeService = require('../services/MarketplaceBridgeService');
 const loanService = require('../services/LoanRegistryService');
+const userRegistryService = require('../services/UserRegistryService');
 
 class MarketplaceController {
 
@@ -11,22 +12,35 @@ class MarketplaceController {
    * POST /api/marketplace/approve
    * ⭐ ACTUALIZADO: Sin privateKey en body, sin modifiedInterestRate
    * 
-   * Body: { lenderUid, loanUid, askingPrice }
+   * Body: { lenderUid, loanUid, askingPrice, userUid }
    */
   async approveLoanForSale(req, res, next) {
     try {
-      const { lenderUid, loanUid, askingPrice } = req.body;
+      const { lenderUid, loanUid, askingPrice, userUid } = req.body;
+      const sellerAddress = req.body.sellerAddress || process.env.FCI_ADDRESS;
 
       // Validaciones
-      if (!lenderUid || !loanUid) {
-        return res.status(400).json({ error: 'LenderUid and LoanUid are required' });
+      if (!lenderUid || !loanUid || !userUid) {
+        return res.status(400).json({ error: 'LenderUid, LoanUid and UserUid are required' });
       }
 
       if (!askingPrice || askingPrice <= 0) {
         return res.status(400).json({ error: 'Valid asking price required' });
       }
 
-      // Verificar que el loan existe
+      if (!sellerAddress) {
+        return res.status(400).json({ error: 'Seller address (FCI) is required (body or .env)' });
+      }
+
+      // Buscar wallet del usuario que opera (Kyle) para la autorización
+      const requester = await userRegistryService.getUserByUserId(userUid);
+      if (!requester || !requester.walletAddress) {
+        return res.status(404).json({ error: `Operator wallet not found for User UID: ${userUid}` });
+      }
+
+      const originalLenderAddress = requester.walletAddress;
+
+      // Verificar que el loan existe (usando el lenderUid original del préstamo)
       const exists = await marketplaceBridgeService._verifyLoanExists(lenderUid, loanUid);
       if (!exists) {
         return res.status(404).json({
@@ -49,7 +63,9 @@ class MarketplaceController {
       const approvalResult = await marketplaceBridgeService.approveLoanForSale(
         lenderUid,
         loanUid,
-        askingPrice
+        askingPrice,
+        sellerAddress,
+        originalLenderAddress
       );
       console.log(`✅ Loan approved. TxHash: ${approvalResult.txHash}`);
 

@@ -208,13 +208,11 @@ class PortfolioService extends BaseContractService {
     const cacheKey = `portfolio:cert:${userId}`;
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
       return cached;
     }
     const cert = await this.getContractReadOnly().getPortfolioCertificate(userId);
     const formatted = this._formatCertificate(cert);
     cache.loans.set(cacheKey, formatted);
-    console.log(`[cache] SET ${cacheKey}`);
     return formatted;
   }
 

@@ -3,6 +3,17 @@ const { rpcLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
 const BaseContractService = require('./BaseContractService');
 const cache = require('../config/cache');
 
+// Importar métricas (lazy para evitar circular dependency)
+let metrics = null;
+const getMetrics = () => {
+  if (!metrics) metrics = require('../middleware/metrics');
+  return metrics;
+};
+
+const recordTxConfirmed = (...args) => getMetrics().recordTxConfirmed(...args);
+const recordTxPending = (...args) => getMetrics().recordTxPending(...args);
+const recordRpcError = (...args) => getMetrics().recordRpcError(...args);
+
 // ===== TX STORE (memoria) =====
 const txStore = new Map();
 
@@ -24,13 +35,13 @@ function extractErrorReason(err) {
     if (err.error.message.includes('Known transaction')) return 'Known transaction (already in pool)';
     return err.error.message;
   }
-  
+
   if (err?.code === 'ECONNRESET' || err?.message?.includes('socket hang up')) {
     return 'Network Error: Connection Reset by Peer (Besu node busy?)';
   }
 
   if (err?.reason) return err.reason;
-  
+
   // Decodificación de errores de contrato (Revert)
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x')) {
     try {
@@ -44,7 +55,7 @@ function extractErrorReason(err) {
     } catch (_) { }
     return err.data;
   }
-  
+
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x4e487b71')) {
     try {
       const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
@@ -57,7 +68,7 @@ function extractErrorReason(err) {
 
   // Fallback para errores de ethers v6
   if (err?.shortMessage) return err.shortMessage;
-  
+
   return err?.message || String(err);
 }
 
@@ -149,7 +160,7 @@ class LoanRegistryService extends BaseContractService {
         // Soporte específico para objetos Indexed de ethers v6
         if (idStr._isIndexed && idStr.hash) {
           idStr = idStr.hash;
-        } 
+        }
         // En ethers v6, los resultados de eventos pueden ser objetos Result (arrays con propiedades)
         else if (Array.isArray(idStr) && idStr.length > 0) {
           idStr = idStr[0];
@@ -284,6 +295,7 @@ class LoanRegistryService extends BaseContractService {
       catch (err) {
         const reason = logTxError('createLoan', tx.hash, err);
         this._setTx(tx.hash, { status: 'FAILED', error: reason });
+        recordRpcError('loans');
         throw new Error(`createLoan failed: ${reason}`);
       }
 
@@ -294,6 +306,9 @@ class LoanRegistryService extends BaseContractService {
       // ✅ Invalidar caché al confirmar escritura
       cache.invalidate(`loan:${finalLoanId}`);
       cache.invalidate(`loan:byuids:${loanData.LenderUid}:${loanData.LoanUid}`);
+
+      // 📈 Métricas
+      if (receipt.status === 1) recordTxConfirmed();
 
       this._setTx(tx.hash, {
         status: finalStatus, txId: parsed.txId,
@@ -317,6 +332,9 @@ class LoanRegistryService extends BaseContractService {
         // ✅ Invalidar caché en background también
         cache.invalidate(`loan:${finalLoanId}`);
         cache.invalidate(`loan:byuids:${loanData.LenderUid}:${loanData.LoanUid}`);
+
+        // 📈 Métricas
+        if (receipt.status === 1) recordTxConfirmed();
 
         this._setTx(tx.hash, {
           status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
@@ -437,7 +455,6 @@ class LoanRegistryService extends BaseContractService {
 
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
       return cached;
     }
 
@@ -446,7 +463,6 @@ class LoanRegistryService extends BaseContractService {
     const formatted = this._formatLoan(loan);
 
     cache.loans.set(cacheKey, formatted);
-    console.log(`[cache] SET ${cacheKey}`);
     return formatted;
   }
 
@@ -455,7 +471,6 @@ class LoanRegistryService extends BaseContractService {
 
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
       return cached;
     }
 
@@ -464,7 +479,6 @@ class LoanRegistryService extends BaseContractService {
     const formatted = this._formatLoan(loan);
 
     cache.loans.set(cacheKey, formatted);
-    console.log(`[cache] SET ${cacheKey}`);
     return formatted;
   }
 
@@ -524,7 +538,6 @@ class LoanRegistryService extends BaseContractService {
 
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey} (${cached.length} loans)`);
       return cached;
     }
 
@@ -534,7 +547,6 @@ class LoanRegistryService extends BaseContractService {
 
     if (formatted.length > 0) {
       cache.loans.set(cacheKey, formatted);
-      console.log(`[cache] SET ${cacheKey} (${formatted.length} loans)`);
     }
 
     return formatted;
@@ -688,4 +700,5 @@ class LoanRegistryService extends BaseContractService {
   }
 }
 
+module.exports = new LoanRegistryService();
 module.exports = new LoanRegistryService();

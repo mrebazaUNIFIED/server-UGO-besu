@@ -1,0 +1,92 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # ─── API Metrics ──────────────────────────────────────────────────────
+  - job_name: 'besu-api'
+    static_configs:
+      - targets: ['host.docker.internal:8070']
+        labels:
+          cluster: 'besu-private'
+          service: 'api-gateway'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ─── Besu Nodes - Metrics ─────────────────────────────────────────────
+  # FCI Validators
+  - job_name: 'besu-fci-val1'
+    static_configs:
+      - targets: ['host.docker.internal:9546']
+        labels:
+          cluster: 'besu-private'
+          node: 'fci-val1'
+          role: 'validator'
+          domain: 'loans'
+
+  - job_name: 'besu-fci-val2'
+    static_configs:
+      - targets: ['host.docker.internal:9547']
+        labels:
+          cluster: 'besu-private'
+          node: 'fci-val2'
+          role: 'validator'
+          domain: 'users'
+
+  # FCI RPC
+  - job_name: 'besu-fci-rpc1'
+    static_configs:
+      - targets: ['host.docker.internal:9548']
+        labels:
+          cluster: 'besu-private'
+          node: 'fci-rpc1'
+          role: 'rpc'
+          domain: 'loans'
+
+  - job_name: 'besu-fci-rpc2'
+    static_configs:
+      - targets: ['host.docker.internal:9549']
+        labels:
+          cluster: 'besu-private'
+          node: 'fci-rpc2'
+          role: 'rpc'
+          domain: 'loans'
+
+  # Sunwest Validators
+  - job_name: 'besu-sunwest-val1'
+    static_configs:
+      - targets: ['host.docker.internal:9550']
+        labels:
+          cluster: 'besu-private'
+          node: 'sunwest-val1'
+          role: 'validator'
+          domain: 'usfci'
+
+  - job_name: 'besu-sunwest-val2'
+    static_configs:
+      - targets: ['host.docker.internal:9551']
+        labels:
+          cluster: 'besu-private'
+          node: 'sunwest-val2'
+          role: 'validator'
+          domain: 'marketplace'
+
+  # Sunwest RPC
+  - job_name: 'besu-sunwest-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9552']
+        labels:
+          cluster: 'besu-private'
+          node: 'sunwest-rpc'
+          role: 'rpc'
+          domain: 'usfci'
+
+  # Bootnode
+  - job_name: 'besu-bootnode'
+    static_configs:
+      - targets: ['host.docker.internal:9545']
+        labels:
+          cluster: 'besu-private'
+          node: 'fci-boot'
+          role: 'bootnode'
+          domain: 'discovery'

@@ -11,16 +11,16 @@ class MigrationController {
       const { privateKey, userId } = req.body;
 
       if (!privateKey) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'Private key is required' 
+          error: 'Private key is required'
         });
       }
 
       if (!userId) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'User ID is required' 
+          error: 'User ID is required'
         });
       }
 
@@ -109,9 +109,9 @@ class MigrationController {
       const { privateKey, userId, loanUid } = req.body;
 
       if (!privateKey || !userId || !loanUid) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'privateKey, userId, and loanUid are required' 
+          error: 'privateKey, userId, and loanUid are required'
         });
       }
 
@@ -167,7 +167,7 @@ class MigrationController {
         graphqlCount: graphqlLoans.length,
         blockchainCount: blockchainResult.length,
         difference: graphqlLoans.length - blockchainResult.length,
-        percentage: blockchainResult.length > 0 
+        percentage: blockchainResult.length > 0
           ? ((blockchainResult.length / graphqlLoans.length) * 100).toFixed(2)
           : 0
       };

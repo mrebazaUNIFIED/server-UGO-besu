@@ -1,0 +1,168 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Status Codes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{status=~\"2..\"}[1m])",
+          "legendFormat": "2xx",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(http_requests_total{status=~\"4..\"}[1m])",
+          "legendFormat": "4xx",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(http_requests_total{status=~\"5..\"}[1m])",
+          "legendFormat": "5xx",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Top Endpoints by Latency (p99)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        { "id": "organize", "options": {} }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Cache Operations",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(cache_hits_total[1m])",
+          "legendFormat": "Hits - {{cache_type}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(cache_misses_total[1m])",
+          "legendFormat": "Misses - {{cache_type}}",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(cache_invalidations_total[1m])",
+          "legendFormat": "Invalidations - {{cache_type}}",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Cache Size",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "cache_items_count",
+          "legendFormat": "{{cache_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Blockchain Transactions",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(besu_transactions_confirmed_total[1m])",
+          "legendFormat": "Confirmed",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(besu_transactions_pending_total)",
+          "legendFormat": "Pending",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{status=\"500\"}[1m])",
+          "legendFormat": "500 - {{route}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(besu_rpc_errors_total[1m])",
+          "legendFormat": "RPC Errors - {{node}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["besu", "api", "performance"],
+  "templating": {
+    "list": []
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "API Performance",
+  "uid": "api-performance",
+  "version": 1
+}

@@ -22,6 +22,7 @@ export interface LoanApprovalData {
 export interface ApproveLoanRequest {
   lenderUid: string;
   loanUid: string;
+  userUid: string;  // UID del usuario logueado (ej: Kyle)
   askingPrice: number; // En USD
 }
 
