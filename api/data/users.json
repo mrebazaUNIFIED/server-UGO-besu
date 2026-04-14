@@ -1,32 +1,28 @@
 {
-  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
-    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
-    "name": "Kyle",
-    "organization": "FCI",
-    "role": "operator",
-    "initialBalance": "0",
-    "walletAddress": "0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567",
-    "privateKey": "0xa54ce1bf223c85c8524e50d4c540c4c387bd32414738548908e2162cd57b3131",
-    "mnemonic": "reflect favorite door fault garment crop live vague dish cinnamon cancel laugh"
-  },
   "a1b2c3d4-e5f6-4789-1011-121314151617": {
     "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
     "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "initialBalance": "0",
-    "walletAddress": "0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128",
+    "address": "0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128",
     "privateKey": "0xaf93dca2f6d3a263352349c4ef291c13e959b0b85e908d535d54abede40cf1cd",
-    "mnemonic": "observe rifle wreck patient any pigeon saddle stage knee world hidden emotion"
+    "mnemonic": "observe rifle wreck patient any pigeon saddle stage knee world hidden emotion",
+    "passwordHash": "$2b$10$qz3zcnA1h3c9B5/oU3pyK.nLZN3O3FDFW1umfdTz/ic9yOQ6sgh12",
+    "initialBalance": "0",
+    "createdAt": "2026-04-13T22:51:08.514Z",
+    "lastLogin": "2026-04-13T22:51:08.571Z"
   },
   "98aa2ab88b0e45359129779256d54107": {
     "userId": "98aa2ab88b0e45359129779256d54107",
     "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "initialBalance": "0",
-    "walletAddress": "0x43A36BBe1770adAB0406Ad81Dc594bABF1fD0fAB",
+    "address": "0x43A36BBe1770adAB0406Ad81Dc594bABF1fD0fAB",
     "privateKey": "0x2c2234ff8e75e827ab41c73980dc18ecc036ac4cf57b4ea00404ed2bba82609e",
-    "mnemonic": "easy ramp confirm entry indicate hospital usual tag alert above palace first"
+    "mnemonic": "easy ramp confirm entry indicate hospital usual tag alert above palace first",
+    "passwordHash": "$2b$10$gCKNhtvPrMdj2XtfQkRNy.mQP4Xkjbk1F0ACpMx9/sC/eztJMQsxS",
+    "initialBalance": "0",
+    "createdAt": "2026-04-13T22:51:08.514Z",
+    "lastLogin": null
   }
 }

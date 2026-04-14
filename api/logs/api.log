@@ -36604,3 +36604,242 @@
 {"timestamp":"2026-04-13T21:53:22.554Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
 {"timestamp":"2026-04-13T21:53:24.930Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
 {"timestamp":"2026-04-13T21:55:50.846Z","level":"info","message":"\n🔵 2026-04-13T21:55:50.846Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:01:38.704Z","level":"info","message":"\n🔵 2026-04-13T22:01:38.704Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:01:38.709Z","level":"info","message":"\n🔵 2026-04-13T22:01:38.709Z - GET /loans/get/portfolio"}
+{"timestamp":"2026-04-13T22:01:38.709Z","level":"info","message":"[cache] MISS graphql:portfolio:d9wRrHYiBQN_lsHAcDej3dWKiX3Dx0AKdClN_eyI6zY — llamando GraphQL..."}
+{"timestamp":"2026-04-13T22:01:38.733Z","level":"info","message":"\n🔵 2026-04-13T22:01:38.733Z - GET /users/id/5e9fc003e9c24bf8a3c1dd02ac1ab426"}
+{"timestamp":"2026-04-13T22:02:30.323Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
+{"timestamp":"2026-04-13T22:12:10.083Z","level":"info","message":"\n🔵 2026-04-13T22:12:10.083Z - GET /users/id/5e9fc003e9c24bf8a3c1dd02ac1ab426"}
+{"timestamp":"2026-04-13T22:12:10.088Z","level":"info","message":"\n🔵 2026-04-13T22:12:10.088Z - GET /loans/get/portfolio"}
+{"timestamp":"2026-04-13T22:12:10.088Z","level":"info","message":"[cache] MISS graphql:portfolio:d9wRrHYiBQN_lsHAcDej3dWKiX3Dx0AKdClN_eyI6zY — llamando GraphQL..."}
+{"timestamp":"2026-04-13T22:12:10.091Z","level":"info","message":"\n🔵 2026-04-13T22:12:10.091Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:13:00.005Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
+{"timestamp":"2026-04-13T22:14:51.699Z","level":"info","message":"\n🔵 2026-04-13T22:14:51.699Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:22:10.282Z","level":"info","message":"\n🔵 2026-04-13T22:22:10.282Z - GET /users/id/5e9fc003e9c24bf8a3c1dd02ac1ab426"}
+{"timestamp":"2026-04-13T22:22:10.284Z","level":"info","message":"\n🔵 2026-04-13T22:22:10.284Z - GET /loans/get/portfolio"}
+{"timestamp":"2026-04-13T22:22:10.284Z","level":"info","message":"[cache] MISS graphql:portfolio:d9wRrHYiBQN_lsHAcDej3dWKiX3Dx0AKdClN_eyI6zY — llamando GraphQL..."}
+{"timestamp":"2026-04-13T22:22:10.305Z","level":"info","message":"\n🔵 2026-04-13T22:22:10.305Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:23:10.741Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
+{"timestamp":"2026-04-13T22:24:24.652Z","level":"info","message":"\n🔵 2026-04-13T22:24:24.652Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:26:06.533Z","level":"info","message":"\n🛑 Shutting down..."}
+{"timestamp":"2026-04-13T22:26:08.263Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:26:08.305Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: ⚙️  enable debug logging with { debug: true }\u001b[0m"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:26:08.353Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:26:34.015Z","level":"info","message":"\n🔵 2026-04-13T22:26:34.015Z - GET /health"}
+{"timestamp":"2026-04-13T22:27:43.629Z","level":"info","message":"\n🔵 2026-04-13T22:27:43.629Z - GET /loans?fetchAll=true"}
+{"timestamp":"2026-04-13T22:31:51.286Z","level":"info","message":"\n🔵 2026-04-13T22:31:51.286Z - GET /users/id/5e9fc003e9c24bf8a3c1dd02ac1ab426"}
+{"timestamp":"2026-04-13T22:31:51.291Z","level":"info","message":"\n🔵 2026-04-13T22:31:51.291Z - GET /loans/get/portfolio"}
+{"timestamp":"2026-04-13T22:31:51.292Z","level":"info","message":"[cache] MISS graphql:portfolio:d9wRrHYiBQN_lsHAcDej3dWKiX3Dx0AKdClN_eyI6zY — llamando GraphQL..."}
+{"timestamp":"2026-04-13T22:31:51.311Z","level":"info","message":"\n🔵 2026-04-13T22:31:51.311Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:32:03.810Z","level":"info","message":"\n🔵 2026-04-13T22:32:03.810Z - GET /loans?fetchAll=true"}
+{"timestamp":"2026-04-13T22:32:43.022Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
+{"timestamp":"2026-04-13T22:35:25.470Z","level":"info","message":"\n🔵 2026-04-13T22:35:25.470Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:42:43.645Z","level":"info","message":"\n🔵 2026-04-13T22:42:43.645Z - GET /users/id/5e9fc003e9c24bf8a3c1dd02ac1ab426"}
+{"timestamp":"2026-04-13T22:42:43.653Z","level":"info","message":"\n🔵 2026-04-13T22:42:43.653Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:42:43.667Z","level":"info","message":"\n🔵 2026-04-13T22:42:43.667Z - GET /loans/get/portfolio"}
+{"timestamp":"2026-04-13T22:42:43.668Z","level":"info","message":"[cache] MISS graphql:portfolio:d9wRrHYiBQN_lsHAcDej3dWKiX3Dx0AKdClN_eyI6zY — llamando GraphQL..."}
+{"timestamp":"2026-04-13T22:43:33.611Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
+{"timestamp":"2026-04-13T22:45:50.540Z","level":"info","message":"\n🔵 2026-04-13T22:45:50.540Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:48:04.683Z","level":"info","message":"\n🔵 2026-04-13T22:48:04.683Z - GET /users/id/5e9fc003e9c24bf8a3c1dd02ac1ab426"}
+{"timestamp":"2026-04-13T22:48:04.685Z","level":"info","message":"\n🔵 2026-04-13T22:48:04.685Z - GET /usfci/wallet/0xccAc7e0cAbCC6404855f2ab00C26cb2B383C8567/balance"}
+{"timestamp":"2026-04-13T22:49:07.886Z","level":"info","message":"\n🔵 2026-04-13T22:49:07.886Z - GET /loans/get/portfolio"}
+{"timestamp":"2026-04-13T22:49:07.886Z","level":"info","message":"[cache] MISS graphql:portfolio:d9wRrHYiBQN_lsHAcDej3dWKiX3Dx0AKdClN_eyI6zY — llamando GraphQL..."}
+{"timestamp":"2026-04-13T22:49:57.271Z","level":"info","message":"[cache] Indexed GraphQL portfolio for token: 3000 loans, 47 lenders"}
+{"timestamp":"2026-04-13T22:50:04.233Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:50:04.251Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild\u001b[0m"}
+{"timestamp":"2026-04-13T22:50:04.276Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:50:04.276Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:50:04.277Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:50:12.082Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:50:12.127Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops\u001b[0m"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:50:12.174Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:50:15.873Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:50:15.891Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops\u001b[0m"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:50:15.915Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:50:19.075Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:50:19.092Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`\u001b[0m"}
+{"timestamp":"2026-04-13T22:50:19.116Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:50:19.117Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:50:20.907Z","level":"info","message":"\n🛑 Shutting down..."}
+{"timestamp":"2026-04-13T22:51:06.989Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:51:07.007Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: 📡 add observability to secrets: https://dotenvx.com/ops\u001b[0m"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:51:07.031Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:51:08.513Z","level":"info","message":"\n🔵 2026-04-13T22:51:08.513Z - POST /auth/login"}
+{"timestamp":"2026-04-13T22:51:08.699Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-13T22:51:08.719Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: ⚙️  suppress all logs with { quiet: true }\u001b[0m"}
+{"timestamp":"2026-04-13T22:51:08.747Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-13T22:51:08.747Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-13T22:51:08.747Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-13T22:51:08.747Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-13T22:51:08.747Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-13T22:51:08.748Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-13T22:51:09.661Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.661Z - GET /usfci/admin/config"}
+{"timestamp":"2026-04-13T22:51:09.662Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.663Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.670Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.670Z - GET /usfci/avalanche/history/burns"}
+{"timestamp":"2026-04-13T22:51:09.670Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.671Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.682Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.682Z - GET /usfci/avalanche/history/transfers"}
+{"timestamp":"2026-04-13T22:51:09.682Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.682Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.684Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.684Z - GET /usfci/history/mints"}
+{"timestamp":"2026-04-13T22:51:09.684Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.685Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.687Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.687Z - GET /usfci/admin/statistics"}
+{"timestamp":"2026-04-13T22:51:09.687Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.687Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.691Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.691Z - GET /usfci/history/transfers"}
+{"timestamp":"2026-04-13T22:51:09.691Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.692Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.694Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.694Z - GET /usfci/history/burns"}
+{"timestamp":"2026-04-13T22:51:09.694Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.695Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:09.716Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.716Z - GET /usfci/avalanche/statistics"}
+{"timestamp":"2026-04-13T22:51:09.717Z","level":"info","message":"\n🔵 2026-04-13T22:51:09.717Z - GET /usfci/avalanche/history/mints"}
+{"timestamp":"2026-04-13T22:51:09.717Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:09.718Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:11.789Z","level":"info","message":"\n🔵 2026-04-13T22:51:11.789Z - GET /usfci/wallet/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128/balance"}
+{"timestamp":"2026-04-13T22:51:11.792Z","level":"info","message":"\n🔵 2026-04-13T22:51:11.792Z - GET /usfci/history/my-transactions"}
+{"timestamp":"2026-04-13T22:51:11.792Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:11.793Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:11.794Z","level":"info","message":"\n🔵 2026-04-13T22:51:11.794Z - GET /usfci/avalanche/balance/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128"}
+{"timestamp":"2026-04-13T22:51:11.794Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:11.794Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:51:11.796Z","level":"info","message":"\n🔵 2026-04-13T22:51:11.796Z - GET /usfci/avalanche/wallet/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128/history"}
+{"timestamp":"2026-04-13T22:51:11.796Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:51:11.796Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:53:13.932Z","level":"info","message":"\n🔵 2026-04-13T22:53:13.932Z - GET /usfci/wallet/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128/balance"}
+{"timestamp":"2026-04-13T22:53:17.720Z","level":"info","message":"\n🔵 2026-04-13T22:53:17.720Z - GET /usfci/avalanche/balance/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128"}
+{"timestamp":"2026-04-13T22:53:17.720Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:53:17.721Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:56:57.886Z","level":"info","message":"\n🔵 2026-04-13T22:56:57.886Z - GET /usfci/admin/statistics"}
+{"timestamp":"2026-04-13T22:56:57.887Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:56:57.889Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:56:57.892Z","level":"info","message":"\n🔵 2026-04-13T22:56:57.892Z - GET /usfci/avalanche/statistics"}
+{"timestamp":"2026-04-13T22:56:57.894Z","level":"info","message":"\n🔵 2026-04-13T22:56:57.894Z - GET /usfci/wallet/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128/balance"}
+{"timestamp":"2026-04-13T22:58:04.041Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.041Z - GET /usfci/avalanche/balance/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128"}
+{"timestamp":"2026-04-13T22:58:04.041Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.041Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.045Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.045Z - GET /usfci/history/my-transactions"}
+{"timestamp":"2026-04-13T22:58:04.045Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.045Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.046Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.046Z - GET /usfci/avalanche/wallet/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128/history"}
+{"timestamp":"2026-04-13T22:58:04.046Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.046Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.435Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.435Z - GET /usfci/admin/config"}
+{"timestamp":"2026-04-13T22:58:04.435Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.435Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.438Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.438Z - GET /usfci/avalanche/history/mints"}
+{"timestamp":"2026-04-13T22:58:04.438Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.439Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.440Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.440Z - GET /usfci/history/mints"}
+{"timestamp":"2026-04-13T22:58:04.440Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.440Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.442Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.442Z - GET /usfci/history/burns"}
+{"timestamp":"2026-04-13T22:58:04.442Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.443Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.451Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.451Z - GET /usfci/history/transfers"}
+{"timestamp":"2026-04-13T22:58:04.451Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.452Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.455Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.455Z - GET /usfci/avalanche/history/burns"}
+{"timestamp":"2026-04-13T22:58:04.455Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.456Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:58:04.457Z","level":"info","message":"\n🔵 2026-04-13T22:58:04.457Z - GET /usfci/avalanche/history/transfers"}
+{"timestamp":"2026-04-13T22:58:04.457Z","level":"info","message":"🎫 Token received: eyJhbGciOiJIUzI1NiIs..."}
+{"timestamp":"2026-04-13T22:58:04.458Z","level":"info","message":"✅ Token decoded: {\"userId\":\"a1b2c3d4-e5f6-4789-1011-121314151617\",\"address\":\"0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128\",\"role\":\"admin\",\"organization\":\"Sunwest\",\"iat\":1776120668,\"exp\":1776207068}"}
+{"timestamp":"2026-04-13T22:59:39.834Z","level":"info","message":"\n🔵 2026-04-13T22:59:39.834Z - GET /usfci/wallet/0x91afdF2Dc4e01548F7eFDBc8a4c793C013aF3128/balance"}
+{"timestamp":"2026-04-14T14:20:49.330Z","level":"info","message":"📝 Logs being written in JSON format to: ./logs/api.log"}
+{"timestamp":"2026-04-14T14:20:49.371Z","level":"info","message":"[dotenv@17.2.3] injecting env (0) from .env \u001b[2m-- tip: ⚙️  write to custom object with { processEnv: myObject }\u001b[0m"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"\n=================================================="}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"🚀 BESU API GATEWAY RUNNING"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"=================================================="}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"📍 Port:        8070"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"📖 Read:        3 nodes"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"✍️  Write:       loans, users, usfci, marketplace"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"❤️  Health:      http://localhost:8070/health"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"📊 Status:      http://localhost:8070/rpc-status"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"🗄️  Cache:       http://localhost:8070/cache-status"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"📈 Metrics:     http://localhost:8070/metrics"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"🖥️  Monitoring:  http://localhost:8070/monitoring"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"📊 Grafana:     http://localhost:3000 (admin/admin)"}
+{"timestamp":"2026-04-14T14:20:49.421Z","level":"info","message":"==================================================\n"}
+{"timestamp":"2026-04-14T14:20:51.288Z","level":"info","message":"\n🔵 2026-04-14T14:20:51.288Z - GET /monitoring"}
+{"timestamp":"2026-04-14T14:20:54.100Z","level":"info","message":"\n🔵 2026-04-14T14:20:54.100Z - GET /loans?fetchAll=true"}
+{"timestamp":"2026-04-14T14:20:56.422Z","level":"info","message":"\n🔵 2026-04-14T14:20:56.422Z - GET /monitoring"}
+{"timestamp":"2026-04-14T14:21:01.818Z","level":"info","message":"\n🔵 2026-04-14T14:21:01.818Z - GET /monitoring"}
