@@ -3,3 +3,12 @@ contracts/node_modules/
 besu.pids/
 .env 
 env
+# Besu / Blockchain data
+Nodes/**/data/
+Nodes/**/besu.log
+
+# Logs
+*.log
+
+# Cache
+*.cache
