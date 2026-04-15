@@ -21,7 +21,6 @@ class GraphqlService {
     const cached = cache.graphql.get(cacheKey);
 
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
       return cached;
     }
 
@@ -53,7 +52,10 @@ class GraphqlService {
     // Solo cachear si hay datos
     if (items.length > 0) {
       cache.graphql.set(cacheKey, result);
-      console.log(`[cache] SET ${cacheKey} (${items.length} items)`);
+
+      // Indexar para invalidación selectiva
+      cache.indexGraphQLPortfolio(userBearerToken, items);
+
     }
 
     return result;

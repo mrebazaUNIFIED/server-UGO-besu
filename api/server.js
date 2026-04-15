@@ -153,8 +153,6 @@ server.headersTimeout = 66000;
 process.on('uncaughtException', (error) => {
   console.error('\n💀 FATAL: Uncaught Exception:');
   console.error(error);
-  // No salimos del proceso para permitir que el auto-heal de PM2 
-  // o la resiliencia de la API lo manejen si es posible.
 });
 
 process.on('unhandledRejection', (reason, promise) => {

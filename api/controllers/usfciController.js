@@ -243,6 +243,36 @@ const updateComplianceStatus = async (req, res, next) => {
   }
 };
 
+// ==================== DEBUG ====================
+
+const checkRole = async (req, res, next) => {
+  try {
+    const { walletAddress, roleName } = req.params;
+    const hasRole = await usfciService.hasRole(walletAddress, roleName);
+    res.json({ success: true, data: { walletAddress, roleName, hasRole } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getRoleHashes = async (req, res, next) => {
+  try {
+    const roleHashes = await usfciService.getRoleHashes();
+    res.json({ success: true, data: roleHashes });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const checkPaused = async (req, res, next) => {
+  try {
+    const paused = await usfciService.isPaused();
+    res.json({ success: true, data: { paused } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ==================== HISTORIAL ====================
 
 /**
@@ -532,6 +562,10 @@ module.exports = {
   transfer,
   bridgeToAvalanche,
   updateComplianceStatus,
+  // Debug
+  checkRole,
+  getRoleHashes,
+  checkPaused,
   // Historial
   getAllMintRecords,
   getMintHistory,

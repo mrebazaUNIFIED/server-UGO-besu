@@ -24,14 +24,14 @@ function extractErrorReason(err) {
     if (err.error.message.includes('Known transaction')) return 'Known transaction (already in pool)';
     return err.error.message;
   }
-  
+
   if (err?.code === 'ECONNRESET' || err?.message?.includes('socket hang up')) {
     return 'Network Error: Connection Reset by Peer (Besu node busy?)';
   }
 
   if (err?.reason) return err.reason;
-  
-  // Decodificación de errores de contrato (Revert)
+
+  // Fallback para errores de contrato (Revert o Custom Errors)
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x')) {
     try {
       if (err.data.startsWith('0x08c379a0')) {
@@ -41,10 +41,14 @@ function extractErrorReason(err) {
         );
         return decoded[0];
       }
+
+      // Manejo de Custom Errors (revisar selectores comunes si es necesario)
+      // Por ahora devolvemos el hex para que el log lo registre
+      return `Contract Error (Hex: ${err.data.slice(0, 10)}...)`;
     } catch (_) { }
     return err.data;
   }
-  
+
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x4e487b71')) {
     try {
       const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
@@ -57,7 +61,7 @@ function extractErrorReason(err) {
 
   // Fallback para errores de ethers v6
   if (err?.shortMessage) return err.shortMessage;
-  
+
   return err?.message || String(err);
 }
 
@@ -149,7 +153,7 @@ class LoanRegistryService extends BaseContractService {
         // Soporte específico para objetos Indexed de ethers v6
         if (idStr._isIndexed && idStr.hash) {
           idStr = idStr.hash;
-        } 
+        }
         // En ethers v6, los resultados de eventos pueden ser objetos Result (arrays con propiedades)
         else if (Array.isArray(idStr) && idStr.length > 0) {
           idStr = idStr[0];
@@ -250,27 +254,71 @@ class LoanRegistryService extends BaseContractService {
 
     const computedLoanId = await this.generateLoanId(loanData.LenderUid, loanData.LoanUid);
 
-    const tx = await contract.createLoan(
-      loanData.LoanUid || '', loanData.Account || '', loanData.LenderUid || '',
-      BigInt(this.usdToCents(loanData.OriginalBalance)),
-      BigInt(this.usdToCents(loanData.CurrentBalance)),
-      this.percentToBps(loanData.VendorFeePct), this.percentToBps(loanData.NoteRate),
-      this.percentToBps(loanData.SoldRate), this.percentToBps(loanData.CalcInterestRate),
-      loanData.CoBorrower || '', this.percentToBps(loanData.ActiveDefaultInterestRate),
-      BigInt(this.usdToCents(loanData.ReserveBalanceRestricted)),
-      this.percentToBps(loanData.DefaultInterestRate),
-      BigInt(this.usdToCents(loanData.DeferredPrinBal)),
-      BigInt(this.usdToCents(loanData.DeferredUnpaidInt)),
-      BigInt(this.usdToCents(loanData.DeferredLateCharges)),
-      BigInt(this.usdToCents(loanData.DeferredUnpaidCharges)),
-      BigInt(this.usdToCents(loanData.MaximumDraw)),
-      loanData.CloseDate || '', loanData.DrawStatus || '', loanData.LenderFundDate || '',
-      this.percentToBps(loanData.LenderOwnerPct), loanData.LenderName || '',
-      loanData.LenderAccount || '', loanData.IsForeclosure || false,
-      loanData.Status || '', loanData.PaidOffDate || '', loanData.PaidToDate || '',
-      loanData.MaturityDate || '', loanData.NextDueDate || '',
-      loanData.City || '', loanData.State || '', loanData.PropertyZip || ''
-    );
+    const loanInput = {
+      LoanUid: loanData.LoanUid || '',
+      Account: loanData.Account || '',
+      LenderUid: loanData.LenderUid || '',
+      OriginalBalance: BigInt(this.usdToCents(loanData.OriginalBalance)),
+      CurrentBalance: BigInt(this.usdToCents(loanData.CurrentBalance)),
+      VendorFeePct: this.percentToBps(loanData.VendorFeePct),
+      NoteRate: this.percentToBps(loanData.NoteRate),
+      SoldRate: this.percentToBps(loanData.SoldRate),
+      CalcInterestRate: this.percentToBps(loanData.CalcInterestRate),
+      CoBorrower: loanData.CoBorrower || '',
+      ActiveDefaultInterestRate: this.percentToBps(loanData.ActiveDefaultInterestRate),
+      ReserveBalanceRestricted: BigInt(this.usdToCents(loanData.ReserveBalanceRestricted)),
+      DefaultInterestRate: this.percentToBps(loanData.DefaultInterestRate),
+      DeferredPrinBal: BigInt(this.usdToCents(loanData.DeferredPrinBal)),
+      DeferredUnpaidInt: BigInt(this.usdToCents(loanData.DeferredUnpaidInt)),
+      DeferredLateCharges: BigInt(this.usdToCents(loanData.DeferredLateCharges)),
+      DeferredUnpaidCharges: BigInt(this.usdToCents(loanData.DeferredUnpaidCharges)),
+      MaximumDraw: BigInt(this.usdToCents(loanData.MaximumDraw)),
+      CloseDate: loanData.CloseDate || '',
+      DrawStatus: loanData.DrawStatus || '',
+      LenderFundDate: loanData.LenderFundDate || '',
+      LenderOwnerPct: this.percentToBps(loanData.LenderOwnerPct),
+      LenderName: loanData.LenderName || '',
+      LenderAccount: loanData.LenderAccount || '',
+      IsForeclosure: loanData.IsForeclosure || false,
+      Status: loanData.Status || '',
+      PaidOffDate: loanData.PaidOffDate || '',
+      PaidToDate: loanData.PaidToDate || '',
+      MaturityDate: loanData.MaturityDate || '',
+      NextDueDate: loanData.NextDueDate || '',
+      City: loanData.City || '',
+      State: loanData.State || '',
+      PropertyZip: loanData.PropertyZip || '',
+      // New fields mapping
+      LienPosition: loanData.LienPosition || 0,
+      NoteStatus: loanData.NoteStatus || '',
+      NoteType: loanData.NoteType || 0,
+      NumPaymentsLas12Months: loanData.NumPaymentsLas12Months || '',
+      PropertyType: loanData.PropertyType || 0,
+      CurrentMarketValue: BigInt(this.usdToCents(loanData.CurrentMarketValue)),
+      PaymentImpound: BigInt(this.usdToCents(loanData.PaymentImpound)),
+      TotalInTrust: BigInt(this.usdToCents(loanData.TotalInTrust)),
+      BalloonPymnt: loanData.BalloonPymnt || '',
+      OnForbereance: loanData.OnForbereance || '',
+      AmortizationType: loanData.AmortizationType || 0,
+      PrepymntPenalty: loanData.PrepymntPenalty || '',
+      FCModifiedTerms: loanData.FCModifiedTerms || '',
+      LateCharges: BigInt(this.usdToCents(loanData.LateCharges)),
+      RateType: loanData.RateType || 0,
+      ApplyMERS: loanData.ApplyMERS || '',
+      IsBankruptcy: loanData.IsBankruptcy || false,
+      FirstPaymentDate: loanData.FirstPaymentDate || '',
+      LastPaymentDate: loanData.LastPaymentDate || '',
+      BkDischargeDate: loanData.BkDischargeDate || '',
+      BkChapter: loanData.BkChapter || '',
+      BkDismissalDate: loanData.BkDismissalDate || '',
+      BkFillingDate: loanData.BkFillingDate || '',
+      Ltv: this.percentToBps(loanData.Ltv),
+      PCounty: loanData.PCounty || '',
+      PValuationDate: loanData.PValuationDate || '',
+      PCity: loanData.PCity || ''
+    };
+
+    const tx = await contract.createLoan(loanInput);
 
     this._setTx(tx.hash, {
       status: 'PENDING', createdAt: Date.now(), operation: 'CREATE_OR_UPSERT',
@@ -308,27 +356,72 @@ class LoanRegistryService extends BaseContractService {
       };
     }
 
-    // Background
-    tx.wait()
-      .then((receipt) => {
+    // Background: confirmar sin bloquear la respuesta
+    const txHash = tx.hash;
+    const txProvider = tx.provider;
+    console.log(`[Background] ⏳ Waiting for tx ${txHash} to be mined...`);
+
+    (async () => {
+      try {
+        // Poll manual para receipt (Besu puede tardar mucho con consenso IBFT/QBFT)
+        let receipt = null;
+        const maxAttempts = 300; // 10 min (cada 2s)
+        for (let i = 0; i < maxAttempts; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          receipt = await txProvider.getTransactionReceipt(txHash);
+          if (receipt) break;
+          if ((i + 1) % 30 === 0) {
+            console.log(`[Background] ⏳ Still waiting... ${Math.round((i + 1) * 2 / 60)}min/${Math.round(maxAttempts * 2 / 60)}min - tx ${txHash}`);
+          }
+        }
+
+        if (!receipt) {
+          console.error(`[Background] ❌ Tx ${txHash} NOT mined after ${Math.round(maxAttempts * 2 / 60)} min (still in Besu txpool)`);
+          this._setTx(txHash, { status: 'FAILED', error: `Timeout: Besu has not mined after ${maxAttempts * 2}s. Check Besu consensus.` });
+          return;
+        }
+
+        console.log(`[Background] ✅ Mined tx ${txHash} block ${receipt.blockNumber} status=${receipt.status}`);
+
+        if (receipt.status === 0) {
+          // Tx revertido - intentar obtener revert reason
+          let reason = 'Unknown revert reason';
+          try {
+            // Re-executar para obtener el reason (solo funciona con algunos nodos)
+            await txProvider.call({
+              to: tx.to,
+              from: tx.from,
+              data: tx.data,
+              nonce: tx.nonce,
+              gasLimit: tx.gasLimit,
+              gasPrice: tx.gasPrice,
+            });
+          } catch (err) {
+            reason = err.reason || err.message || err.shortMessage || 'Reverted (no reason)';
+          }
+          console.error(`[Background] ❌ Tx ${txHash} REVERTED: ${reason}`);
+          this._setTx(txHash, { status: 'FAILED', error: `Reverted: ${reason}` });
+          return;
+        }
+
         const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
         const finalLoanId = parsed.loanId ?? this.normalizeLoanId(computedLoanId);
 
-        // ✅ Invalidar caché en background también
         cache.invalidate(`loan:${finalLoanId}`);
         cache.invalidate(`loan:byuids:${loanData.LenderUid}:${loanData.LoanUid}`);
 
-        this._setTx(tx.hash, {
-          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        this._setTx(txHash, {
+          status: 'CONFIRMED',
           txId: parsed.txId,
           receipt: { txHash: receipt.hash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed?.toString() },
           loanId: finalLoanId,
         });
-      })
-      .catch((err) => {
-        const reason = logTxError('createLoan (background)', tx.hash, err);
-        this._setTx(tx.hash, { status: 'FAILED', error: reason });
-      });
+        console.log(`[Background] ✅ CONFIRMED tx ${txHash} loanId=${finalLoanId}`);
+      } catch (err) {
+        console.error(`[Background] ❌ Error processing tx ${txHash}:`, err.message);
+        this._setTx(txHash, { status: 'FAILED', error: err.message });
+      }
+    })();
 
     return {
       success: true, status: 'PENDING',
@@ -378,6 +471,17 @@ class LoanRegistryService extends BaseContractService {
       State: fieldsToUpdate.State || '',
       updatePropertyZip: fieldsToUpdate.PropertyZip !== undefined,
       PropertyZip: fieldsToUpdate.PropertyZip || '',
+      // Support for new fields in partial update
+      updateLienPosition: fieldsToUpdate.LienPosition !== undefined,
+      LienPosition: fieldsToUpdate.LienPosition || 0,
+      updateNoteStatus: fieldsToUpdate.NoteStatus !== undefined,
+      NoteStatus: fieldsToUpdate.NoteStatus || '',
+      updateCurrentMarketValue: fieldsToUpdate.CurrentMarketValue !== undefined,
+      CurrentMarketValue: fieldsToUpdate.CurrentMarketValue !== undefined ? BigInt(this.usdToCents(fieldsToUpdate.CurrentMarketValue)) : BigInt(0),
+      updateIsBankruptcy: fieldsToUpdate.IsBankruptcy !== undefined,
+      IsBankruptcy: fieldsToUpdate.IsBankruptcy !== undefined ? this.stringToBool(fieldsToUpdate.IsBankruptcy) : false,
+      updateLtv: fieldsToUpdate.Ltv !== undefined,
+      Ltv: fieldsToUpdate.Ltv !== undefined ? this.percentToBps(fieldsToUpdate.Ltv) : 0,
     };
 
     const tx = await contract.updateLoanPartial(normalizedLoanId, updateFields);
@@ -410,21 +514,59 @@ class LoanRegistryService extends BaseContractService {
       };
     }
 
-    tx.wait()
-      .then((receipt) => {
-        // ✅ Invalidar caché en background
+    const txHashPartial = tx.hash;
+    const txProviderPartial = tx.provider;
+    console.log(`[Background] ⏳ Waiting for tx ${txHashPartial} to be mined (partial update)...`);
+
+    (async () => {
+      try {
+        let receipt = null;
+        const maxAttempts = 300;
+        for (let i = 0; i < maxAttempts; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          receipt = await txProviderPartial.getTransactionReceipt(txHashPartial);
+          if (receipt) break;
+          if ((i + 1) % 30 === 0) {
+            console.log(`[Background] ⏳ Still waiting (partial)... ${Math.round((i + 1) * 2 / 60)}min - tx ${txHashPartial}`);
+          }
+        }
+
+        if (!receipt) {
+          console.error(`[Background] ❌ Tx ${txHashPartial} NOT mined after 10 min`);
+          this._setTx(txHashPartial, { status: 'FAILED', error: 'Timeout: Besu has not mined' });
+          return;
+        }
+
+        console.log(`[Background] ✅ Mined tx ${txHashPartial} block ${receipt.blockNumber} status=${receipt.status}`);
+
+        if (receipt.status === 0) {
+          let reason = 'Unknown revert reason';
+          try {
+            await txProviderPartial.call({
+              to: tx.to, from: tx.from, data: tx.data,
+              nonce: tx.nonce, gasLimit: tx.gasLimit, gasPrice: tx.gasPrice,
+            });
+          } catch (err) {
+            reason = err.reason || err.message || err.shortMessage || 'Reverted';
+          }
+          console.error(`[Background] ❌ Tx ${txHashPartial} REVERTED: ${reason}`);
+          this._setTx(txHashPartial, { status: 'FAILED', error: `Reverted: ${reason}` });
+          return;
+        }
+
         cache.invalidate(`loan:${normalizedLoanId}`);
         const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
-        this._setTx(tx.hash, {
-          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
+        this._setTx(txHashPartial, {
+          status: 'CONFIRMED',
           txId: parsed.txId,
           receipt: { txHash: receipt.hash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed?.toString() },
         });
-      })
-      .catch((err) => {
-        const reason = logTxError('updateLoanPartial (background)', tx.hash, err);
-        this._setTx(tx.hash, { status: 'FAILED', error: reason });
-      });
+        console.log(`[Background] ✅ CONFIRMED tx ${txHashPartial}`);
+      } catch (err) {
+        console.error(`[Background] ❌ Error processing tx ${txHashPartial}:`, err.message);
+        this._setTx(txHashPartial, { status: 'FAILED', error: err.message });
+      }
+    })();
 
     return { success: true, status: 'PENDING', loanId: normalizedLoanId, txHash: tx.hash };
   }
@@ -437,7 +579,6 @@ class LoanRegistryService extends BaseContractService {
 
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
       return cached;
     }
 
@@ -446,7 +587,6 @@ class LoanRegistryService extends BaseContractService {
     const formatted = this._formatLoan(loan);
 
     cache.loans.set(cacheKey, formatted);
-    console.log(`[cache] SET ${cacheKey}`);
     return formatted;
   }
 
@@ -455,7 +595,6 @@ class LoanRegistryService extends BaseContractService {
 
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey}`);
       return cached;
     }
 
@@ -464,7 +603,6 @@ class LoanRegistryService extends BaseContractService {
     const formatted = this._formatLoan(loan);
 
     cache.loans.set(cacheKey, formatted);
-    console.log(`[cache] SET ${cacheKey}`);
     return formatted;
   }
 
@@ -513,7 +651,35 @@ class LoanRegistryService extends BaseContractService {
       isLocked: loan.isLocked,
       avalancheTokenId: loan.avalancheTokenId.toString(),
       lastSyncTimestamp: Number(loan.lastSyncTimestamp),
-      isTokenized: loan.avalancheTokenId > 0
+      isTokenized: loan.avalancheTokenId > 0,
+      // Formatting new fields
+      LienPosition: Number(loan.LienPosition),
+      NoteStatus: loan.NoteStatus,
+      NoteType: Number(loan.NoteType),
+      NumPaymentsLas12Months: loan.NumPaymentsLas12Months,
+      PropertyType: Number(loan.PropertyType),
+      CurrentMarketValue: this.centsToUSD(loan.CurrentMarketValue),
+      PaymentImpound: this.centsToUSD(loan.PaymentImpound),
+      TotalInTrust: this.centsToUSD(loan.TotalInTrust),
+      BalloonPymnt: loan.BalloonPymnt,
+      OnForbereance: loan.OnForbereance,
+      AmortizationType: Number(loan.AmortizationType),
+      PrepymntPenalty: loan.PrepymntPenalty,
+      FCModifiedTerms: loan.FCModifiedTerms,
+      LateCharges: this.centsToUSD(loan.LateCharges),
+      RateType: Number(loan.RateType),
+      ApplyMERS: loan.ApplyMERS,
+      IsBankruptcy: loan.IsBankruptcy,
+      FirstPaymentDate: loan.FirstPaymentDate,
+      LastPaymentDate: loan.LastPaymentDate,
+      BkDischargeDate: loan.BkDischargeDate,
+      BkChapter: loan.BkChapter,
+      BkDismissalDate: loan.BkDismissalDate,
+      BkFillingDate: loan.BkFillingDate,
+      Ltv: this.bpsToPercent(loan.Ltv),
+      PCounty: loan.PCounty,
+      PValuationDate: loan.PValuationDate,
+      PCity: loan.PCity
     };
   }
 
@@ -524,7 +690,6 @@ class LoanRegistryService extends BaseContractService {
 
     const cached = cache.loans.get(cacheKey);
     if (cached) {
-      console.log(`[cache] HIT ${cacheKey} (${cached.length} loans)`);
       return cached;
     }
 
@@ -534,7 +699,6 @@ class LoanRegistryService extends BaseContractService {
 
     if (formatted.length > 0) {
       cache.loans.set(cacheKey, formatted);
-      console.log(`[cache] SET ${cacheKey} (${formatted.length} loans)`);
     }
 
     return formatted;

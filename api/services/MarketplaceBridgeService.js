@@ -72,10 +72,28 @@ class MarketplaceBridgeService extends BaseContractService {
       cache.invalidate(`lender:loans:${lenderUid}`);
     }
 
-    // 3. Invalida TODAS las respuestas de portafolio de GraphQL (ya que no sabemos qué token usó el usuario)
-    // Pero podemos usar flushAll del cache.graphql para ser más agresivos y seguros
-    cache.graphql.flushAll();
-    console.log(`[cache] GraphQL portfolio cache flushed`);
+    // 3. Invalidación selectiva de GraphQL portfolios
+    // Intentar obtener el loan para sacar loanUid
+    if (this.loanRegistryService) {
+      this.loanRegistryService.readLoan(loanId)
+        .then(loan => {
+          if (loan?.LoanUid) {
+            cache.invalidateGraphQLByLoanUid(loan.LoanUid);
+          }
+          if (loan?.LenderUid || lenderUid) {
+            cache.invalidateGraphQLByLenderUID(loan?.LenderUid || lenderUid);
+          }
+        })
+        .catch(() => {
+          // Fallback: si no se puede leer el loan, flushAll
+          console.log(`[cache] Fallback: flushing ALL GraphQL portfolios`);
+          cache.graphql.flushAll();
+        });
+    } else {
+      // Sin servicio de loans, fallback
+      cache.graphql.flushAll();
+      console.log(`[cache] Fallback: GraphQL portfolio cache flushed (no loanRegistryService)`);
+    }
 
     // 4. Invalida las listas globales de loans
     // Buscamos todas las llaves que empiecen con allloans:
@@ -157,7 +175,7 @@ class MarketplaceBridgeService extends BaseContractService {
   // ═══════════════════════════════════════════════════════════════
   // ⭐ ACTUALIZADO: approveLoanForSale (con limit validation)
   // ═══════════════════════════════════════════════════════════════
-  async approveLoanForSale(lenderUid, loanUid, askingPriceUSD) {
+  async approveLoanForSale(lenderUid, loanUid, askingPriceUSD, sellerAddress, originalLenderAddress) {
     if (!lenderUid || !loanUid) {
       throw new Error('LenderUid and LoanUid are required');
     }
@@ -180,7 +198,7 @@ class MarketplaceBridgeService extends BaseContractService {
     // 🛡️ SEGURIDAD: Validar que el volumen total (existente + nuevo) no exceda el total supply en Avalanche
     const avalancheStats = await usfciAvalancheService.getStatistics();
     const currentSupplyBaseUnits = BigInt(avalancheStats.currentSupply);
-    
+
     // Calcular volumen ya tokenizado
     const existingVolumeBaseUnits = await this._getTotalTokenizedVolume();
     const priceInCents = this.usdToCents(askingPriceUSD);
@@ -189,14 +207,14 @@ class MarketplaceBridgeService extends BaseContractService {
     const projectedTotalVolume = existingVolumeBaseUnits + newPriceInBaseUnits;
 
     if (projectedTotalVolume > currentSupplyBaseUnits) {
-      const remainingCapacityBaseUnits = currentSupplyBaseUnits > existingVolumeBaseUnits 
-        ? currentSupplyBaseUnits - existingVolumeBaseUnits 
+      const remainingCapacityBaseUnits = currentSupplyBaseUnits > existingVolumeBaseUnits
+        ? currentSupplyBaseUnits - existingVolumeBaseUnits
         : BigInt(0);
-      
-      // Formateo para el error (usando 10^14 para manejar 2 decimales en el rounding)
-      const supplyFormatted = (Number(currentSupplyBaseUnits / BigInt(10n ** 14n)) / 100).toFixed(2);
-      const existingFormatted = (Number(existingVolumeBaseUnits / BigInt(10n ** 14n)) / 100).toFixed(2);
-      const remainingFormatted = (Number(remainingCapacityBaseUnits / BigInt(10n ** 14n)) / 100).toFixed(2);
+
+      // Formateo para el error (usando 10^16 para manejar 2 decimales en el rounding)
+      const supplyFormatted = (Number(currentSupplyBaseUnits / BigInt(10n ** 16n)) / 100).toFixed(2);
+      const existingFormatted = (Number(existingVolumeBaseUnits / BigInt(10n ** 16n)) / 100).toFixed(2);
+      const remainingFormatted = (Number(remainingCapacityBaseUnits / BigInt(10n ** 16n)) / 100).toFixed(2);
 
       throw new Error(`Application denied: Insufficient USFCI liquidity on Avalanche. Total tokenized volume ($${existingFormatted}) + this loan ($${askingPriceUSD}) would exceed the maximum USFCI supply ($${supplyFormatted}). Remaining capacity: $${remainingFormatted}.`);
     }
@@ -204,10 +222,12 @@ class MarketplaceBridgeService extends BaseContractService {
     const loanId = loan.ID;
     const contract = this.getContract(this.privateKey);
 
-    // ⭐ NUEVA FIRMA: Solo loanId y askingPrice
+    // ⭐ NUEVA FIRMA: loanId, askingPrice, sellerAddress, originalLenderAddress
     const tx = await contract.approveLoanForSale(
       loanId,
-      BigInt(priceInCents)
+      BigInt(priceInCents),
+      sellerAddress,
+      originalLenderAddress
     );
 
     const receipt = await tx.wait();
@@ -229,8 +249,9 @@ class MarketplaceBridgeService extends BaseContractService {
       eventData = {
         loanId: approvedEvent.args[0],
         lenderAddress: approvedEvent.args[1],
-        askingPrice: approvedEvent.args[2].toString(),
-        timestamp: approvedEvent.args[3].toString()
+        originalLenderAddress: approvedEvent.args[2],
+        askingPrice: approvedEvent.args[3].toString(),
+        timestamp: approvedEvent.args[4].toString()
       };
     }
 
@@ -323,6 +344,7 @@ class MarketplaceBridgeService extends BaseContractService {
       isApproved: approval.isApproved,
       askingPrice: this.centsToUSD(approval.askingPrice),
       lenderAddress: approval.lenderAddress,
+      originalLenderAddress: approval.originalLenderAddress,
       approvalTimestamp: new Date(Number(approval.approvalTimestamp) * 1000),
       isMinted: approval.isMinted,
       isCancelled: approval.isCancelled,

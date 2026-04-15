@@ -12,7 +12,17 @@ function normalizeLoanKeys(obj) {
     lenderownerpct: "LenderOwnerPct", lendername: "LenderName", city: "City", state: "State",
     propertyzip: "PropertyZip", account: "Account", maximumdraw: "MaximumDraw",
     closedate: "CloseDate", drawstatus: "DrawStatus", lenderfunddate: "LenderFundDate",
-    isforeclosure: "IsForeclosure"
+    isforeclosure: "IsForeclosure",
+    lienposition: "LienPosition", notestatus: "NoteStatus", notetype: "NoteType",
+    numpaymentslas12months: "NumPaymentsLas12Months", propertytype: "PropertyType",
+    currentmarketvalue: "CurrentMarketValue", paymentimpound: "PaymentImpound",
+    totalintrust: "TotalInTrust", balloonpymnt: "BalloonPymnt", onforbereance: "OnForbereance",
+    amortizationtype: "AmortizationType", prepymntpenalty: "PrepymntPenalty",
+    fcmodifiedterms: "FCModifiedTerms", latecharges: "LateCharges", ratetype: "RateType",
+    applymers: "ApplyMERS", isbankruptcy: "IsBankruptcy", firstpaymentdate: "FirstPaymentDate",
+    lastpaymentdate: "LastPaymentDate", bkdischargedate: "BkDischargeDate",
+    bkchapter: "BkChapter", bkdismissaldate: "BkDismissalDate", bkfillingdate: "BkFillingDate",
+    ltv: "Ltv", pcounty: "PCounty", pvaluationdate: "PValuationDate", pcity: "PCity"
   };
   const normalized = {};
   for (const key of Object.keys(obj)) {
@@ -34,7 +44,8 @@ function getPrivateKey() {
 }
 
 function resolveWait(query) {
-  // Ahora el valor por defecto es FALSE. Solo será TRUE si se envía ?wait=true
+  // Default es FALSE: se envía a la cola y responde PENDING
+  // Se confirman en background con tx.wait()
   return query.wait === 'true';
 }
 
@@ -50,12 +61,20 @@ class LoanController {
   }
 
   /**
-   * ⭐ HELPER: Invalida las listas globales y portafolios para asegurar consistencia
+   * ⭐ HELPER: Invalida las listas globales y portafolios de forma SELECTIVA
+   * Si no se proporcionan loanUid/lenderUid, hace flushAll como fallback
    */
-  _invalidateGlobalCache() {
-    console.log(`[cache] Invaliding global loan lists and GraphQL portfolios`);
+  _invalidateGlobalCache(loanUid, lenderUid) {
+    // Si no hay parámetros, fallback a flushAll (casos edge donde no tenemos info)
+    if (!loanUid && !lenderUid) {
+      console.log(`[cache] Fallback: flushing ALL GraphQL portfolios (no loanUid/lenderUid provided)`);
+      cache.graphql.flushAll();
+      return;
+    }
 
-    // 1. Invalida TODAS las listas globales (allloans:*)
+    console.log(`[cache] Selective invalidation: loanUid=${loanUid || 'N/A'}, lenderUid=${lenderUid || 'N/A'}`);
+
+    // 1. Invalida listas globales (allloans:*)
     const allKeys = cache.loans.keys();
     const allLoansKeys = allKeys.filter(k => k.startsWith('allloans:'));
     allLoansKeys.forEach(k => cache.loans.del(k));
@@ -64,9 +83,13 @@ class LoanController {
       console.log(`[cache] Deleted ${allLoansKeys.length} global list cache keys`);
     }
 
-    // 2. Invalida TODAS las respuestas de portafolio de GraphQL
-    cache.graphql.flushAll();
-    console.log(`[cache] GraphQL portfolio cache flushed`);
+    // 2. Invalidación selectiva de GraphQL portfolios (solo usuarios afectados)
+    if (loanUid) {
+      cache.invalidateGraphQLByLoanUid(loanUid);
+    }
+    if (lenderUid) {
+      cache.invalidateGraphQLByLenderUID(lenderUid);
+    }
   }
 
 
@@ -99,7 +122,7 @@ class LoanController {
 
         // ✅ Invalidar cache al crear un loan nuevo
         cache.loans.del(`lender:loans:${loanData.LenderUid}`);
-        this._invalidateGlobalCache();
+        this._invalidateGlobalCache(loanData.LoanUid, loanData.LenderUid);
 
         return res.status(201).json({ success: true, message: 'Loan created successfully', operation: 'CREATE', data: result });
       }
@@ -123,7 +146,7 @@ class LoanController {
         // ✅ Invalidar caches al actualizar
         cache.loans.del(`lender:loans:${loanData.LenderUid}`);
         cache.loans.del(`loan:${loanId}`);
-        this._invalidateGlobalCache();
+        this._invalidateGlobalCache(loanData.LoanUid, loanData.LenderUid);
 
         return res.json({ success: true, message: 'Loan updated partially', operation: 'PARTIAL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanUid || loanData.LoanUid, updatedFields: Object.keys(partialUpdateFields), data: result });
       }
@@ -134,7 +157,7 @@ class LoanController {
       // ✅ Invalidar caches al hacer full update
       cache.loans.del(`lender:loans:${loanData.LenderUid}`);
       cache.loans.del(`loan:${loanId}`);
-      this._invalidateGlobalCache();
+      this._invalidateGlobalCache(loanData.LoanUid, loanData.LenderUid);
 
       return res.json({ success: true, message: 'Loan updated completely', operation: 'FULL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanData.LoanUid, data: result });
 
@@ -159,7 +182,7 @@ class LoanController {
 
       // ✅ Invalidar caches
       cache.loans.del(`loan:${loanId}`);
-      this._invalidateGlobalCache();
+      this._invalidateGlobalCache(); // No tenemos loanUid aquí, invalidación general
 
       res.json({ success: true, message: 'Loan updated partially', loanId, updatedFields: Object.keys(fields), data: result });
     } catch (error) {
@@ -182,7 +205,14 @@ class LoanController {
 
       // ✅ Invalidar caches
       cache.loans.del(`loan:${loanId}`);
-      this._invalidateGlobalCache();
+
+      // Intentar obtener loanUid/lenderUid para invalidación selectiva
+      try {
+        const loan = await loanService.readLoan(loanId);
+        this._invalidateGlobalCache(loan?.LoanUid, loan?.LenderUid);
+      } catch {
+        this._invalidateGlobalCache(); // Fallback
+      }
 
       res.json({ success: true, message: 'Locked loan updated successfully', loanId, data: result });
     } catch (error) {
@@ -293,7 +323,14 @@ class LoanController {
 
       // ✅ Invalidar caches al eliminar
       cache.loans.del(`loan:${loanId}`);
-      this._invalidateGlobalCache();
+
+      // Intentar obtener loanUid/lenderUid del loan para invalidación selectiva
+      try {
+        const loan = await loanService.readLoan(loanId);
+        this._invalidateGlobalCache(loan?.LoanUid, loan?.LenderUid);
+      } catch {
+        this._invalidateGlobalCache(); // Fallback
+      }
 
       res.json({ success: true, message: 'Loan deleted successfully', loanId, data: result });
     } catch (error) {
@@ -314,7 +351,6 @@ class LoanController {
       const cacheKey = `allloans:${offset}:${limit}:${fetchAll}`;
       const cached = cache.loans.get(cacheKey);
       if (cached) {
-        console.log(`[cache] HIT ${cacheKey}`);
         return res.json(cached);
       }
 
@@ -328,7 +364,6 @@ class LoanController {
       }
 
       cache.loans.set(cacheKey, result);
-      console.log(`[cache] SET ${cacheKey}`);
       res.json(result);
     } catch (error) {
       console.error('Error in getAllLoans:', error);

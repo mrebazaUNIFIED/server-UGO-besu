@@ -1,5 +1,5 @@
 const { ethers } = require('ethers');
-const { rpcLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain'); // ✅ Cambio aquí
+const { rpcLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
 const BaseContractService = require('./BaseContractService');
 
 class USFCIService extends BaseContractService {
@@ -239,6 +239,59 @@ class USFCIService extends BaseContractService {
       gasUsed: receipt.gasUsed.toString()
     };
 
+  }
+
+  // ==================== DEBUG ====================
+
+  /**
+   * Check if an address has a specific role
+   */
+  async hasRole(walletAddress, roleName) {
+    const contract = this.getContractReadOnly();
+    try {
+      const roleHash = await contract[`${roleName}()`]();
+      return await contract.hasRole(roleHash, walletAddress);
+    } catch (err) {
+      console.error(`[USFCI] Error checking role ${roleName}:`, err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Get all role hashes
+   */
+  async getRoleHashes() {
+    const contract = this.getContractReadOnly();
+    try {
+      const [MINTER, BURNER, COMPLIANCE, ADMIN] = await Promise.all([
+        contract.MINTER_ROLE(),
+        contract.BURNER_ROLE(),
+        contract.COMPLIANCE_ROLE(),
+        contract.DEFAULT_ADMIN_ROLE()
+      ]);
+      return {
+        MINTER_ROLE: MINTER,
+        BURNER_ROLE: BURNER,
+        COMPLIANCE_ROLE: COMPLIANCE,
+        DEFAULT_ADMIN_ROLE: ADMIN
+      };
+    } catch (err) {
+      console.error('[USFCI] Error getting role hashes:', err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Check if contract is paused
+   */
+  async isPaused() {
+    const contract = this.getContractReadOnly();
+    try {
+      return await contract.paused();
+    } catch (err) {
+      console.error('[USFCI] Error checking pause status:', err.message);
+      return null;
+    }
   }
 
   // ==================== MÉTODOS DE HISTORIAL ====================

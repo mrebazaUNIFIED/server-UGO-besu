@@ -30,9 +30,14 @@ export const CancelMarketplace = ({
 
   const requestBurnMutation = useRequestBurnAndCancel();
 
+  // ✅ Obtener el vaultUser de localStorage para asegurar consistencia
+  const vaultUserRaw = localStorage.getItem('vaultUser');
+  const vaultUser = vaultUserRaw ? JSON.parse(vaultUserRaw) : null;
+  const loggedUserUid = vaultUser?.uid || loan.LenderUid;
+
   // Verificar si puede cancelar y si necesita burn
   const { data: canCancelData, isLoading: isCheckingCancel } = useCanCancel(
-    loan.LenderUid,
+    loggedUserUid,
     loan.LoanUid,
     isOpen
   );
@@ -46,7 +51,7 @@ export const CancelMarketplace = ({
   const handleConfirmCancel = async () => {
     try {
       const result = await requestBurnMutation.mutateAsync({
-        lenderUid: loan.LenderUid,
+        lenderUid: loggedUserUid,
         loanUid: loan.LoanUid,
       });
 

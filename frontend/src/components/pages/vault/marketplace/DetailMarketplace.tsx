@@ -32,10 +32,14 @@ export const DetailMarketplace = ({ isOpen, onClose, loan }: DetailMarketplacePr
     }
 
     try {
-      // ✅ Nueva firma: Solo lenderUid, loanUid, askingPrice
+      // ✅ Obtener el vaultUser de localStorage para identificar al solicitante (Kyle)
+      const vaultUserRaw = localStorage.getItem('vaultUser');
+      const vaultUser = vaultUserRaw ? JSON.parse(vaultUserRaw) : null;
+      
       const result = await approveMutation.mutateAsync({
-        lenderUid: loan.LenderUid,
+        lenderUid: loan.LenderUid, // El dueño original
         loanUid: loan.LoanUid,
+        userUid: vaultUser?.uid || '', // El usuario que opera (Kyle)
         askingPrice: Number(askingPrice)
       });
 

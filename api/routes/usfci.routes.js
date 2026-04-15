@@ -24,6 +24,11 @@ const {
   // Compliance
   updateComplianceStatus,
 
+  // Debug
+  checkRole,
+  getRoleHashes,
+  checkPaused,
+
   // Historial
   getAllMintRecords,
   getMintHistory,
@@ -125,5 +130,12 @@ router.get('/avalanche/history/mints', authorize('admin', 'operator'), getAvalan
 router.get('/avalanche/history/burns', authorize('admin', 'operator'), getAvalancheBurnRecords);
 router.get('/avalanche/history/transfers', authorize('admin', 'operator'), getAvalancheTransferRecords);
 router.get('/avalanche/wallet/:walletAddress/history', authorize('admin', 'operator'), getAvalancheWalletHistory);
+
+// ==========================================
+// DEBUG
+// ==========================================
+router.get('/debug/roles', getRoleHashes);
+router.get('/debug/paused', checkPaused);
+router.get('/debug/role/:walletAddress/:roleName', checkRole);
 
 module.exports = router;

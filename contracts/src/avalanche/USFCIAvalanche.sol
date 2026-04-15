@@ -11,7 +11,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 /**
  * @title USFCI_Avalanche
  * @notice Stablecoin pública de FCI para Avalanche C-Chain.
- *         1 USFCI = 1 USD, respaldado por Sunwest Bank.
+ *         1 USFCI = 1 USD, gestionado y respaldado por FCI.
  *
  * @dev Diferencias clave vs USFCI de Besu:
  *      - Sin registro de wallets obligatorio (cualquiera puede recibir/transferir)
@@ -22,8 +22,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  *
  * @dev Roles:
  *      - DEFAULT_ADMIN_ROLE : puede upgradear, pausar, y gestionar roles
- *      - MINTER_ROLE        : solo el Relayer de FCI (mintea cuando Sunwest confirma depósito)
- *      - BURNER_ROLE        : solo el Relayer de FCI (quema cuando se retira USD)
+ *      - MINTER_ROLE        : solo el Relayer de FCI
+ *      - BURNER_ROLE        : solo el Relayer de FCI
  *      - COMPLIANCE_ROLE    : puede congelar wallets en caso de fraude/cumplimiento
  */
 contract USFCI_Avalanche is
