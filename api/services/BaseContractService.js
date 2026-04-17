@@ -12,7 +12,6 @@ class BaseContractService {
   getContract(privateKey) {
     const provider = getWriteProvider(this.domain);
     const wallet = globalSignerManager.getSigner(privateKey, provider);
-    // NonceManager allows us to use high concurrency without manual queues.
     return new ethers.Contract(this.contractAddress, this.abi, wallet);
   }
 

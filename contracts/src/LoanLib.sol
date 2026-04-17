@@ -80,6 +80,7 @@ library LoanLib {
         loan.PCounty = data.PCounty;
         loan.PValuationDate = data.PValuationDate;
         loan.PCity = data.PCity;
+        loan.Address = data.Address;
     }
 
     function updateLoanPartial(Loan storage currentLoan, LoanUpdateFields memory fields, bytes32 txId) external {
@@ -99,6 +100,12 @@ library LoanLib {
         if (fields.updateCity)               currentLoan.City = fields.City;
         if (fields.updateState)              currentLoan.State = fields.State;
         if (fields.updatePropertyZip)        currentLoan.PropertyZip = fields.PropertyZip;
+        if (fields.updateAddress)            currentLoan.Address = fields.Address;
+        if (fields.updateLienPosition)       currentLoan.LienPosition = fields.LienPosition;
+        if (fields.updateNoteStatus)         currentLoan.NoteStatus = fields.NoteStatus;
+        if (fields.updateCurrentMarketValue) currentLoan.CurrentMarketValue = fields.CurrentMarketValue;
+        if (fields.updateIsBankruptcy)       currentLoan.IsBankruptcy = fields.IsBankruptcy;
+        if (fields.updateLtv)                currentLoan.Ltv = fields.Ltv;
 
         currentLoan.BLOCKAUDITUpdatedAt = block.timestamp;
         currentLoan.TxId = txId;

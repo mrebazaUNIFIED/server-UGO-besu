@@ -1,21 +1,10 @@
 const { ethers } = require('ethers');
 
-/**
- * SignerManager handles caching of Wallet instances.
- * Using a NonceManager wrapper allows ethers to manage nonces internally,
- * drastically reducing RPC calls and preventing collisions without manual queues.
- */
 class SignerManager {
   constructor() {
     this.signers = new Map();
   }
 
-  /**
-   * Get or create a shared signer for a private key and provider.
-   * @param {string} privateKey 
-   * @param {ethers.Provider} provider 
-   * @returns {ethers.NonceManager}
-   */
   getSigner(privateKey, provider) {
     const key = `${privateKey}_${provider._network.chainId}`;
 
@@ -28,14 +17,23 @@ class SignerManager {
 
     let signer = this.signers.get(key);
 
-    // If the provider has changed (e.g., failover), we need to update the underlying signer
-    // In NonceManager, the inner signer is accessible via 'signer' property.
     if (signer.signer.provider !== provider) {
-      console.log(`[SignerManager] 🔄 Provider changed, updating underlying wallet provider`);
+      console.log(`[SignerManager] 🔄 Provider changed, preserving nonce...`);
+      let currentNonce = null;
+      try {
+        // Leer el nonce en memoria antes de recrear el NonceManager
+        // getNonce() sin argumento devuelve el nonce interno cacheado, sin llamar al RPC
+        currentNonce = signer._nextNonce ?? null;
+      } catch (_) { }
+
       const newWallet = signer.signer.connect(provider);
-      // Create new NonceManager but we should ideally preserve the nonce. 
-      // ethers v6 NonceManager syncs it on the first call to getNonce() anyway.
       signer = new ethers.NonceManager(newWallet);
+
+      if (currentNonce !== null) {
+        signer.setNonce(currentNonce);
+        console.log(`[SignerManager] ✅ Nonce preserved at ${currentNonce}`);
+      }
+
       this.signers.set(key, signer);
     }
 
@@ -44,5 +42,4 @@ class SignerManager {
 }
 
 const globalSignerManager = new SignerManager();
-
 module.exports = globalSignerManager;

@@ -476,6 +476,10 @@ contract LoanRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return activeIds;
     }
 
+    function getLoanIdByTxId(bytes32 txId) public view returns (string memory) {
+        return txIdToLoanId[txId];
+    }
+
     // ===== FUNCIONES AUXILIARES PRIVADAS =====
 
     // The _compareLoans logic was effectively moved to Event Logs previously to bypass memory limits.

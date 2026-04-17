@@ -1,12 +1,11 @@
 const { ethers } = require('ethers');
-const { rpcLoadBalancer, CONTRACTS, ABIs } = require('../config/blockchain');
+const { CONTRACTS, ABIs, globalTxQueue } = require('../config/blockchain');
 const BaseContractService = require('./BaseContractService');
 const cache = require('../config/cache');
 
 // ===== TX STORE (memoria) =====
 const txStore = new Map();
 
-// TTL 1 hora
 const TX_TTL_MS = 60 * 60 * 1000;
 
 function cleanupTxStore() {
@@ -19,7 +18,6 @@ function cleanupTxStore() {
 
 // ===== HELPER: Extraer revert reason real de ethers v6 =====
 function extractErrorReason(err) {
-  // Manejo de errores específicos de Besu/RPC
   if (err?.error?.message) {
     if (err.error.message.includes('Known transaction')) return 'Known transaction (already in pool)';
     return err.error.message;
@@ -31,7 +29,6 @@ function extractErrorReason(err) {
 
   if (err?.reason) return err.reason;
 
-  // Fallback para errores de contrato (Revert o Custom Errors)
   if (err?.data && typeof err.data === 'string' && err.data.startsWith('0x')) {
     try {
       if (err.data.startsWith('0x08c379a0')) {
@@ -41,10 +38,6 @@ function extractErrorReason(err) {
         );
         return decoded[0];
       }
-
-      // Manejo de Custom Errors (revisar selectores comunes si es necesario)
-      // Por ahora devolvemos el hex para que el log lo registre
-      return `Contract Error (Hex: ${err.data.slice(0, 10)}...)`;
     } catch (_) { }
     return err.data;
   }
@@ -59,7 +52,6 @@ function extractErrorReason(err) {
     } catch (_) { }
   }
 
-  // Fallback para errores de ethers v6
   if (err?.shortMessage) return err.shortMessage;
 
   return err?.message || String(err);
@@ -135,7 +127,6 @@ class LoanRegistryService extends BaseContractService {
       return bytes32;
     }
     try {
-      // Manejar objetos Result de ethers v6 o arrays de bytes
       return ethers.hexlify(bytes32).toLowerCase();
     } catch (e) {
       console.warn('Error converting bytes32 to hex:', e.message);
@@ -147,21 +138,16 @@ class LoanRegistryService extends BaseContractService {
     if (!loanId) return '';
     let idStr = loanId;
 
-    // Si es un objeto (Result de ethers, Indexed object, Array, o String object)
     if (typeof idStr === 'object' && idStr !== null) {
       try {
-        // Soporte específico para objetos Indexed de ethers v6
         if (idStr._isIndexed && idStr.hash) {
           idStr = idStr.hash;
-        }
-        // En ethers v6, los resultados de eventos pueden ser objetos Result (arrays con propiedades)
-        else if (Array.isArray(idStr) && idStr.length > 0) {
+        } else if (Array.isArray(idStr) && idStr.length > 0) {
           idStr = idStr[0];
         } else {
           idStr = ethers.hexlify(idStr);
         }
       } catch (_) {
-        // Fallback al toString si no es un tipo reconocible
         idStr = String(idStr);
       }
     }
@@ -170,12 +156,10 @@ class LoanRegistryService extends BaseContractService {
       idStr = String(idStr);
     }
 
-    // Verificación final para evitar que se propague el error visual
     if (idStr === '[object Object]') {
       console.warn('⚠️  Critical Warning: loanId normalization failed. Source was:', typeof loanId, loanId);
-      // Como último recurso, si es un objeto plano, intentamos ver si tiene LoanUid
       if (loanId && typeof loanId === 'object' && loanId.LoanUid) {
-        return this.normalizeLoanId(loanId.LoanUid); // Recursión controlada
+        return this.normalizeLoanId(loanId.LoanUid);
       }
       return 'unknown_id_' + Date.now();
     }
@@ -190,9 +174,6 @@ class LoanRegistryService extends BaseContractService {
     return txStore.get(txHash.toLowerCase()) || null;
   }
 
-  /**
-   * Returns a summary of the current transactions in memory.
-   */
   getTxSummary() {
     cleanupTxStore();
     const summary = {
@@ -223,22 +204,19 @@ class LoanRegistryService extends BaseContractService {
   }
 
   _parseLoanEventsFromReceipt(contract, receipt) {
-    let loanId = null;
     let txId = null;
     for (const log of receipt.logs) {
       try {
         const parsedLog = contract.interface.parseLog(log);
         if (parsedLog.name === 'LoanCreated' || parsedLog.name === 'LoanUpdated') {
-          loanId = parsedLog.args.loanId;
           txId = parsedLog.args.txId;
-          if (loanId && typeof loanId !== 'string') loanId = ethers.hexlify(loanId);
           if (txId && typeof txId !== 'string') txId = ethers.hexlify(txId);
           break;
         }
       } catch (_) { continue; }
     }
     return {
-      loanId: loanId ? this.normalizeLoanId(loanId) : null,
+      loanId: null, // Note: log.args.loanId is a keccak256 hash because 'string indexed' was used in the event, DO NOT extract it.
       txId: txId ? this.bytes32ToHex(txId) : null,
       blockNumber: receipt.blockNumber,
     };
@@ -288,7 +266,6 @@ class LoanRegistryService extends BaseContractService {
       City: loanData.City || '',
       State: loanData.State || '',
       PropertyZip: loanData.PropertyZip || '',
-      // New fields mapping
       LienPosition: loanData.LienPosition || 0,
       NoteStatus: loanData.NoteStatus || '',
       NoteType: loanData.NoteType || 0,
@@ -315,10 +292,15 @@ class LoanRegistryService extends BaseContractService {
       Ltv: this.percentToBps(loanData.Ltv),
       PCounty: loanData.PCounty || '',
       PValuationDate: loanData.PValuationDate || '',
-      PCity: loanData.PCity || ''
+      PCity: loanData.PCity || '',
+      Address: loanData.Address || '',
     };
 
-    const tx = await contract.createLoan(loanInput);
+    // ✅ FIX: serializar solo el submit de la tx para evitar nonce race condition
+    const tx = await globalTxQueue.enqueue(
+      () => contract.createLoan(loanInput),
+      `createLoan:${loanData.LoanUid}`
+    );
 
     this._setTx(tx.hash, {
       status: 'PENDING', createdAt: Date.now(), operation: 'CREATE_OR_UPSERT',
@@ -339,7 +321,6 @@ class LoanRegistryService extends BaseContractService {
       const finalLoanId = parsed.loanId ?? this.normalizeLoanId(computedLoanId);
       const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
 
-      // ✅ Invalidar caché al confirmar escritura
       cache.invalidate(`loan:${finalLoanId}`);
       cache.invalidate(`loan:byuids:${loanData.LenderUid}:${loanData.LoanUid}`);
 
@@ -356,72 +337,26 @@ class LoanRegistryService extends BaseContractService {
       };
     }
 
-    // Background: confirmar sin bloquear la respuesta
-    const txHash = tx.hash;
-    const txProvider = tx.provider;
-    console.log(`[Background] ⏳ Waiting for tx ${txHash} to be mined...`);
-
-    (async () => {
-      try {
-        // Poll manual para receipt (Besu puede tardar mucho con consenso IBFT/QBFT)
-        let receipt = null;
-        const maxAttempts = 300; // 10 min (cada 2s)
-        for (let i = 0; i < maxAttempts; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          receipt = await txProvider.getTransactionReceipt(txHash);
-          if (receipt) break;
-          if ((i + 1) % 30 === 0) {
-            console.log(`[Background] ⏳ Still waiting... ${Math.round((i + 1) * 2 / 60)}min/${Math.round(maxAttempts * 2 / 60)}min - tx ${txHash}`);
-          }
-        }
-
-        if (!receipt) {
-          console.error(`[Background] ❌ Tx ${txHash} NOT mined after ${Math.round(maxAttempts * 2 / 60)} min (still in Besu txpool)`);
-          this._setTx(txHash, { status: 'FAILED', error: `Timeout: Besu has not mined after ${maxAttempts * 2}s. Check Besu consensus.` });
-          return;
-        }
-
-        console.log(`[Background] ✅ Mined tx ${txHash} block ${receipt.blockNumber} status=${receipt.status}`);
-
-        if (receipt.status === 0) {
-          // Tx revertido - intentar obtener revert reason
-          let reason = 'Unknown revert reason';
-          try {
-            // Re-executar para obtener el reason (solo funciona con algunos nodos)
-            await txProvider.call({
-              to: tx.to,
-              from: tx.from,
-              data: tx.data,
-              nonce: tx.nonce,
-              gasLimit: tx.gasLimit,
-              gasPrice: tx.gasPrice,
-            });
-          } catch (err) {
-            reason = err.reason || err.message || err.shortMessage || 'Reverted (no reason)';
-          }
-          console.error(`[Background] ❌ Tx ${txHash} REVERTED: ${reason}`);
-          this._setTx(txHash, { status: 'FAILED', error: `Reverted: ${reason}` });
-          return;
-        }
-
+    // Background: wait=false — el poller corre libre sin bloquear
+    tx.wait()
+      .then((receipt) => {
         const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
         const finalLoanId = parsed.loanId ?? this.normalizeLoanId(computedLoanId);
 
         cache.invalidate(`loan:${finalLoanId}`);
         cache.invalidate(`loan:byuids:${loanData.LenderUid}:${loanData.LoanUid}`);
 
-        this._setTx(txHash, {
-          status: 'CONFIRMED',
+        this._setTx(tx.hash, {
+          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
           txId: parsed.txId,
           receipt: { txHash: receipt.hash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed?.toString() },
           loanId: finalLoanId,
         });
-        console.log(`[Background] ✅ CONFIRMED tx ${txHash} loanId=${finalLoanId}`);
-      } catch (err) {
-        console.error(`[Background] ❌ Error processing tx ${txHash}:`, err.message);
-        this._setTx(txHash, { status: 'FAILED', error: err.message });
-      }
-    })();
+      })
+      .catch((err) => {
+        const reason = logTxError('createLoan (background)', tx.hash, err);
+        this._setTx(tx.hash, { status: 'FAILED', error: reason });
+      });
 
     return {
       success: true, status: 'PENDING',
@@ -471,7 +406,6 @@ class LoanRegistryService extends BaseContractService {
       State: fieldsToUpdate.State || '',
       updatePropertyZip: fieldsToUpdate.PropertyZip !== undefined,
       PropertyZip: fieldsToUpdate.PropertyZip || '',
-      // Support for new fields in partial update
       updateLienPosition: fieldsToUpdate.LienPosition !== undefined,
       LienPosition: fieldsToUpdate.LienPosition || 0,
       updateNoteStatus: fieldsToUpdate.NoteStatus !== undefined,
@@ -482,9 +416,16 @@ class LoanRegistryService extends BaseContractService {
       IsBankruptcy: fieldsToUpdate.IsBankruptcy !== undefined ? this.stringToBool(fieldsToUpdate.IsBankruptcy) : false,
       updateLtv: fieldsToUpdate.Ltv !== undefined,
       Ltv: fieldsToUpdate.Ltv !== undefined ? this.percentToBps(fieldsToUpdate.Ltv) : 0,
+      updateAddress: fieldsToUpdate.Address !== undefined,
+      Address: fieldsToUpdate.Address || '',
     };
 
-    const tx = await contract.updateLoanPartial(normalizedLoanId, updateFields);
+    // ✅ FIX: serializar solo el submit de la tx para evitar nonce race condition
+    const tx = await globalTxQueue.enqueue(
+      () => contract.updateLoanPartial(normalizedLoanId, updateFields),
+      `updateLoanPartial:${normalizedLoanId}`
+    );
+
     this._setTx(tx.hash, { status: 'PENDING', createdAt: Date.now(), operation: 'PARTIAL_UPDATE', loanId: normalizedLoanId });
 
     if (wait) {
@@ -499,7 +440,6 @@ class LoanRegistryService extends BaseContractService {
       const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
       const finalStatus = receipt.status === 1 ? 'CONFIRMED' : 'FAILED';
 
-      // ✅ Invalidar caché
       cache.invalidate(`loan:${normalizedLoanId}`);
 
       this._setTx(tx.hash, {
@@ -514,59 +454,21 @@ class LoanRegistryService extends BaseContractService {
       };
     }
 
-    const txHashPartial = tx.hash;
-    const txProviderPartial = tx.provider;
-    console.log(`[Background] ⏳ Waiting for tx ${txHashPartial} to be mined (partial update)...`);
-
-    (async () => {
-      try {
-        let receipt = null;
-        const maxAttempts = 300;
-        for (let i = 0; i < maxAttempts; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          receipt = await txProviderPartial.getTransactionReceipt(txHashPartial);
-          if (receipt) break;
-          if ((i + 1) % 30 === 0) {
-            console.log(`[Background] ⏳ Still waiting (partial)... ${Math.round((i + 1) * 2 / 60)}min - tx ${txHashPartial}`);
-          }
-        }
-
-        if (!receipt) {
-          console.error(`[Background] ❌ Tx ${txHashPartial} NOT mined after 10 min`);
-          this._setTx(txHashPartial, { status: 'FAILED', error: 'Timeout: Besu has not mined' });
-          return;
-        }
-
-        console.log(`[Background] ✅ Mined tx ${txHashPartial} block ${receipt.blockNumber} status=${receipt.status}`);
-
-        if (receipt.status === 0) {
-          let reason = 'Unknown revert reason';
-          try {
-            await txProviderPartial.call({
-              to: tx.to, from: tx.from, data: tx.data,
-              nonce: tx.nonce, gasLimit: tx.gasLimit, gasPrice: tx.gasPrice,
-            });
-          } catch (err) {
-            reason = err.reason || err.message || err.shortMessage || 'Reverted';
-          }
-          console.error(`[Background] ❌ Tx ${txHashPartial} REVERTED: ${reason}`);
-          this._setTx(txHashPartial, { status: 'FAILED', error: `Reverted: ${reason}` });
-          return;
-        }
-
+    // Background: wait=false
+    tx.wait()
+      .then((receipt) => {
         cache.invalidate(`loan:${normalizedLoanId}`);
         const parsed = this._parseLoanEventsFromReceipt(contract, receipt);
-        this._setTx(txHashPartial, {
-          status: 'CONFIRMED',
+        this._setTx(tx.hash, {
+          status: receipt.status === 1 ? 'CONFIRMED' : 'FAILED',
           txId: parsed.txId,
           receipt: { txHash: receipt.hash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed?.toString() },
         });
-        console.log(`[Background] ✅ CONFIRMED tx ${txHashPartial}`);
-      } catch (err) {
-        console.error(`[Background] ❌ Error processing tx ${txHashPartial}:`, err.message);
-        this._setTx(txHashPartial, { status: 'FAILED', error: err.message });
-      }
-    })();
+      })
+      .catch((err) => {
+        const reason = logTxError('updateLoanPartial (background)', tx.hash, err);
+        this._setTx(tx.hash, { status: 'FAILED', error: reason });
+      });
 
     return { success: true, status: 'PENDING', loanId: normalizedLoanId, txHash: tx.hash };
   }
@@ -576,32 +478,22 @@ class LoanRegistryService extends BaseContractService {
   async readLoan(loanId) {
     const normalizedLoanId = this.normalizeLoanId(loanId);
     const cacheKey = `loan:${normalizedLoanId}`;
-
     const cached = cache.loans.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
+    if (cached) return cached;
     const contract = this.getContractReadOnly();
     const loan = await contract.readLoan(normalizedLoanId, { gasLimit: 100000000 });
     const formatted = this._formatLoan(loan);
-
     cache.loans.set(cacheKey, formatted);
     return formatted;
   }
 
   async readLoanByUids(lenderUid, loanUid) {
     const cacheKey = `loan:byuids:${lenderUid}:${loanUid}`;
-
     const cached = cache.loans.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
+    if (cached) return cached;
     const contract = this.getContractReadOnly();
     const loan = await contract.getLoanByLenderAndUid(lenderUid, loanUid, { gasLimit: 100000000 });
     const formatted = this._formatLoan(loan);
-
     cache.loans.set(cacheKey, formatted);
     return formatted;
   }
@@ -652,7 +544,6 @@ class LoanRegistryService extends BaseContractService {
       avalancheTokenId: loan.avalancheTokenId.toString(),
       lastSyncTimestamp: Number(loan.lastSyncTimestamp),
       isTokenized: loan.avalancheTokenId > 0,
-      // Formatting new fields
       LienPosition: Number(loan.LienPosition),
       NoteStatus: loan.NoteStatus,
       NoteType: Number(loan.NoteType),
@@ -679,28 +570,21 @@ class LoanRegistryService extends BaseContractService {
       Ltv: this.bpsToPercent(loan.Ltv),
       PCounty: loan.PCounty,
       PValuationDate: loan.PValuationDate,
-      PCity: loan.PCity
+      PCity: loan.PCity,
+      Address: loan.Address,
     };
   }
 
-  // ===== RESTO DE LECTURA (sin caché — menos frecuentes) =====
+  // ===== LECTURA (sin caché) =====
 
   async findLoansByLenderUid(lenderUid) {
     const cacheKey = `lender:loans:${lenderUid}`;
-
     const cached = cache.loans.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
+    if (cached) return cached;
     console.log(`[cache] MISS ${cacheKey}`);
     const loans = await this.getContractReadOnly().findLoansByLenderUid(lenderUid, { gasLimit: 100000000 });
     const formatted = loans.map(loan => this._formatLoan(loan));
-
-    if (formatted.length > 0) {
-      cache.loans.set(cacheKey, formatted);
-    }
-
+    if (formatted.length > 0) cache.loans.set(cacheKey, formatted);
     return formatted;
   }
 
@@ -728,11 +612,128 @@ class LoanRegistryService extends BaseContractService {
   }
 
   async getLoanHistory(loanId) {
-    throw new Error('Historial On-Chain desactivado. Consulte los logs del evento LoanUpdated para auditoría histórica.');
+    const normalizedLoanId = this.normalizeLoanId(loanId);
+    const contract = this.getContractReadOnly();
+
+    const [created, updated, deleted] = await Promise.all([
+      contract.queryFilter(contract.filters.LoanCreated(normalizedLoanId)),
+      contract.queryFilter(contract.filters.LoanUpdated(normalizedLoanId)),
+      contract.queryFilter(contract.filters.LoanDeleted(normalizedLoanId)),
+    ]);
+
+    const all = [...created, ...updated, ...deleted]
+      .sort((a, b) => a.blockNumber - b.blockNumber || a.index - b.index);
+
+    const historyParsed = await Promise.all(all.map(async (log) => {
+      let inputData = null;
+      let methodName = null;
+      let timestamp = log.args.timestamp != null ? new Date(Number(log.args.timestamp) * 1000) : null;
+
+      try {
+        if (!timestamp) {
+           const block = await log.getBlock();
+           timestamp = new Date(Number(block.timestamp) * 1000);
+        }
+
+        const tx = await log.getTransaction();
+        if (tx && tx.data && tx.data !== '0x') {
+          const decoded = contract.interface.parseTransaction(tx);
+          if (decoded) {
+            methodName = decoded.name;
+            
+            const resultToObject = (result) => {
+              if (typeof result !== 'object' || result === null) return result;
+              const obj = {};
+              for (const key of Object.keys(result)) {
+                if (isNaN(key)) {
+                  let val = result[key];
+                  if (typeof val === 'bigint') {
+                    val = val.toString();
+                  } else if (typeof val === 'object' && val !== null) {
+                      if (val.constructor && val.constructor.name === 'Result') {
+                          val = resultToObject(val);
+                      } else if (Array.isArray(val)) {
+                          val = val.map(v => typeof v === 'object' && v !== null && v.constructor && v.constructor.name === 'Result' ? resultToObject(v) : v);
+                      }
+                  }
+                  obj[key] = val;
+                }
+              }
+              return obj;
+            };
+
+            inputData = resultToObject(decoded.args);
+          }
+        }
+      } catch (e) {
+        console.warn(`Could not parse tx data for Hash ${log.transactionHash}:`, e.message);
+      }
+
+      return {
+        event: log.fragment.name,
+        txHash: log.transactionHash,
+        txId: this.bytes32ToHex(log.args.txId),
+        blockNumber: log.blockNumber,
+        timestamp: timestamp,
+        methodName,
+        inputData
+      };
+    }));
+
+    return historyParsed;
   }
 
   async getLoanByTxId(txId) {
-    throw new Error('Búsqueda por TxId On-Chain desactivada. El historial se gestiona mediante indexación de eventos.');
+    const contract = this.getContractReadOnly();
+    const txIdNormalized = (txId.startsWith('0x') ? txId : '0x' + txId).toLowerCase();
+
+    // 1. Obtener el loanId real (string) del contrato porque log.args.loanId es un hash keccak256
+    let loanId;
+    try {
+      loanId = await contract.getLoanIdByTxId(txIdNormalized, { gasLimit: 100000000 });
+    } catch (err) {
+      console.warn('getLoanIdByTxId fail (contract not upgraded?):', err.message);
+    }
+    
+    if (!loanId) {
+      throw new Error('Transaction not found (or contract not upgraded to support getLoanIdByTxId)');
+    }
+
+    // 2. Traer el evento específico para tener txHash, blockNumber y event
+    const [allCreated, allUpdated, allDeleted] = await Promise.all([
+      contract.queryFilter(contract.filters.LoanCreated()),
+      contract.queryFilter(contract.filters.LoanUpdated()),
+      contract.queryFilter(contract.filters.LoanDeleted()),
+    ]);
+
+    const log = [...allCreated, ...allUpdated, ...allDeleted].find(l => {
+      const logTxId = l.args.txId
+        ? (typeof l.args.txId === 'string' ? l.args.txId : ethers.hexlify(l.args.txId)).toLowerCase()
+        : null;
+      return logTxId === txIdNormalized;
+    });
+
+    if (!log) throw new Error('Transaction event not found in logs');
+
+    let loan = null;
+    const eventName = log.fragment.name;
+
+    // 3. Obtener el estado actual del préstamo (excepto si fue borrado)
+    if (eventName !== 'LoanDeleted') {
+      try {
+        loan = await this.readLoan(loanId);
+      } catch (err) {
+        if (!err.message.includes('LoanNotFound')) throw err;
+      }
+    }
+
+    return {
+      loan,
+      txHash: log.transactionHash,
+      txId: this.bytes32ToHex(log.args.txId),
+      blockNumber: log.blockNumber,
+      event: eventName,
+    };
   }
 
   async deleteLoan(privateKey, loanId) {
@@ -740,10 +741,7 @@ class LoanRegistryService extends BaseContractService {
     const contract = this.getContract(privateKey);
     const tx = await contract.deleteLoan(normalizedLoanId);
     const receipt = await tx.wait();
-
-    // ✅ Invalidar caché al eliminar
     cache.invalidate(`loan:${normalizedLoanId}`);
-
     return { success: true, loanId: normalizedLoanId, txHash: receipt.hash, blockNumber: receipt.blockNumber };
   }
 
@@ -812,15 +810,11 @@ class LoanRegistryService extends BaseContractService {
     const contract = this.getContract(privateKey);
     const tx = await contract.updateLockedLoan(normalizedLoanId, BigInt(this.usdToCents(newBalance)), newStatus || '', newPaidToDate || '');
     const receipt = await tx.wait();
-
-    // ✅ Invalidar caché al actualizar loan bloqueado
     cache.invalidate(`loan:${normalizedLoanId}`);
-
     let txId = null;
     const logs = receipt.logs.map(log => { try { return contract.interface.parseLog(log); } catch (e) { return null; } }).filter(Boolean);
     const lockedLoanUpdatedEvent = logs.find(log => log.name === 'LockedLoanUpdated');
     if (lockedLoanUpdatedEvent) txId = lockedLoanUpdatedEvent.args.txId || lockedLoanUpdatedEvent.args[1];
-
     return { success: true, loanId: normalizedLoanId, txId: this.bytes32ToHex(txId), txHash: receipt.hash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed.toString() };
   }
 

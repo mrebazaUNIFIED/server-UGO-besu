@@ -1,38 +1,54 @@
 {
-  "a1b2c3d4-e5f6-4789-1011-121314151617": {
-    "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
-    "name": "Sunwest",
-    "organization": "Sunwest",
-    "role": "admin",
-    "address": "0xa6DFEB8dE6f180D9b4077AD9EDb8fD88a70b3B2b",
-    "privateKey": "0x33416882b8efb73906f7a6ee6e9370e5db70f5c2890b4a9767b56e21141c0e6e",
-    "mnemonic": "before ridge category evoke column lonely public strong misery explain blouse approve",
-    "passwordHash": "$2b$10$GZv0mgQVIEt8nDdzbF9ea.EoHkFJ7VRWCi89Di5nHHB3bKn6noB0i",
-    "initialBalance": "0",
-    "createdAt": "2026-04-16T18:42:53.850Z",
-    "lastLogin": "2026-04-16T18:42:53.915Z"
-  },
-  "98aa2ab88b0e45359129779256d5410455": {
-    "userId": "98aa2ab88b0e45359129779256d5410455",
-    "name": "FCI Corporate",
-    "organization": "FCI",
-    "role": "operator",
-    "address": "0xa7f5ac8C07cEcfc4Db24afCbe9fa4aABA83DFb67",
-    "privateKey": "0x529d30baaa649378bc492476503c1c5f1f705f20a1d9903f5137e26497752896",
-    "mnemonic": "pattern bundle mobile fault begin sail member swamp term law cargo session",
-    "passwordHash": "$2b$10$lVRt/mpffTlTKsnYJpIwuuk1b/j9CwdYDyWqjlO9n/MLIj9G0Fh3C",
-    "initialBalance": "0",
-    "createdAt": "2026-04-16T18:42:53.850Z",
-    "lastLogin": "2026-04-16T18:52:31.017Z"
-  },
   "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
     "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
     "name": "Kyle",
     "organization": "FCI",
     "role": "operator",
+    "address": "0x3F45A9a959a008dfD762DDF7D8f330AaE48ca677",
+    "privateKey": "0xfc3db0f4150c226ae818fcfb45db6e5a7f52f2d8b0d7e3fe025619529a139e16",
+    "mnemonic": "trim shoe salad move tomato thought float visit area answer crucial awake",
+    "passwordHash": "$2b$10$plHuln1S.gif3eA/8u/82Oxf1p6zG7FRiITq6maDg3B06GTFNsqAW",
     "initialBalance": "0",
-    "walletAddress": "0xB2709B680449c7D04FCbD800F7CD28f63D282a7e",
-    "privateKey": "0xdfbd236d00df4cf384d031579cf15b45c8f4dfa93fb6c6fc524c47cf8f423a5a",
-    "mnemonic": "raven now negative outdoor gap give sunset powder obscure copy time emotion"
+    "createdAt": "2026-04-17T19:02:59.016Z",
+    "lastLogin": null
+  },
+  "98aa2ab88b0e45359129779256d54105": {
+    "userId": "98aa2ab88b0e45359129779256d54105",
+    "name": "FCI Corporate",
+    "organization": "FCI",
+    "role": "operator",
+    "address": "0x90D65fCF764aba7416be105e8f6cC11c928d97ac",
+    "privateKey": "0x8e90539a603d32026622255e578776b3d80eb52031bb6b1b9a365f16172891a9",
+    "mnemonic": "slide chest picture project cricket grape primary cereal fold present oxygen worry",
+    "passwordHash": "$2b$10$4XBF3/IDP7trc3ZkTjWk4uhP.9fdohrBNxmFEbq4H4lvsV2ak.qxS",
+    "initialBalance": "0",
+    "createdAt": "2026-04-17T19:02:59.016Z",
+    "lastLogin": null
+  },
+  "a1b2c3d4-e5f6-4789-1011-121314151617": {
+    "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
+    "name": "Sunwest",
+    "organization": "Sunwest",
+    "role": "admin",
+    "address": "0xFBC81B8229740cE865802Fe0C3BE0B4E79fe831A",
+    "privateKey": "0x23c7e977dab38e2727a2ddd449c77ddadfb682487a977bafb8a0e69ef1166442",
+    "mnemonic": "rely aspect heart soda afford tomorrow indoor mule reward witness soldier burst",
+    "passwordHash": "$2b$10$bEn7kIidMhVxmwjAzBRSR.PTa2r2YeQtSonHC0GQ1hzmyyWPP7cTq",
+    "initialBalance": "0",
+    "createdAt": "2026-04-17T19:02:59.016Z",
+    "lastLogin": "2026-04-17T19:02:59.073Z"
+  },
+  "98aa2ab88b0e45359129779256d5410554466": {
+    "userId": "98aa2ab88b0e45359129779256d5410554466",
+    "name": "FCI Corporate",
+    "organization": "FCI",
+    "role": "operator",
+    "address": "0xa8cacAC51aC9b2d7c39aA369fE3aFB920C2835C3",
+    "privateKey": "0xa2501eaca4dcb9d187baeb78ebfc4c94ee64d3219119ce913f18e109a1b15e16",
+    "mnemonic": "brief obvious box blood fiber flash spoil basket noise tribe champion cricket",
+    "passwordHash": "$2b$10$iAbTtBhbk7TxGQWhue4m1uTH1D7oydLeQc4w2FLsf.5muD2D6g9Ne",
+    "initialBalance": "0",
+    "createdAt": "2026-04-17T19:02:59.016Z",
+    "lastLogin": null
   }
 }

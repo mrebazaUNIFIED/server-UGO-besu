@@ -75,6 +75,7 @@ struct Loan {
     string PCounty;
     string PValuationDate;
     string PCity;
+    string Address;
 }
 
 struct LoanInput {
@@ -138,6 +139,7 @@ struct LoanInput {
     string PCounty;
     string PValuationDate;
     string PCity;
+    string Address;
 }
 
 struct Change {
@@ -192,4 +194,16 @@ struct LoanUpdateFields {
     string State;
     bool updatePropertyZip;
     string PropertyZip;
+    bool updateAddress;
+    string Address;
+    bool updateLienPosition;
+    uint8 LienPosition;
+    bool updateNoteStatus;
+    string NoteStatus;
+    bool updateCurrentMarketValue;
+    uint256 CurrentMarketValue;
+    bool updateIsBankruptcy;
+    bool IsBankruptcy;
+    bool updateLtv;
+    uint256 Ltv;
 }

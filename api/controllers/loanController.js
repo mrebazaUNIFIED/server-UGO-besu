@@ -45,13 +45,12 @@ function getPrivateKey() {
 
 function resolveWait(query) {
   // Default es FALSE: se envía a la cola y responde PENDING
-  // Se confirman en background con tx.wait()
+  // Se confirma en background con tx.wait()
   return query.wait === 'true';
 }
 
 class LoanController {
   constructor() {
-    // Bind ALL methods to 'this' to prevent issues when used as Express middleware
     const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(this));
     methods.forEach(method => {
       if (method !== 'constructor' && typeof this[method] === 'function') {
@@ -60,12 +59,7 @@ class LoanController {
     });
   }
 
-  /**
-   * ⭐ HELPER: Invalida las listas globales y portafolios de forma SELECTIVA
-   * Si no se proporcionan loanUid/lenderUid, hace flushAll como fallback
-   */
   _invalidateGlobalCache(loanUid, lenderUid) {
-    // Si no hay parámetros, fallback a flushAll (casos edge donde no tenemos info)
     if (!loanUid && !lenderUid) {
       console.log(`[cache] Fallback: flushing ALL GraphQL portfolios (no loanUid/lenderUid provided)`);
       cache.graphql.flushAll();
@@ -74,7 +68,6 @@ class LoanController {
 
     console.log(`[cache] Selective invalidation: loanUid=${loanUid || 'N/A'}, lenderUid=${lenderUid || 'N/A'}`);
 
-    // 1. Invalida listas globales (allloans:*)
     const allKeys = cache.loans.keys();
     const allLoansKeys = allKeys.filter(k => k.startsWith('allloans:'));
     allLoansKeys.forEach(k => cache.loans.del(k));
@@ -83,15 +76,9 @@ class LoanController {
       console.log(`[cache] Deleted ${allLoansKeys.length} global list cache keys`);
     }
 
-    // 2. Invalidación selectiva de GraphQL portfolios (solo usuarios afectados)
-    if (loanUid) {
-      cache.invalidateGraphQLByLoanUid(loanUid);
-    }
-    if (lenderUid) {
-      cache.invalidateGraphQLByLenderUID(lenderUid);
-    }
+    if (loanUid) cache.invalidateGraphQLByLoanUid(loanUid);
+    if (lenderUid) cache.invalidateGraphQLByLenderUID(lenderUid);
   }
-
 
   async createLoan(req, res, next) {
     try {
@@ -120,7 +107,6 @@ class LoanController {
         }
         const result = await loanService.createLoan(privateKey, loanData, { wait });
 
-        // ✅ Invalidar cache al crear un loan nuevo
         cache.loans.del(`lender:loans:${loanData.LenderUid}`);
         this._invalidateGlobalCache(loanData.LoanUid, loanData.LenderUid);
 
@@ -134,27 +120,29 @@ class LoanController {
         const supportedPartialFields = [
           'CurrentBalance', 'NoteRate', 'Status', 'NextDueDate', 'PaidToDate',
           'PaidOffDate', 'DeferredUnpaidInt', 'DeferredLateCharges', 'DeferredUnpaidCharges',
-          'LenderOwnerPct', 'IsForeclosure', 'CoBorrower', 'LenderName', 'City', 'State', 'PropertyZip'
+          'LenderOwnerPct', 'IsForeclosure', 'CoBorrower', 'LenderName', 'City', 'State', 'PropertyZip',
+          'LienPosition', 'NoteStatus', 'CurrentMarketValue', 'IsBankruptcy', 'Ltv', 'Address'
         ];
         const partialUpdateFields = {};
-        supportedPartialFields.forEach(field => { if (loanData[field] !== undefined) partialUpdateFields[field] = loanData[field]; });
+        supportedPartialFields.forEach(field => {
+          if (loanData[field] !== undefined) partialUpdateFields[field] = loanData[field];
+        });
         if (Object.keys(partialUpdateFields).length === 0) {
           return res.status(400).json({ error: 'No valid fields to update', hint: 'Provide at least one of: ' + supportedPartialFields.join(', ') });
         }
         const result = await loanService.updateLoanPartial(privateKey, loanId, partialUpdateFields, { wait });
 
-        // ✅ Invalidar caches al actualizar
         cache.loans.del(`lender:loans:${loanData.LenderUid}`);
         cache.loans.del(`loan:${loanId}`);
         this._invalidateGlobalCache(loanData.LoanUid, loanData.LenderUid);
 
-        return res.json({ success: true, message: 'Loan updated partially', operation: 'PARTIAL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanUid || loanData.LoanUid, updatedFields: Object.keys(partialUpdateFields), data: result });
+        // BUG FIX: era `loanUid` (undefined) — corregido a `loanData.LoanUid`
+        return res.json({ success: true, message: 'Loan updated partially', operation: 'PARTIAL_UPDATE', loanId, lenderUid: loanData.LenderUid, loanUid: loanData.LoanUid, updatedFields: Object.keys(partialUpdateFields), data: result });
       }
 
       console.log(`📝 Detected FULL update: ${providedFields.length} fields provided`);
       const result = await loanService.createLoan(privateKey, loanData, { wait });
 
-      // ✅ Invalidar caches al hacer full update
       cache.loans.del(`lender:loans:${loanData.LenderUid}`);
       cache.loans.del(`loan:${loanId}`);
       this._invalidateGlobalCache(loanData.LoanUid, loanData.LenderUid);
@@ -180,9 +168,8 @@ class LoanController {
       if (!fields || Object.keys(fields).length === 0) return res.status(400).json({ error: 'No fields to update provided' });
       const result = await loanService.updateLoanPartial(privateKey, loanId, fields, { wait });
 
-      // ✅ Invalidar caches
       cache.loans.del(`loan:${loanId}`);
-      this._invalidateGlobalCache(); // No tenemos loanUid aquí, invalidación general
+      this._invalidateGlobalCache();
 
       res.json({ success: true, message: 'Loan updated partially', loanId, updatedFields: Object.keys(fields), data: result });
     } catch (error) {
@@ -203,15 +190,13 @@ class LoanController {
       if (newBalance === undefined && !newStatus && !newPaidToDate) return res.status(400).json({ error: 'Provide at least one field to update: newBalance, newStatus, or newPaidToDate' });
       const result = await loanService.updateLockedLoan(privateKey, loanId, newBalance, newStatus, newPaidToDate);
 
-      // ✅ Invalidar caches
       cache.loans.del(`loan:${loanId}`);
 
-      // Intentar obtener loanUid/lenderUid para invalidación selectiva
       try {
         const loan = await loanService.readLoan(loanId);
         this._invalidateGlobalCache(loan?.LoanUid, loan?.LenderUid);
       } catch {
-        this._invalidateGlobalCache(); // Fallback
+        this._invalidateGlobalCache();
       }
 
       res.json({ success: true, message: 'Locked loan updated successfully', loanId, data: result });
@@ -228,7 +213,7 @@ class LoanController {
   async getLoan(req, res, next) {
     try {
       const { loanId } = req.params;
-      const loan = await loanService.readLoan(loanId); // ✅ cache en service
+      const loan = await loanService.readLoan(loanId);
       res.json({ success: true, data: loan });
     } catch (error) {
       if (error.message.includes('does not exist')) return res.status(404).json({ error: 'Loan not found' });
@@ -240,7 +225,7 @@ class LoanController {
     try {
       const { lenderUid, loanUid } = req.params;
       const loanId = await loanService.generateLoanId(lenderUid, loanUid);
-      const loan = await loanService.readLoan(loanId); // ✅ cache en service
+      const loan = await loanService.readLoan(loanId);
       res.json({ success: true, loanId, lenderUid, loanUid, data: loan });
     } catch (error) {
       if (error.message.includes('does not exist')) {
@@ -255,7 +240,6 @@ class LoanController {
   async getLoansByLenderUid(req, res, next) {
     try {
       const { lenderUid } = req.params;
-      // ✅ cache ya está en findLoansByLenderUid del service — no duplicar aquí
       const loans = await loanService.findLoansByLenderUid(lenderUid);
       res.json({ success: true, count: loans.length, lenderUid, data: loans });
     } catch (error) {
@@ -281,31 +265,30 @@ class LoanController {
       const loan = await loanService.findLoanByLoanUid(loanUid);
       res.json({ success: true, loanUid, data: loan });
     } catch (error) {
-      if (error.message.includes('No loan found')) return res.status(404).json({ error: `Loan not found with LoanUid: ${loanUid}` });
+      if (error.message.includes('No loan found')) return res.status(404).json({ error: `Loan not found with LoanUid: ${req.params.loanUid}` });
       next(error);
     }
   }
 
   async getLoanHistory(req, res, next) {
     try {
-      res.status(501).json({ 
-        success: false, 
-        message: 'Historial On-Chain desactivado en esta versión para optimizar el tamaño del contrato.',
-        hint: 'El historial se consulta ahora mediante la indexación de eventos LoanUpdated/LoanCreated en Besu.' 
-      });
+      const { loanId } = req.params;
+      const history = await loanService.getLoanHistory(loanId);
+      res.json({ success: true, count: history.length, loanId, data: history });
     } catch (error) {
+      console.error('Error in getLoanHistory:', error);
       next(error);
     }
   }
 
   async getLoanByTxId(req, res, next) {
     try {
-      res.status(501).json({ 
-        success: false, 
-        message: 'Consulta por TxId On-Chain desactivada.', 
-        hint: 'Use un indexador de eventos o consulte el Transaction Receipt directamente en el nodo Besu.' 
-      });
+      const { txId } = req.params;
+      const result = await loanService.getLoanByTxId(txId);
+      res.json({ success: true, txId, loan: result.loan, txHash: result.txHash, blockNumber: result.blockNumber, event: result.event });
     } catch (error) {
+      if (error.message.includes('Transaction not found')) return res.status(404).json({ success: false, error: 'Transaction not found' });
+      console.error('Error in getLoanByTxId:', error);
       next(error);
     }
   }
@@ -322,15 +305,13 @@ class LoanController {
       if (isTokenized) return res.status(400).json({ error: 'Cannot delete tokenized loan. Unlock it first.' });
       const result = await loanService.deleteLoan(privateKey, loanId);
 
-      // ✅ Invalidar caches al eliminar
       cache.loans.del(`loan:${loanId}`);
 
-      // Intentar obtener loanUid/lenderUid del loan para invalidación selectiva
       try {
         const loan = await loanService.readLoan(loanId);
         this._invalidateGlobalCache(loan?.LoanUid, loan?.LenderUid);
       } catch {
-        this._invalidateGlobalCache(); // Fallback
+        this._invalidateGlobalCache();
       }
 
       res.json({ success: true, message: 'Loan deleted successfully', loanId, data: result });
@@ -351,9 +332,7 @@ class LoanController {
 
       const cacheKey = `allloans:${offset}:${limit}:${fetchAll}`;
       const cached = cache.loans.get(cacheKey);
-      if (cached) {
-        return res.json(cached);
-      }
+      if (cached) return res.json(cached);
 
       let result;
       if (fetchAll) {
@@ -451,7 +430,7 @@ class LoanController {
       const loan = await loanService.findLoanByLenderAndAccount(lenderUid, account);
       res.json({ success: true, lenderUid, account, data: loan });
     } catch (error) {
-      if (error.message.includes('Loan not found')) return res.status(404).json({ error: `Loan not found for Account: ${lenderUid}, Account: ${account}` });
+      if (error.message.includes('Loan not found')) return res.status(404).json({ error: `Loan not found for LenderUid: ${lenderUid}, Account: ${account}` });
       next(error);
     }
   }
@@ -460,17 +439,9 @@ class LoanController {
     try {
       const token = req.headers.authorization?.split(' ')[1];
       if (!token) return res.status(401).json({ error: 'No token provided' });
-
-      // ✅ Usar el servicio unificado en lugar de duplicar lógica GraphQL
-      // (requiere inyectar o requerir portfolioService)
       const portfolioService = require('../services/PortfolioService');
       const result = await portfolioService.getPortfolio(token);
-
-      res.json({
-        success: true,
-        count: result.totalLoans,
-        data: result.loans
-      });
+      res.json({ success: true, count: result.totalLoans, data: result.loans });
     } catch (error) {
       console.error('❌ getPortfolio:', error.message);
       next(error);
