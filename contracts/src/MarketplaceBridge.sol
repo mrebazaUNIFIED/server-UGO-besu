@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./LoanRegistry.sol";
+import "./LoanStructs.sol";
 
 /**
  * @title MarketplaceBridge - UPGRADEABLE (UUPS)
@@ -34,6 +35,12 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     mapping(bytes32 => string) public txHashToLoanId;
     mapping(string => bytes32) public loanIdToTxHash;
 
+    // 🔥 OPTIMIZATION: Listas internas para evitar bucles O(N) sobre el registry completo
+    string[] private approvedLoanIds;
+    mapping(string => uint256) private approvedLoanIndex; // 1-based index
+    string[] private tokenizedLoanIds;
+    mapping(string => uint256) private tokenizedLoanIndex; // 1-based index
+    
     // ===== EVENTOS =====
     event LoanApprovedForSale(string indexed loanId, address indexed lenderAddress, address originalLenderAddress, uint256 askingPrice, uint256 timestamp);
     event LoanApprovalCancelled(string indexed loanId, address indexed lenderAddress, uint256 timestamp);
@@ -89,7 +96,7 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
         require(sellerAddress != address(0), "Invalid seller address");
         require(originalLenderAddress != address(0), "Invalid lender address");
 
-        LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
+        Loan memory loan = loanRegistry.readLoan(loanId);
         require(loan.CurrentBalance > 0, "Loan balance must be > 0");
         require(keccak256(bytes(loan.Status)) != keccak256(bytes("Paid Off")), "Cannot sell paid off loan");
 
@@ -106,6 +113,13 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
         });
 
         emit LoanApprovedForSale(loanId, sellerAddress, originalLenderAddress, askingPrice, block.timestamp);
+
+        // Agregar a la lista de aprobados para evitar loops O(N)
+        if (approvedLoanIndex[loanId] == 0) {
+            approvedLoanIds.push(loanId);
+            approvedLoanIndex[loanId] = approvedLoanIds.length;
+        }
+
         return true;
     }
 
@@ -143,6 +157,10 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
         require(loanRegistry.unlockLoan(loanId), "Failed to unlock loan");
         emit LoanApprovalCancelled(loanId, msg.sender, block.timestamp);
+
+        // Remover de la lista de aprobados
+        _removeFromApprovedList(loanId);
+
         return true;
     }
 
@@ -176,6 +194,11 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
         require(loanRegistry.unlockLoan(loanId), "Failed to unlock");
         emit NFTBurnConfirmed(loanId, tokenId, block.timestamp);
         emit LoanApprovalCancelled(loanId, approval.lenderAddress, block.timestamp);
+
+        // Remover de ambas listas
+        _removeFromApprovedList(loanId);
+        _removeFromTokenizedList(loanId);
+
         return true;
     }
 
@@ -193,6 +216,13 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
         require(loanRegistry.setAvalancheTokenId(loanId, tokenId), "Failed to set token ID");
         emit AvalancheTokenIdSet(loanId, tokenId, block.timestamp);
+
+        // Agregar a la lista de tokenizados
+        if (tokenizedLoanIndex[loanId] == 0) {
+            tokenizedLoanIds.push(loanId);
+            tokenizedLoanIndex[loanId] = tokenizedLoanIds.length;
+        }
+
         return true;
     }
 
@@ -214,7 +244,7 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     function markLoanAsPaidOff(string memory loanId) external onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
         require(loanApprovals[loanId].isMinted, "Not minted");
-        LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
+        Loan memory loan = loanRegistry.readLoan(loanId);
         require(keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off")), "Loan not paid off");
         emit LoanPaidOff(loanId, block.timestamp);
         return true;
@@ -223,21 +253,20 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     // ===== FUNCIONES AUXILIARES =====
     function getApprovedLoansByLender(address lenderAddress) public view returns (string[] memory) {
         uint256 count = 0;
-        string[] memory allLoanIds = loanRegistry.getAllLoanIds();
-        for (uint256 i = 0; i < allLoanIds.length; i++) {
-            if (loanApprovals[allLoanIds[i]].lenderAddress == lenderAddress &&
-                loanApprovals[allLoanIds[i]].isApproved &&
-                !loanApprovals[allLoanIds[i]].isCancelled) {
+        for (uint256 i = 0; i < approvedLoanIds.length; i++) {
+            if (loanApprovals[approvedLoanIds[i]].lenderAddress == lenderAddress &&
+                loanApprovals[approvedLoanIds[i]].isApproved &&
+                !loanApprovals[approvedLoanIds[i]].isCancelled) {
                 count++;
             }
         }
         string[] memory result = new string[](count);
         uint256 index = 0;
-        for (uint256 i = 0; i < allLoanIds.length; i++) {
-            if (loanApprovals[allLoanIds[i]].lenderAddress == lenderAddress &&
-                loanApprovals[allLoanIds[i]].isApproved &&
-                !loanApprovals[allLoanIds[i]].isCancelled) {
-                result[index] = allLoanIds[i];
+        for (uint256 i = 0; i < approvedLoanIds.length; i++) {
+            if (loanApprovals[approvedLoanIds[i]].lenderAddress == lenderAddress &&
+                loanApprovals[approvedLoanIds[i]].isApproved &&
+                !loanApprovals[approvedLoanIds[i]].isCancelled) {
+                result[index] = approvedLoanIds[i];
                 index++;
             }
         }
@@ -245,20 +274,32 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
     }
 
     function getTokenizedLoans() public view returns (string[] memory) {
-        uint256 count = 0;
-        string[] memory allLoanIds = loanRegistry.getAllLoanIds();
-        for (uint256 i = 0; i < allLoanIds.length; i++) {
-            if (loanRegistry.isLoanTokenized(allLoanIds[i])) count++;
+        return tokenizedLoanIds;
+    }
+
+    // 🔥 HELPERS PRIVADOS PARA MANEJO DE LISTAS
+    function _removeFromApprovedList(string memory loanId) private {
+        uint256 index = approvedLoanIndex[loanId];
+        if (index > 0) {
+            uint256 actualIdx = index - 1;
+            string memory lastId = approvedLoanIds[approvedLoanIds.length - 1];
+            approvedLoanIds[actualIdx] = lastId;
+            approvedLoanIndex[lastId] = index;
+            approvedLoanIds.pop();
+            delete approvedLoanIndex[loanId];
         }
-        string[] memory result = new string[](count);
-        uint256 index = 0;
-        for (uint256 i = 0; i < allLoanIds.length; i++) {
-            if (loanRegistry.isLoanTokenized(allLoanIds[i])) {
-                result[index] = allLoanIds[i];
-                index++;
-            }
+    }
+
+    function _removeFromTokenizedList(string memory loanId) private {
+        uint256 index = tokenizedLoanIndex[loanId];
+        if (index > 0) {
+            uint256 actualIdx = index - 1;
+            string memory lastId = tokenizedLoanIds[tokenizedLoanIds.length - 1];
+            tokenizedLoanIds[actualIdx] = lastId;
+            tokenizedLoanIndex[lastId] = index;
+            tokenizedLoanIds.pop();
+            delete tokenizedLoanIndex[loanId];
         }
-        return result;
     }
 
     function canApproveLoan(string memory loanId) public view returns (bool canApprove, string memory reason) {
@@ -266,7 +307,7 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
         if (loanRegistry.isLoanLocked(loanId)) return (false, "Loan already tokenized");
         if (loanApprovals[loanId].isApproved) return (false, "Already approved");
         if (loanApprovals[loanId].isCancelled) return (false, "Was cancelled");
-        LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
+        Loan memory loan = loanRegistry.readLoan(loanId);
         if (loan.CurrentBalance == 0) return (false, "Loan balance must be > 0");
         if (keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off"))) return (false, "Cannot sell paid off loan");
         return (true, "");
@@ -334,7 +375,7 @@ contract MarketplaceBridge is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     function forceUnlockPaidOffLoan(string memory loanId) external onlyRelayer returns (bool) {
         require(loanRegistry.loanExists(loanId), "Loan does not exist");
-        LoanRegistry.Loan memory loan = loanRegistry.readLoan(loanId);
+        Loan memory loan = loanRegistry.readLoan(loanId);
         require(keccak256(bytes(loan.Status)) == keccak256(bytes("Paid Off")), "Loan not paid off");
 
         if (loanRegistry.isLoanLocked(loanId)) {

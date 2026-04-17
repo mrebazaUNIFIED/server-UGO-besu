@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
 const { readLoadBalancer, getWriteProvider, CONTRACTS, ABIs } = require('../config/blockchain');
+const globalSignerManager = require('../config/signerManager');
 const usfciService = require('./USFCIService');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ class UserRegistryService {
 
   getContract() {
     const provider = getWriteProvider('users');
-    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    const wallet = globalSignerManager.getSigner(process.env.PRIVATE_KEY, provider);
     return new ethers.Contract(this.contractAddress, this.abi, wallet);
   }
 
@@ -24,7 +25,7 @@ class UserRegistryService {
   // ✅ NUEVO: instancia USFCI firmada por el deployer para grantRole
   getUsfciAdminContract() {
     const provider = getWriteProvider('users');
-    const adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    const adminWallet = globalSignerManager.getSigner(process.env.PRIVATE_KEY, provider);
     return new ethers.Contract(CONTRACTS.USFCI, ABIs.USFCI, adminWallet);
   }
 

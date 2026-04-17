@@ -18,7 +18,7 @@ export const TabTraceability: React.FC<ModalProps> = ({ loanUid }) => {
     if (isLoading) {
         return (
             <div className="mt-4 flex justify-center items-center h-64">
-                <p className="text-gray-500">Cargando historial...</p>
+                <p className="text-gray-500">Loading history...</p>
             </div>
         );
     }
@@ -26,7 +26,7 @@ export const TabTraceability: React.FC<ModalProps> = ({ loanUid }) => {
     if (isError) {
         return (
             <div className="mt-4 flex justify-center items-center h-64">
-                <p className="text-red-500">Error al cargar el historial</p>
+                <p className="text-red-500">Error loading history</p>
             </div>
         );
     }

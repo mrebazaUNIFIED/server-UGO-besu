@@ -1,72 +1,38 @@
 {
   "a1b2c3d4-e5f6-4789-1011-121314151617": {
     "userId": "a1b2c3d4-e5f6-4789-1011-121314151617",
-    "name": "Sunwest Bank",
+    "name": "Sunwest",
     "organization": "Sunwest",
     "role": "admin",
-    "address": "0xf06Ec31e796280151F6A420FDe9118dBF8E7285a",
-    "privateKey": "0x842eb5c5e7f23e9b6a56f9036994455033c11f709632ab1e1a80db6401c9c042",
-    "mnemonic": "mobile glide family reason bike atom worry seed glide away poet weasel",
-    "passwordHash": "$2b$10$7Bi.GOA.8tgBs8Zcl1LGUubIkNE3ll5Z0UOnzZRv6PY27TWPC8M6K",
+    "address": "0xa6DFEB8dE6f180D9b4077AD9EDb8fD88a70b3B2b",
+    "privateKey": "0x33416882b8efb73906f7a6ee6e9370e5db70f5c2890b4a9767b56e21141c0e6e",
+    "mnemonic": "before ridge category evoke column lonely public strong misery explain blouse approve",
+    "passwordHash": "$2b$10$GZv0mgQVIEt8nDdzbF9ea.EoHkFJ7VRWCi89Di5nHHB3bKn6noB0i",
     "initialBalance": "0",
-    "createdAt": "2026-04-14T16:57:44.046Z",
-    "lastLogin": "2026-04-14T18:55:50.802Z"
+    "createdAt": "2026-04-16T18:42:53.850Z",
+    "lastLogin": "2026-04-16T18:42:53.915Z"
   },
-  "98aa2ab88b0e45359129779256d541078": {
-    "userId": "98aa2ab88b0e45359129779256d541078",
-    "name": "FCI Corp.",
+  "98aa2ab88b0e45359129779256d5410455": {
+    "userId": "98aa2ab88b0e45359129779256d5410455",
+    "name": "FCI Corporate",
     "organization": "FCI",
     "role": "operator",
-    "address": "0x119b977ef7A3C5DDA1dF2eD658795252dF11B420",
-    "privateKey": "0x5b2a0f8c2d2ce9c3572098037447fe58d48e2536c4fd8aeba94888359b335e1d",
-    "mnemonic": "load tell grace close shadow pepper company brown purchase february decide shoe",
-    "passwordHash": "$2b$10$9LqEtsFdbC2ESvH/7Km1eeGucZalABSpTCVxeUseg6oYUFiQp8H7q",
+    "address": "0xa7f5ac8C07cEcfc4Db24afCbe9fa4aABA83DFb67",
+    "privateKey": "0x529d30baaa649378bc492476503c1c5f1f705f20a1d9903f5137e26497752896",
+    "mnemonic": "pattern bundle mobile fault begin sail member swamp term law cargo session",
+    "passwordHash": "$2b$10$lVRt/mpffTlTKsnYJpIwuuk1b/j9CwdYDyWqjlO9n/MLIj9G0Fh3C",
     "initialBalance": "0",
-    "createdAt": "2026-04-14T16:57:44.046Z",
-    "lastLogin": "2026-04-14T20:26:18.526Z"
+    "createdAt": "2026-04-16T18:42:53.850Z",
+    "lastLogin": "2026-04-16T18:52:31.017Z"
   },
-  "98aa2ab88b0e45359129779256d54106": {
-    "userId": "98aa2ab88b0e45359129779256d54106",
-    "name": "Tim Test",
+  "5e9fc003e9c24bf8a3c1dd02ac1ab426": {
+    "userId": "5e9fc003e9c24bf8a3c1dd02ac1ab426",
+    "name": "Kyle",
     "organization": "FCI",
     "role": "operator",
-    "privateKey": "0xc526e551de6cfc021419a8b110230960dfd70329fdf5b8c5449db98e2b0ef25d",
-    "mnemonic": "unfold police swallow baby color act cream trim pigeon fiction cart element",
     "initialBalance": "0",
-    "createdAt": "2026-04-14T18:52:00.861Z",
-    "lastLogin": null
-  },
-  "98aa2ab88b0e45359129779256d5410534": {
-    "userId": "98aa2ab88b0e45359129779256d5410534",
-    "name": "Tim Test 2",
-    "organization": "FCI",
-    "role": "operator",
-    "privateKey": "0x9261cb7c52a12cd3b40efdef9603d70c401be50845a0d69a63be60d39271bb51",
-    "mnemonic": "ankle garlic permit century cancel walk response kangaroo until enough museum raven",
-    "initialBalance": "0",
-    "createdAt": "2026-04-14T18:52:00.861Z",
-    "lastLogin": null
-  },
-  "98aa2ab88b0e45359129779256d54105346": {
-    "userId": "98aa2ab88b0e45359129779256d54105346",
-    "name": "Tim Test 4",
-    "organization": "FCI",
-    "role": "operator",
-    "privateKey": "0x67a9ae7201afd4ca9adb6328120cbd3b88859bdd4427475fcb48a44e18f56214",
-    "mnemonic": "dice real unaware plastic quote myself gold sail inflict orchard still mountain",
-    "initialBalance": "0",
-    "createdAt": "2026-04-14T20:26:18.466Z",
-    "lastLogin": null
-  },
-  "98aa2ab88b0e45359129779256d5410534656": {
-    "userId": "98aa2ab88b0e45359129779256d5410534656",
-    "name": "Tim Test 5",
-    "organization": "FCI",
-    "role": "operator",
-    "privateKey": "0x3599833a544570bbac1c395c09d312de0c6fdcaefc108c345e8a7dcb7e28beb7",
-    "mnemonic": "demand enable bag quarter witness angry when laundry deputy brown staff happy",
-    "initialBalance": "0",
-    "createdAt": "2026-04-14T20:26:18.466Z",
-    "lastLogin": null
+    "walletAddress": "0xB2709B680449c7D04FCbD800F7CD28f63D282a7e",
+    "privateKey": "0xdfbd236d00df4cf384d031579cf15b45c8f4dfa93fb6c6fc524c47cf8f423a5a",
+    "mnemonic": "raven now negative outdoor gap give sunset powder obscure copy time emotion"
   }
 }

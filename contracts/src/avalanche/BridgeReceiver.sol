@@ -11,6 +11,7 @@ interface ILoanNFT {
         uint256 currentBalance,
         uint256 noteRate,
         uint256 lenderOwnerPct,
+        address originalLenderAddress, // ⭐ NUEVO
         string memory status,
         string memory location
     ) external returns (uint256);
@@ -138,6 +139,7 @@ contract BridgeReceiver is Ownable {
         uint256 currentBalance,
         uint256 noteRate,
         uint256 lenderOwnerPct,
+        address originalLenderAddress, // ⭐ NUEVO
         string memory status,
         string memory location,
         uint256 timestamp,
@@ -154,6 +156,7 @@ contract BridgeReceiver is Ownable {
                 currentBalance,
                 noteRate,
                 lenderOwnerPct,
+                originalLenderAddress, // ⭐ NUEVO
                 status,
                 location,
                 timestamp,
@@ -185,6 +188,7 @@ contract BridgeReceiver is Ownable {
             currentBalance,
             noteRate,
             lenderOwnerPct,
+            originalLenderAddress, // ⭐ NUEVO
             status,
             location
         );

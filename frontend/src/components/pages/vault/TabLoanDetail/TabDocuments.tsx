@@ -14,7 +14,7 @@ export const TabDocuments: React.FC<ModalProps> = ({ account }) => {
     if (!key) throw new Error("Missing vaultKey in localStorage");
 
     const graphql = JSON.stringify({
-        query: `
+      query: `
         {
           getLoanAttachmentsBC(account: "${account}") {
             loanUid,
@@ -27,7 +27,7 @@ export const TabDocuments: React.FC<ModalProps> = ({ account }) => {
           }
         }
       `,
-      });
+    });
 
     const requestOptions: RequestInit = {
       method: "POST",
@@ -38,12 +38,12 @@ export const TabDocuments: React.FC<ModalProps> = ({ account }) => {
       body: graphql,
     };
 
-    const response = await fetch("https://fapi.myfci.com/graphql", requestOptions);
+    const response = await fetch("https://tapi.myfci.com/graphql", requestOptions);
     const result = await response.json();
 
     const data = result?.data?.getLoanAttachmentsBC;
     if (!data) throw new Error("Failed to fetch loan history");
-    const  dataLoanAttachments = data.filter((x: IPFS) => x.ipfshash !== "" && x.ipfshash !== null) as IPFS[];
+    const dataLoanAttachments = data.filter((x: IPFS) => x.ipfshash !== "" && x.ipfshash !== null) as IPFS[];
 
     return dataLoanAttachments;
   };
@@ -55,7 +55,7 @@ export const TabDocuments: React.FC<ModalProps> = ({ account }) => {
   } = useQuery({
     queryKey: ["IPFS", account],
     queryFn: fetchLoanHistory,
-    enabled: !!account, 
+    enabled: !!account,
     refetchOnWindowFocus: false
   });
 
@@ -89,8 +89,8 @@ export const TabDocuments: React.FC<ModalProps> = ({ account }) => {
               <tr>
                 <th className="p-2 sticky top-0 bg-blue-500 z-10 min-w-32">Description</th>
                 <th className="p-2 sticky top-0 bg-blue-500 z-10 min-w-32">Type</th>
-                <th className="p-2 sticky top-0 bg-blue-500 z-10 min-w-40">Date</th>   
-                <th className="p-2 sticky top-0 bg-blue-500 z-10 min-w-40">Code</th>             
+                <th className="p-2 sticky top-0 bg-blue-500 z-10 min-w-40">Date</th>
+                <th className="p-2 sticky top-0 bg-blue-500 z-10 min-w-40">Code</th>
               </tr>
             </thead>
 
@@ -103,11 +103,11 @@ export const TabDocuments: React.FC<ModalProps> = ({ account }) => {
                 </tr>
               ) : (
                 LoanAttachments.map((item, idx) => (
-                  <tr key={idx} className="border-t hover:bg-gray-50 transition-colors ">             
+                  <tr key={idx} className="border-t hover:bg-gray-50 transition-colors ">
                     <td className="p-2 min-w-40">{item.name}</td>
                     <td className="p-2 min-w-32 text-center">{item.type}</td>
-                    <td className="p-2 min-w-32 text-center">{dateFormat2(item.date) }</td>
-                    <td className="p-2 min-w-32 text-center">{item.code}</td>    
+                    <td className="p-2 min-w-32 text-center">{dateFormat2(item.date)}</td>
+                    <td className="p-2 min-w-32 text-center">{item.code}</td>
                   </tr>
                 ))
               )}

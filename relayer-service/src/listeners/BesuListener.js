@@ -37,28 +37,39 @@ class BesuListener {
       this.contract.on('LoanApprovedForSale', async (
         loanIdHash,
         lenderAddress,
+        originalLenderAddress, // ← Falta este argumento
         askingPrice,
         timestamp,
-        eventObj  // ← Renombrado
+        eventObj
       ) => {
         try {
+          const txHash = eventObj?.log?.transactionHash || eventObj?.transactionHash;
+          
+          logger.info('LoanApprovedForSale event detected', {
+            loanIdHash,
+            txHash,
+            askingPrice: askingPrice.toString()
+          });
+
           // Decodificar la transacción para obtener el loanId original
-          const loanId = await this._getLoanIdFromTransaction(eventObj?.log?.transactionHash || eventObj?.transactionHash);
+          const loanId = await this._getLoanIdFromTransaction(txHash);
 
           await this._handleEvent('LoanApprovedForSale', {
             loanId,
             loanIdHash,
             lenderAddress,
+            originalLenderAddress,
             askingPrice: askingPrice.toString(),
             timestamp: timestamp.toString(),
-            transactionHash: eventObj?.log?.transactionHash || eventObj?.transactionHash,
+            transactionHash: txHash,
             blockNumber: eventObj?.log?.blockNumber,
             logIndex: eventObj?.log?.index
           });
         } catch (error) {
           logger.error('Error processing LoanApprovedForSale event', {
             error: error.message,
-            loanIdHash
+            loanIdHash,
+            txHash: eventObj?.log?.transactionHash || eventObj?.transactionHash
           });
         }
       });

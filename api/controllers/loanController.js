@@ -288,23 +288,24 @@ class LoanController {
 
   async getLoanHistory(req, res, next) {
     try {
-      const { loanId } = req.params;
-      const history = await loanService.getLoanHistory(loanId);
-      res.json({ success: true, count: history.length, loanId, data: history });
+      res.status(501).json({ 
+        success: false, 
+        message: 'Historial On-Chain desactivado en esta versión para optimizar el tamaño del contrato.',
+        hint: 'El historial se consulta ahora mediante la indexación de eventos LoanUpdated/LoanCreated en Besu.' 
+      });
     } catch (error) {
-      console.error('Error in getLoanHistory:', error);
       next(error);
     }
   }
 
   async getLoanByTxId(req, res, next) {
     try {
-      const { txId } = req.params;
-      const result = await loanService.getLoanByTxId(txId);
-      res.json({ success: true, txId, loan: result.loan, changes: result.changes });
+      res.status(501).json({ 
+        success: false, 
+        message: 'Consulta por TxId On-Chain desactivada.', 
+        hint: 'Use un indexador de eventos o consulte el Transaction Receipt directamente en el nodo Besu.' 
+      });
     } catch (error) {
-      if (error.message.includes('Transaction not found')) return res.status(404).json({ success: false, error: 'Transaction not found' });
-      if (error.message.includes('Loan state not found')) return res.status(404).json({ success: false, error: 'Loan state not found for this TxId' });
       next(error);
     }
   }

@@ -728,34 +728,11 @@ class LoanRegistryService extends BaseContractService {
   }
 
   async getLoanHistory(loanId) {
-    const normalizedLoanId = this.normalizeLoanId(loanId);
-    const contract = this.getContractReadOnly();
-    const result = await contract.getLoanHistoryWithChanges(normalizedLoanId, { gasLimit: 100000000 });
-
-    const history = [];
-    for (let i = 0; i < result.txIds.length; i++) {
-      const changes = await contract.getActivityChanges(result.txIds[i], { gasLimit: 100000000 });
-      history.push({
-        TxId: this.bytes32ToHex(result.txIds[i]),
-        Timestamp: new Date(Number(result.timestamps[i]) * 1000),
-        IsDelete: result.isDeletes[i],
-        ChangeCount: Number(result.changeCounts[i]),
-        Changes: changes.map(c => ({ PropertyName: c.PropertyName, OldValue: c.OldValue, NewValue: c.NewValue }))
-      });
-    }
-    return history;
+    throw new Error('Historial On-Chain desactivado. Consulte los logs del evento LoanUpdated para auditoría histórica.');
   }
 
   async getLoanByTxId(txId) {
-    const contract = this.getContractReadOnly();
-    try {
-      const result = await contract.getLoanByTxId(txId, { gasLimit: 100000000 });
-      return { loan: this._formatLoan(result[0]), changes: result[1].map(c => ({ PropertyName: c.PropertyName, OldValue: c.OldValue, NewValue: c.NewValue })) };
-    } catch (error) {
-      if (error.message.includes('Transaction not found')) throw new Error('Transaction not found');
-      if (error.message.includes('Loan state not found')) throw new Error('Loan state not found for this TxId');
-      throw error;
-    }
+    throw new Error('Búsqueda por TxId On-Chain desactivada. El historial se gestiona mediante indexación de eventos.');
   }
 
   async deleteLoan(privateKey, loanId) {

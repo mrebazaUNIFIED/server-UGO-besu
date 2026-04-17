@@ -40,6 +40,7 @@ contract LoanNFT is ERC721, Ownable {
         uint256 currentBalance; // CurrentBalance
         uint256 noteRate; // NoteRate (tasa de interés)
         uint256 lenderOwnerPct; // LenderOwnerPct (porcentaje del lender)
+        address originalLenderAddress; // ⭐ NUEVO: Address original en Besu
         // Campos de estado
         string status; // Status (ForSale, Sold, etc.)
         string location; // City + State
@@ -57,6 +58,7 @@ contract LoanNFT is ERC721, Ownable {
         address indexed lender,
         uint256 originalBalance,
         uint256 currentBalance,
+        address originalLenderAddress, // ⭐ NUEVO
         uint256 timestamp
     );
 
@@ -112,6 +114,7 @@ contract LoanNFT is ERC721, Ownable {
         uint256 currentBalance,
         uint256 noteRate,
         uint256 lenderOwnerPct,
+        address originalLenderAddress, // ⭐ NUEVO
         string memory status,
         string memory location
     ) external onlyBridge returns (uint256) {
@@ -137,6 +140,7 @@ contract LoanNFT is ERC721, Ownable {
             currentBalance: currentBalance,
             noteRate: noteRate,
             lenderOwnerPct: lenderOwnerPct,
+            originalLenderAddress: originalLenderAddress,
             status: status,
             location: location,
             mintedAt: block.timestamp,
@@ -149,6 +153,7 @@ contract LoanNFT is ERC721, Ownable {
             lenderAddress,
             originalBalance,
             currentBalance,
+            originalLenderAddress,
             block.timestamp
         );
 

@@ -31,6 +31,7 @@ class LoanApprovedHandler extends BaseHandler {
       const {
         loanId,
         lenderAddress,
+        originalLenderAddress, // ← Añadido
         askingPrice,
         transactionHash
       } = event;
@@ -42,6 +43,7 @@ class LoanApprovedHandler extends BaseHandler {
       logger.info('Procesando aprobación de préstamo', {
         loanId,
         lender: lenderAddress,
+        originalLender: originalLenderAddress,
         price: askingPrice?.toString(),
         approvalTxHash: transactionHash
       });
@@ -170,8 +172,8 @@ class LoanApprovedHandler extends BaseHandler {
 
       const messageHash = ethers.keccak256(
         ethers.solidityPacked(
-          ['string', 'string', 'address', 'uint256', 'uint256', 'uint256', 'uint256', 'string', 'string', 'uint256', 'uint256'],
-          ['MINT', loanId, lenderAddress, originalBalance, currentBalance, noteRate, lenderOwnerPct, status, location, mintTimestamp, mintNonce]
+          ['string', 'string', 'address', 'uint256', 'uint256', 'uint256', 'uint256', 'address', 'string', 'string', 'uint256', 'uint256'],
+          ['MINT', loanId, lenderAddress, originalBalance, currentBalance, noteRate, lenderOwnerPct, originalLenderAddress, status, location, mintTimestamp, mintNonce]
         )
       );
 
@@ -213,6 +215,7 @@ class LoanApprovedHandler extends BaseHandler {
         currentBalance,
         noteRate,
         lenderOwnerPct,
+        originalLenderAddress, // ⭐ NUEVO
         status,
         location,
         mintTimestamp,

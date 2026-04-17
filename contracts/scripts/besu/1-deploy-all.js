@@ -47,13 +47,28 @@ async function main() {
   const usfciAddress = await usfci.getAddress();
   console.log("✅ USFCI:", usfciAddress);
 
+  // 2.5 Deploy LoanLib
+  console.log("\n📝 Deploying LoanLib (External Logic)...");
+  const LoanLib = await hre.ethers.getContractFactory("LoanLib");
+  const loanLib = await LoanLib.deploy();
+  await loanLib.waitForDeployment();
+  const loanLibAddress = await loanLib.getAddress();
+  console.log("✅ LoanLib:", loanLibAddress);
+
   // 3. Deploy LoanRegistry
   console.log("\n📝 Deploying LoanRegistry...");
-  const LoanRegistry = await hre.ethers.getContractFactory("LoanRegistry");
+  const LoanRegistry = await hre.ethers.getContractFactory("LoanRegistry", {
+    libraries: {
+      LoanLib: loanLibAddress,
+    },
+  });
   const loanRegistry = await upgrades.deployProxy(
     LoanRegistry,
     [deployer.address, userRegistryAddress],
-    { kind: "uups" }
+    { 
+      kind: "uups",
+      unsafeAllowLinkedLibraries: true 
+    }
   );
   await loanRegistry.waitForDeployment();
   const loanRegistryAddress = await loanRegistry.getAddress();
