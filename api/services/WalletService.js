@@ -1,153 +1,103 @@
-// services/WalletService.js
-const fs = require('fs');
-const path = require('path');
+const { ethers } = require('ethers');
+const supabase = require('../config/supabase');
 
 class WalletService {
-  constructor() {
-    this.usersFilePath = path.join(__dirname, '../data/users.json');
+  async getPrivateKeyByUserId(userId) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('encrypted_keystore')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error || !user) throw new Error(`Usuario con userId ${userId} no encontrado`);
+    if (!user.encrypted_keystore) throw new Error(`Usuario ${userId} no tiene privateKey configurada`);
+
+    const wallet = await ethers.Wallet.fromEncryptedJson(
+      user.encrypted_keystore,
+      process.env.MASTER_KEYSTORE_PASSWORD
+    );
+    return wallet.privateKey;
   }
 
-  /**
-   * Obtener la private key de un usuario por su userId
-   */
-  getPrivateKeyByUserId(userId) {
-    try {
-      const usersData = fs.readFileSync(this.usersFilePath, 'utf8');
-      const users = JSON.parse(usersData);
-      
-      const user = users[userId];
-      
-      if (!user) {
-        throw new Error(`Usuario con userId ${userId} no encontrado`);
-      }
-      
-      if (!user.privateKey) {
-        throw new Error(`Usuario ${userId} no tiene privateKey configurada`);
-      }
-      
-      return user.privateKey;
-    } catch (error) {
-      console.error('❌ Error obteniendo privateKey:', error.message);
-      throw error;
-    }
+  async getAddressByUserId(userId) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('address')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error || !user) throw new Error(`Usuario con userId ${userId} no encontrado`);
+    return user.address;
   }
 
-  /**
-   * Obtener la address de un usuario por su userId
-   */
-  getAddressByUserId(userId) {
-    try {
-      const usersData = fs.readFileSync(this.usersFilePath, 'utf8');
-      const users = JSON.parse(usersData);
-      
-      const user = users[userId];
-      
-      if (!user) {
-        throw new Error(`Usuario con userId ${userId} no encontrado`);
-      }
-      
-      if (!user.address) {
-        throw new Error(`Usuario ${userId} no tiene address configurada`);
-      }
-      
-      return user.address;
-    } catch (error) {
-      console.error('❌ Error obteniendo address:', error.message);
-      throw error;
-    }
+  async getUserInfo(userId) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('user_id, name, organization, role, address')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error || !user) throw new Error(`Usuario con userId ${userId} no encontrado`);
+
+    return {
+      userId: user.user_id,
+      name: user.name,
+      organization: user.organization,
+      role: user.role,
+      address: user.address
+    };
   }
 
-  /**
-   * Obtener información completa de un usuario
-   */
-  getUserInfo(userId) {
-    try {
-      const usersData = fs.readFileSync(this.usersFilePath, 'utf8');
-      const users = JSON.parse(usersData);
-      
-      const user = users[userId];
-      
-      if (!user) {
-        throw new Error(`Usuario con userId ${userId} no encontrado`);
-      }
-      
-      // No exponemos la privateKey en la info general
-      return {
-        userId: user.userId,
-        name: user.name,
-        organization: user.organization,
-        role: user.role,
-        address: user.address
-      };
-    } catch (error) {
-      console.error('❌ Error obteniendo info de usuario:', error.message);
-      throw error;
-    }
+  async userExists(userId) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    return !!user;
   }
 
-  /**
-   * Verificar si un userId existe
-   */
-  userExists(userId) {
-    try {
-      const usersData = fs.readFileSync(this.usersFilePath, 'utf8');
-      const users = JSON.parse(usersData);
-      return !!users[userId];
-    } catch (error) {
-      return false;
-    }
+  async convertUserIdsToAddresses(userIds) {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('user_id, address')
+      .in('user_id', userIds);
+
+    if (error) throw new Error(`Error consultando usuarios: ${error.message}`);
+
+    return userIds.map(id => {
+      const found = users.find(u => u.user_id === id);
+      if (!found) throw new Error(`No se encontró address para userId: ${id}`);
+      return found.address;
+    });
   }
 
-  /**
-   * Convertir array de userIds a addresses
-   */
-  convertUserIdsToAddresses(userIds) {
-    return userIds.map(userId => this.getAddressByUserId(userId));
+  async getUserIdByAddress(address) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('user_id')
+      .ilike('address', address)
+      .maybeSingle();
+
+    if (error || !user) throw new Error(`No se encontró userId para la address ${address}`);
+    return user.user_id;
   }
 
-  /**
-   * Obtener el userId de un usuario por su address
-   * @param {string} address - La wallet address
-   * @returns {string} - El userId correspondiente
-   */
-  getUserIdByAddress(address) {
-    try {
-      const usersData = fs.readFileSync(this.usersFilePath, 'utf8');
-      const users = JSON.parse(usersData);
-      
-      // Normalizar address a lowercase para comparación
-      const normalizedAddress = address.toLowerCase();
-      
-      // Buscar el userId que corresponde a esta address
-      for (const [userId, userData] of Object.entries(users)) {
-        if (userData.address && userData.address.toLowerCase() === normalizedAddress) {
-          return userId;
-        }
-      }
-      
-      throw new Error(`No se encontró userId para la address ${address}`);
-    } catch (error) {
-      console.error('❌ Error obteniendo userId por address:', error.message);
-      throw error;
-    }
-  }
+  async convertAddressesToUserIds(addresses) {
+    if (!Array.isArray(addresses)) throw new Error('addresses debe ser un array');
 
-  /**
-   * Convertir array de addresses a userIds
-   * @param {string[]} addresses - Array de wallet addresses
-   * @returns {string[]} - Array de userIds correspondientes
-   */
-  convertAddressesToUserIds(addresses) {
-    if (!Array.isArray(addresses)) {
-      throw new Error('addresses debe ser un array');
-    }
-    
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('user_id, address')
+      .in('address', addresses.map(a => a.toLowerCase()));
+
+    if (error) throw new Error(`Error consultando usuarios: ${error.message}`);
+
     return addresses.map(address => {
-      const userId = this.getUserIdByAddress(address);
-      if (!userId) {
-        throw new Error(`No se encontró userId para la address: ${address}`);
-      }
-      return userId;
+      const found = users.find(u => u.address.toLowerCase() === address.toLowerCase());
+      if (!found) throw new Error(`No se encontró userId para la address: ${address}`);
+      return found.user_id;
     });
   }
 }

@@ -2,8 +2,7 @@ const { ethers } = require('ethers');
 const { readLoadBalancer, getWriteProvider, CONTRACTS, ABIs } = require('../config/blockchain');
 const globalSignerManager = require('../config/signerManager');
 const usfciService = require('./USFCIService');
-const fs = require('fs');
-const path = require('path');
+const supabase = require('../config/supabase');
 
 class UserRegistryService {
   constructor() {
@@ -22,7 +21,6 @@ class UserRegistryService {
     return new ethers.Contract(this.contractAddress, this.abi, provider);
   }
 
-  // ✅ NUEVO: instancia USFCI firmada por el deployer para grantRole
   getUsfciAdminContract() {
     const provider = getWriteProvider('users');
     const adminWallet = globalSignerManager.getSigner(process.env.PRIVATE_KEY, provider);
@@ -34,21 +32,35 @@ class UserRegistryService {
     let generated = false;
 
     if (!userData.walletAddress) {
-      wallet = ethers.Wallet.createRandom();
+      // Check Supabase first — reuse wallet if userId already exists (network reset scenario)
+      const { data: existing } = await supabase
+        .from('users')
+        .select('address, encrypted_keystore')
+        .eq('user_id', userData.userId)
+        .maybeSingle();
+
+      if (existing) {
+        wallet = await ethers.Wallet.fromEncryptedJson(
+          existing.encrypted_keystore,
+          process.env.MASTER_KEYSTORE_PASSWORD
+        );
+        console.log(`♻️  Wallet reutilizada para ${userData.userId}: ${wallet.address}`);
+      } else {
+        wallet = ethers.Wallet.createRandom();
+        console.log(`Wallet generada: ${wallet.address}`);
+      }
+
       generated = true;
       userData.walletAddress = wallet.address;
-      console.log(`Wallet generada: ${wallet.address}`);
     }
 
     try {
       const contract = this.getContract();
-      
-      // ✅ 0. Verificar si ya está registrado en UserRegistry para evitar revert
+
       const isRegistered = await this.userRegistered(userData.walletAddress);
       if (isRegistered) {
         console.log(`⚠️ La wallet ${userData.walletAddress} ya está registrada en UserRegistry. Intentando continuar con el resto del flujo...`);
       } else {
-        // 1. Financiar si es necesario (solo si se genera o si no tiene balance)
         if (userData.initialBalance && userData.initialBalance !== "0") {
           const provider = getWriteProvider('users');
           const funderWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
@@ -62,7 +74,6 @@ class UserRegistryService {
           console.log(`✓ Financiado con ${userData.initialBalance} ETH`);
         }
 
-        // 2. Registrar en UserRegistry
         console.log('Enviando registro a la Blockchain (UserRegistry)...');
         const tx = await contract.registerUser(
           userData.walletAddress,
@@ -76,8 +87,6 @@ class UserRegistryService {
         console.log(`✓ Usuario registrado en bloque ${receipt.blockNumber}`);
       }
 
-      // 4. Registrar wallet en USFCI (solo si fue generada o si no está registrada)
-      // Si la wallet NO fue generada por el servidor, no tenemos su PK, así que usamos un fallback.
       if (generated) {
         console.log('Registrando wallet en USFCI...');
         try {
@@ -97,7 +106,6 @@ class UserRegistryService {
         console.log('⚠️ Wallet manual: omitiendo registerWallet en USFCI (se requiere firma del dueño).');
       }
 
-      // 5. Auto-aprobar KYC (esto lo hace el admin, así que siempre se puede)
       console.log('Aprobando KYC en USFCI...');
       try {
         await usfciService.updateComplianceStatus(
@@ -111,11 +119,9 @@ class UserRegistryService {
         console.warn('⚠️ No se pudo actualizar compliance status:', e.message);
       }
 
-      // ✅ 6. Otorgar roles on-chain
       await this._grantBlockchainRoles(userData.walletAddress, userData.role);
 
-      // 7. Guardar datos locales (Dev)
-      if (generated) this._saveUserLocally(userData, wallet);
+      if (generated) await this._saveUserToSupabase(userData, wallet);
 
       return {
         success: true,
@@ -131,10 +137,6 @@ class UserRegistryService {
     }
   }
 
-  // ✅ NUEVO MÉTODO
-  // - admin   → MINTER_ROLE + BURNER_ROLE + COMPLIANCE_ROLE
-  // - operator / user → sin roles especiales (solo pueden transferir,
-  //   el contrato no exige rol para transfer(), solo KYC aprobado)
   async _grantBlockchainRoles(walletAddress, role) {
     if (role !== 'admin') {
       console.log(`  → Rol "${role}": sin roles on-chain necesarios (transfer no requiere rol)`);
@@ -165,6 +167,23 @@ class UserRegistryService {
     } catch (error) {
       console.warn(`⚠️ Error otorgando roles (posiblemente ya los tiene): ${error.message}`);
     }
+  }
+
+  async _saveUserToSupabase(userData, wallet) {
+    const encrypted = await wallet.encrypt(process.env.MASTER_KEYSTORE_PASSWORD);
+
+    const { error } = await supabase.from('users').upsert({
+      user_id: userData.userId,
+      name: userData.name,
+      organization: userData.organization,
+      role: userData.role,
+      address: wallet.address,
+      encrypted_keystore: encrypted,
+      initial_balance: userData.initialBalance || '0'
+    }, { onConflict: 'user_id' });
+
+    if (error) throw new Error(`Error guardando usuario en Supabase: ${error.message}`);
+    console.log(`✓ Usuario guardado en Supabase`);
   }
 
   // ── Sin cambios debajo ───────────────────────────────────────────────────
@@ -246,19 +265,6 @@ class UserRegistryService {
       registeredAt: new Date(Number(user.registeredAt) * 1000),
       isActive: user.isActive
     };
-  }
-
-  _saveUserLocally(userData, wallet) {
-    const userDataDir = path.join(__dirname, '..', 'data');
-    if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir, { recursive: true });
-    const usersFile = path.join(userDataDir, 'users.json');
-    let users = fs.existsSync(usersFile) ? JSON.parse(fs.readFileSync(usersFile)) : {};
-    users[userData.userId] = {
-      ...userData,
-      privateKey: wallet.privateKey,
-      mnemonic: wallet.mnemonic.phrase
-    };
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
   }
 }
 

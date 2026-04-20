@@ -9,6 +9,14 @@ const serializeBigInt = (obj) => {
 const registerUser = async (req, res, next) => {
   try {
     const { initialBalance, ...userData } = req.body;
+
+    if (!userData.userId || typeof userData.userId !== 'string') {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
+    if (!userData.name || !userData.organization || !userData.role) {
+      return res.status(400).json({ success: false, error: 'name, organization and role are required' });
+    }
+
     const result = await userService.registerUser({ ...userData, initialBalance });
     res.status(201).json({ success: true, data: serializeBigInt(result) });
   } catch (error) {

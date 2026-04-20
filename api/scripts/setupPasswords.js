@@ -1,12 +1,11 @@
-// scripts/setupPasswords.js
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const bcrypt = require('bcryptjs');
-const fs = require('fs').promises;
-const path = require('path');
+const supabase = require('../config/supabase');
 
 const setupPasswords = async () => {
   console.log('🔐 Configurando contraseñas para usuarios...\n');
 
-  // Define las contraseñas para cada wallet
+  // address → password
   const passwords = {
     '0x3F45A9a959a008dfD762DDF7D8f330AaE48ca677': 'Nuevapassword',
     '0x90D65fCF764aba7416be105e8f6cC11c928d97ac': 'Nuevapassword',
@@ -15,46 +14,59 @@ const setupPasswords = async () => {
   };
 
   try {
-    // Leer archivo de usuarios
-    const usersFile = path.join(__dirname, '../data/users.json');
-    const data = await fs.readFile(usersFile, 'utf8');
-    const users = JSON.parse(data);
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('user_id, name, address, role');
 
-    // Agregar passwordHash a cada usuario
-    for (const [userId, user] of Object.entries(users)) {
-      const password = passwords[user.address];
+    if (error) throw new Error(`Error consultando Supabase: ${error.message}`);
+    if (!users || users.length === 0) {
+      console.log('⚠️  No se encontraron usuarios en Supabase.');
+      return;
+    }
 
-      if (password) {
-        const passwordHash = await bcrypt.hash(password, 10);
-        user.passwordHash = passwordHash;
+    for (const user of users) {
+      const normalizedAddress = Object.keys(passwords).find(
+        addr => addr.toLowerCase() === user.address.toLowerCase()
+      );
+      const password = normalizedAddress ? passwords[normalizedAddress] : null;
 
+      if (!password) {
+        console.log(`⚠️  Sin password definida para ${user.address}`);
+        continue;
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ password_hash: passwordHash })
+        .eq('user_id', user.user_id);
+
+      if (updateError) {
+        console.error(`❌ Error actualizando ${user.name}: ${updateError.message}`);
+      } else {
         console.log(`✅ ${user.name} (${user.address})`);
         console.log(`   Password: ${password}`);
         console.log(`   Hash: ${passwordHash.substring(0, 20)}...`);
         console.log('');
-      } else {
-        console.log(`⚠️  No password defined for ${user.address}`);
       }
     }
-
-    // Guardar archivo actualizado
-    await fs.writeFile(usersFile, JSON.stringify(users, null, 2));
 
     console.log('✅ Contraseñas configuradas exitosamente!');
     console.log('\n📝 Credenciales de acceso:');
     console.log('═══════════════════════════════════════════════════════════');
-
-    for (const [userId, user] of Object.entries(users)) {
-      const password = passwords[user.address];
+    for (const user of users) {
+      const normalizedAddress = Object.keys(passwords).find(
+        addr => addr.toLowerCase() === user.address.toLowerCase()
+      );
+      const password = normalizedAddress ? passwords[normalizedAddress] : null;
       if (password) {
         console.log(`\n${user.name} (${user.role.toUpperCase()})`);
         console.log(`Wallet: ${user.address}`);
         console.log(`Password: ${password}`);
       }
     }
-
     console.log('\n═══════════════════════════════════════════════════════════');
-
   } catch (error) {
     console.error('❌ Error:', error.message);
   }
